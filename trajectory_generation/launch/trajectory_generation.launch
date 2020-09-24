@@ -30,6 +30,9 @@
       <remap from="~constraints_in" to="control_manager/current_constraints" />
       <remap from="~path_in" to="~path_in" />
 
+      <!-- Service servers -->
+      <remap from="~test_in" to="~test" />
+
       <!-- Service clients -->
       <remap from="~trajectory_reference_out" to="control_manager/trajectory_reference" />
 
