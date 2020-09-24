@@ -6,7 +6,7 @@ sources:
   sparse_paths:
   -
   rev: master
-  link: lib/catkin_simple
+  link: dependencies/catkin_simple
   scripts:
   - git submodule update --init --recursive
 - name: glog_catkin
@@ -15,7 +15,7 @@ sources:
   sparse_paths:
   -
   rev: master
-  link: lib/glog_catkin
+  link: dependencies/glog_catkin
   scripts:
   - git submodule update --init --recursive
 - name: nlopt
@@ -24,7 +24,7 @@ sources:
   sparse_paths:
   -
   rev: master
-  link: lib/nlopt
+  link: dependencies/nlopt
   scripts:
   - git submodule update --init --recursive
 
