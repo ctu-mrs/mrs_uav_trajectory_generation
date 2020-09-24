@@ -1,0 +1,40 @@
+<launch>
+
+  <!-- defines name of the namespace of the drone -->
+  <arg name="UAV_NAME" default="$(env UAV_NAME)" />
+
+  <!-- will it run using GNU debugger? -->
+  <arg name="DEBUG" default="false" />
+  <arg unless="$(arg DEBUG)" name="launch_prefix_debug" value=""/>
+  <arg     if="$(arg DEBUG)" name="launch_prefix_debug" value="debug_roslaunch"/>
+
+  <!-- will it run as standalone nodelet or using a nodelet manager? -->
+  <arg name="standalone" default="true" />
+  <arg name="manager" default="$(arg UAV_NAME)_trajectory_generation" />
+  <arg name="n_threads" default="8" />
+  <arg unless="$(arg standalone)" name="nodelet" value="load"/>
+  <arg     if="$(arg standalone)" name="nodelet" value="standalone"/>
+  <arg unless="$(arg standalone)" name="nodelet_manager" value="$(arg manager)"/>
+  <arg     if="$(arg standalone)" name="nodelet_manager" value=""/>
+
+  <!-- Namespace -->
+  <group ns="$(arg UAV_NAME)">
+
+    <!-- WaypointFlier nodelet -->
+    <node pkg="nodelet" type="nodelet" name="trajectory_generation" args="$(arg nodelet) trajectory_generation/TrajectoryGeneration $(arg nodelet_manager)" launch-prefix="$(arg launch_prefix_debug)" output="screen">
+
+      <!-- ROS parameters config file -->
+      <rosparam file="$(find trajectory_generation)/config/default.yaml" />
+
+        <!-- Subscribers -->
+      <remap from="~constraints_in" to="control_manager/current_constraints" />
+      <remap from="~path_in" to="~path_in" />
+
+      <!-- Service clients -->
+      <remap from="~trajectory_reference_out" to="control_manager/trajectory_reference" />
+
+    </node>
+
+  </group>
+
+</launch>

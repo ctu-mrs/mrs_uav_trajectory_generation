@@ -1,0 +1,5 @@
+<library path="lib/libTrajectoryGenerationNodelet">
+  <class name="trajectory_generation/TrajectoryGeneration" type="trajectory_generation::TrajectoryGeneration" base_class_type="nodelet::Nodelet">
+    <description>TrajectoryGeneration nodelet</description>
+  </class>
+</library>
