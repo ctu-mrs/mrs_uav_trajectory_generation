@@ -1,0 +1,30 @@
+location: .gitman
+sources:
+- name: catkin_simple
+  type: git
+  repo: https://github.com/catkin/catkin_simple.git
+  sparse_paths:
+  -
+  rev: master
+  link: lib/catkin_simple
+  scripts:
+  - git submodule update --init --recursive
+- name: glog_catkin
+  type: git
+  repo: https://github.com/ethz-asl/glog_catkin.git
+  sparse_paths:
+  -
+  rev: master
+  link: lib/glog_catkin
+  scripts:
+  - git submodule update --init --recursive
+- name: nlopt
+  type: git
+  repo: https://github.com/ethz-asl/nlopt.git
+  sparse_paths:
+  -
+  rev: master
+  link: lib/nlopt
+  scripts:
+  - git submodule update --init --recursive
+
