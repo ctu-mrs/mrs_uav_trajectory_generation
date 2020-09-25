@@ -284,9 +284,6 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices,
       double term = (1 - fabs(vec1.dot(vec2))) * (v_max / a_max);
 
       acceleration_term += term;
-
-      printf("i %d pre %.2f\n", int(i), term);
-
     } 
 
     if (i < vertices.size()-2) {
@@ -304,9 +301,6 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices,
       double term = (1 - fabs(vec1.dot(vec2))) * (v_max / a_max);
 
       acceleration_term += term;
-
-      printf("i %d post %.2f\n", int(i), term);
-
     }
 
     if (i == 1 && i == vertices.size()-1) {

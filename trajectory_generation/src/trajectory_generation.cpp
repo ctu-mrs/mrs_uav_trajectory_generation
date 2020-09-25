@@ -105,23 +105,11 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
 
   mav_trajectory_generation::NonlinearOptimizationParameters parameters;
 
-  parameters.max_iterations                  = 1000;
-  parameters.f_rel                           = 0.05;
-  parameters.x_rel                           = 0.1;
-  parameters.time_penalty                    = 500;
-  parameters.initial_stepsize_rel            = 0.1;
-  parameters.inequality_constraint_tolerance = 1e10;
-  parameters.equality_constraint_tolerance   = 1e10;
-  /* parameters.equality_constraint_tolerance   = 1.0; */
-
-  /* parameters.time_alloc_method = parameters.kRichterTimeAndConstraints; */
-
-  /* parameters.time_alloc_method = parameters.kRichterTime; */
-
-  /* parameters.time_alloc_method = parameters.kMellingerOuterLoop; */
-  /* parameters.algorithm         = nlopt::LD_LBFGS; */
-
-  /* parameters.equality_constraint_tolerance   = 1.0; */
+  parameters.max_iterations       = 1000;
+  parameters.f_rel                = 0.05;
+  parameters.x_rel                = 0.1;
+  parameters.time_penalty         = 500;
+  parameters.initial_stepsize_rel = 0.1;
 
   mav_trajectory_generation::Vertex::Vector vertices;
   const int                                 dimension              = 3;
@@ -181,6 +169,7 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
   opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
   opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::VELOCITY, v_max);
   opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, a_max);
+  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::JERK, constraints.horizontal_jerk);
   opt.optimize();
 
   // | ------------- obtain the polynomial segments ------------- |
@@ -266,11 +255,10 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   parameters.time_penalty                    = 500.0;
   parameters.initial_stepsize_rel            = 0.1;
   parameters.inequality_constraint_tolerance = 0.1;
-  /* parameters.equality_constraint_tolerance   = 1.0; */
 
   mav_trajectory_generation::Vertex::Vector vertices;
   const int                                 dimension              = 4;
-  const int                                 derivative_to_optimize = mav_trajectory_generation::derivative_order::JERK;
+  const int                                 derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
   mav_trajectory_generation::Vertex         vertex(dimension);
 
   // | --------------- add constraints to vertices -------------- |
@@ -295,8 +283,8 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
       ROS_INFO("[TrajectoryGeneration]: last point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
 
-      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 1.0) {
-        ROS_INFO("[TrajectoryGeneration]: skipping");
+      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.1) {
+        ROS_INFO("[TrajectoryGeneration]: point too close, skipping");
         continue;
       }
 
@@ -307,8 +295,8 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
       ROS_INFO("[TrajectoryGeneration]: mid point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
 
-      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 1.0) {
-        ROS_INFO("[TrajectoryGeneration]: skipping");
+      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.1) {
+        ROS_INFO("[TrajectoryGeneration]: point too close, skipping");
         continue;
       }
 
@@ -334,7 +322,7 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
   opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::VELOCITY, constraints.horizontal_speed);
   opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, constraints.horizontal_acceleration);
-  /* opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::JERK, constraints.horizontal_jerk); */
+  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::JERK, constraints.horizontal_jerk);
   opt.optimize();
 
   // | ------------- obtain the polynomial segments ------------- |
@@ -362,8 +350,8 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
     srv.request.trajectory.header      = path.header;
     srv.request.trajectory.dt          = sampling_interval;
-    srv.request.trajectory.fly_now     = true;
-    srv.request.trajectory.use_heading = true;
+    srv.request.trajectory.fly_now     = path.fly_now;
+    srv.request.trajectory.use_heading = path.use_heading;
 
     for (size_t it = 0; it < states.size(); it++) {
 
