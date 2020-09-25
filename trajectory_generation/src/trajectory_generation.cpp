@@ -138,25 +138,25 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(5, 5, 1));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(2, 2, 1));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(7.5, 2.5, 1));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(4, 0, 1));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(10, 0, 1));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(6, 2, 1));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.makeStartOrEnd(Eigen::Vector3d(15, 0, 1), derivative_to_optimize);
+    vertex.makeStartOrEnd(Eigen::Vector3d(8, 0, 1), derivative_to_optimize);
     vertices.push_back(vertex);
   }
 
@@ -165,8 +165,14 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
   const double v_max = constraints.horizontal_speed;
   const double a_max = constraints.horizontal_acceleration;
 
+  ROS_INFO("[TrajectoryGeneration]: constraints: v_max %.2f, a_max %.2f", v_max, a_max);
+
   std::vector<double> segment_times;
   segment_times = estimateSegmentTimes(vertices, v_max, a_max);
+
+  for (size_t i = 0; i < segment_times.size(); i++) {
+    ROS_INFO_STREAM("[TrajectoryGeneration]: segment: " << segment_times[i]);
+  }
 
   // | --------- create an optimizer object and solve it -------- |
 

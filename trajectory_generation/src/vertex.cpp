@@ -19,6 +19,7 @@
  */
 
 #include <random>
+#include <iostream>
 
 #include "mav_trajectory_generation/vertex.h"
 
@@ -258,14 +259,66 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices,
   CHECK_GE(vertices.size(), 2);
   std::vector<double> segment_times;
   segment_times.reserve(vertices.size() - 1);
+
   for (size_t i = 0; i < vertices.size() - 1; ++i) {
+
     Eigen::VectorXd start, end;
+
     vertices[i].getConstraint(derivative_order::POSITION, &start);
     vertices[i + 1].getConstraint(derivative_order::POSITION, &end);
+
+    double acceleration_term = 0;
+
+    if (i >= 1) {
+
+      Eigen::VectorXd pre;
+
+      vertices[i-1].getConstraint(derivative_order::POSITION, &pre);
+
+      Eigen::VectorXd vec1 = start-pre;
+      Eigen::VectorXd vec2 = end-start;
+
+      vec1.normalize();
+      vec2.normalize();
+
+      double term = (1 - fabs(vec1.dot(vec2))) * (v_max / a_max);
+
+      acceleration_term += term;
+
+      printf("i %d pre %.2f\n", int(i), term);
+
+    } 
+
+    if (i < vertices.size()-2) {
+
+      Eigen::VectorXd post;
+
+      vertices[i+2].getConstraint(derivative_order::POSITION, &post);
+
+      Eigen::VectorXd vec1 = end-start;
+      Eigen::VectorXd vec2 = post-end;
+
+      vec1.normalize();
+      vec2.normalize();
+
+      double term = (1 - fabs(vec1.dot(vec2))) * (v_max / a_max);
+
+      acceleration_term += term;
+
+      printf("i %d post %.2f\n", int(i), term);
+
+    }
+
+    if (i == 1 && i == vertices.size()-1) {
+
+      acceleration_term += (v_max / a_max);
+    }
+
     double distance = (end - start).norm();
-    double t = distance / v_max * 2 *
-               (1.0 + magic_fabian_constant * v_max / a_max *
-                          exp(-distance / v_max * 2));
+
+    /* double t = (distance / v_max) * 2 * (1.0 + magic_fabian_constant * (v_max / a_max) * exp((-distance / v_max) * 2)); */
+    double t = (distance / v_max) + acceleration_term;
+
     segment_times.push_back(t);
   }
   return segment_times;
