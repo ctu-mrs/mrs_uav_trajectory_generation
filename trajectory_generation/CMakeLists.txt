@@ -20,6 +20,10 @@ find_package(catkin REQUIRED COMPONENTS
   glog_catkin
   )
 
+generate_dynamic_reconfigure_options(
+  cfg/trajectory_generation.cfg
+  )
+
 #Find Eigen libraries
 find_package(Eigen3 REQUIRED)
 set(Eigen_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
@@ -28,7 +32,7 @@ set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES TrajectoryGeneration TrajectoryGenerationNodelet
-  CATKIN_DEPENDS roscpp mrs_lib mrs_msgs geometry_msgs nav_msgs mav_msgs nlopt catkin_simple glog_catkin
+  CATKIN_DEPENDS roscpp mrs_lib mrs_msgs geometry_msgs nav_msgs mav_msgs nlopt catkin_simple glog_catkin dynamic_reconfigure
   DEPENDS Eigen
   )
 
@@ -71,6 +75,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${Eigen_INCLUDE_DIRS}
+  ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
   )
 
 ## Declare a C++ library

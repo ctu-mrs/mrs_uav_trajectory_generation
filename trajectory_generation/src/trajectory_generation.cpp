@@ -20,6 +20,9 @@
 
 #include <mutex>
 
+#include <dynamic_reconfigure/server.h>
+#include <trajectory_generation/trajectory_generationConfig.h>
+
 //}
 
 namespace trajectory_generation
@@ -47,6 +50,16 @@ private:
   ros::Subscriber subscriber_path_;
 
   ros::ServiceClient service_client_trajectory_reference_;
+
+  // | --------------- dynamic reconfigure server --------------- |
+
+  boost::recursive_mutex                                     mutex_drs_;
+  typedef trajectory_generation::trajectory_generationConfig DrsParams_t;
+  typedef dynamic_reconfigure::Server<DrsParams_t>           Drs_t;
+  boost::shared_ptr<Drs_t>                                   drs_;
+  void                                                       callbackDrs(trajectory_generation::trajectory_generationConfig& params, uint32_t level);
+  DrsParams_t                                                params_;
+  std::mutex                                                 mutex_params_;
 };
 //}
 
@@ -73,6 +86,21 @@ void TrajectoryGeneration::onInit() {
 
   // | --------------------- service clients -------------------- |
 
+  params_.time_penalty                    = 100;
+  params_.soft_constraints_enabled        = true;
+  params_.soft_constraints_weight         = 1.5;
+  params_.time_allocation                 = 3;
+  params_.equality_constraint_tolerance   = 1.0e-3;
+  params_.inequality_constraint_tolerance = 0.1;
+  params_.max_iterations                  = 3000;
+
+  drs_.reset(new Drs_t(mutex_drs_, nh_));
+  drs_->updateConfig(params_);
+  Drs_t::CallbackType f = boost::bind(&TrajectoryGeneration::callbackDrs, this, _1, _2);
+  drs_->setCallback(f);
+
+  // | --------------------- finish the init -------------------- |
+
   ROS_INFO_ONCE("[TrajectoryGeneration]: initialized");
 
   is_initialized_ = true;
@@ -97,6 +125,10 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
     res.message = ss.str();
   }
 
+  mutex_params_.lock();
+  DrsParams_t params = params_;
+  mutex_params_.unlock();
+
   mrs_msgs::DynamicsConstraints constraints;
 
   mutex_constraints_.lock();
@@ -105,58 +137,118 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
 
   mav_trajectory_generation::NonlinearOptimizationParameters parameters;
 
-  parameters.max_iterations       = 1000;
-  parameters.f_rel                = 0.05;
-  parameters.x_rel                = 0.1;
-  parameters.time_penalty         = 500;
-  parameters.initial_stepsize_rel = 0.1;
+  parameters.f_rel                  = 0.05;
+  parameters.x_rel                  = 0.1;
+  parameters.time_penalty           = params.time_penalty;
+  parameters.use_soft_constraints   = params.soft_constraints_enabled;
+  parameters.soft_constraint_weight = params.soft_constraints_weight;
+  parameters.time_alloc_method      = static_cast<mav_trajectory_generation::NonlinearOptimizationParameters::TimeAllocMethod>(params.time_allocation);
+  if (params.time_allocation == 2) {
+    parameters.algorithm = nlopt::LD_LBFGS;
+  }
+  parameters.initial_stepsize_rel            = 0.1;
+  parameters.inequality_constraint_tolerance = params.inequality_constraint_tolerance;
+  parameters.equality_constraint_tolerance   = params.equality_constraint_tolerance;
+  parameters.max_iterations                  = params.max_iterations;
 
   mav_trajectory_generation::Vertex::Vector vertices;
-  const int                                 dimension              = 3;
+  const int                                 dimension              = 4;
   const int                                 derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
 
   // | --------------- add constraints to vertices -------------- |
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.makeStartOrEnd(Eigen::Vector3d(0, 0, 1), derivative_to_optimize);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector3d(0, 0, 0));
+    vertex.makeStartOrEnd(Eigen::Vector4d(0, 0, 1, 0), derivative_to_optimize);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector4d(0, 0, 0, 0));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, Eigen::Vector4d(0, 0, 0, 0));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::JERK, Eigen::Vector4d(0, 0, 0, 0));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(2, 2, 1));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(2, 0.1, 1, 0));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(4, 0, 1));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(3, 0, 1, 0));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(6, 2, 1));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(4, 0, 1, 0));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.makeStartOrEnd(Eigen::Vector3d(8, 0, 1), derivative_to_optimize);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(6, 0.1, 1, 0));
     vertices.push_back(vertex);
   }
+
+  {
+    mav_trajectory_generation::Vertex vertex(dimension);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(8, 0.0, 1, 0));
+    vertices.push_back(vertex);
+  }
+
+  {
+    mav_trajectory_generation::Vertex vertex(dimension);
+    vertex.makeStartOrEnd(Eigen::Vector4d(10, 2, 1, 0), derivative_to_optimize);
+    vertices.push_back(vertex);
+  }
+
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 0, 1, 0)); */
+  /*   vertices.push_back(vertex); */
+  /* } */
+
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 2, 1, 0)); */
+  /*   vertices.push_back(vertex); */
+  /* } */
+
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 5, 1, 0)); */
+  /*   vertices.push_back(vertex); */
+  /* } */
+
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(7, 5, 1, 3.14)); */
+  /*   vertices.push_back(vertex); */
+  /* } */
+
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(0, 5, 1, 0)); */
+  /*   vertices.push_back(vertex); */
+  /* } */
+
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.makeStartOrEnd(Eigen::Vector4d(0, 0, 1, 0), derivative_to_optimize); */
+  /*   vertices.push_back(vertex); */
+  /* } */
 
   // | ---------------- compute the segment times --------------- |
 
   const double v_max = constraints.horizontal_speed;
   const double a_max = constraints.horizontal_acceleration;
+  const double j_max = constraints.horizontal_jerk;
 
   ROS_INFO("[TrajectoryGeneration]: constraints: v_max %.2f, a_max %.2f", v_max, a_max);
 
   std::vector<double> segment_times;
-  segment_times = estimateSegmentTimes(vertices, v_max, a_max);
+  segment_times = estimateSegmentTimes(vertices, v_max, a_max, j_max);
+  /* segment_times = estimateSegmentTimesVelocityRamp(vertices, constraints.horizontal_speed, constraints.horizontal_acceleration, 2.0); */
 
   for (size_t i = 0; i < segment_times.size(); i++) {
     ROS_INFO_STREAM("[TrajectoryGeneration]: segment: " << segment_times[i]);
@@ -169,7 +261,7 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
   opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
   opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::VELOCITY, v_max);
   opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, a_max);
-  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::JERK, constraints.horizontal_jerk);
+  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::JERK, j_max);
   opt.optimize();
 
   // | ------------- obtain the polynomial segments ------------- |
@@ -206,6 +298,7 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
       point.position.x = states[it].position_W[0];
       point.position.y = states[it].position_W[1];
       point.position.z = states[it].position_W[2];
+      point.heading    = states[it].getYaw();
 
       srv.request.trajectory.points.push_back(point);
     }
@@ -235,6 +328,10 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
   ROS_INFO("[TrajectoryGeneration]: got trajectory");
 
+  mutex_params_.lock();
+  DrsParams_t params = params_;
+  mutex_params_.unlock();
+
   mrs_msgs::DynamicsConstraints constraints;
 
   mutex_constraints_.lock();
@@ -249,12 +346,20 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   }
 
   mav_trajectory_generation::NonlinearOptimizationParameters parameters;
-  parameters.max_iterations                  = 1000;
-  parameters.f_rel                           = 0.05;
-  parameters.x_rel                           = 0.1;
-  parameters.time_penalty                    = 500.0;
+
+  parameters.f_rel                  = 0.05;
+  parameters.x_rel                  = 0.1;
+  parameters.time_penalty           = params.time_penalty;
+  parameters.use_soft_constraints   = params.soft_constraints_enabled;
+  parameters.soft_constraint_weight = params.soft_constraints_weight;
+  parameters.time_alloc_method      = static_cast<mav_trajectory_generation::NonlinearOptimizationParameters::TimeAllocMethod>(params.time_allocation);
+  if (params.time_allocation == 2) {
+    parameters.algorithm = nlopt::LD_LBFGS;
+  }
   parameters.initial_stepsize_rel            = 0.1;
-  parameters.inequality_constraint_tolerance = 0.1;
+  parameters.inequality_constraint_tolerance = params.inequality_constraint_tolerance;
+  parameters.equality_constraint_tolerance   = params.equality_constraint_tolerance;
+  parameters.max_iterations                  = params.max_iterations;
 
   mav_trajectory_generation::Vertex::Vector vertices;
   const int                                 dimension              = 4;
@@ -313,7 +418,8 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   // | ---------------- compute the segment times --------------- |
 
   std::vector<double> segment_times;
-  segment_times = estimateSegmentTimes(vertices, constraints.horizontal_speed, constraints.horizontal_acceleration);
+  segment_times = estimateSegmentTimes(vertices, constraints.horizontal_speed, constraints.horizontal_acceleration, constraints.horizontal_jerk);
+  /* segment_times = estimateSegmentTimesVelocityRamp(vertices, constraints.horizontal_speed, constraints.horizontal_acceleration, 1.0); */
 
   // | --------- create an optimizer object and solve it -------- |
 
@@ -386,6 +492,19 @@ void TrajectoryGeneration::callbackConstraints(const mrs_msgs::DynamicsConstrain
   mutex_constraints_.lock();
   constraints_ = *msg;
   mutex_constraints_.unlock();
+}
+
+//}
+
+/* //{ callbackDrs() */
+
+void TrajectoryGeneration::callbackDrs(trajectory_generation::trajectory_generationConfig& params, [[maybe_unused]] uint32_t level) {
+
+  mutex_params_.lock();
+  params_ = params;
+  mutex_params_.unlock();
+
+  ROS_INFO("[TrajectoryGeneration]: DRS updated");
 }
 
 //}

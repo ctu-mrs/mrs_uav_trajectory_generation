@@ -23,32 +23,29 @@
 
 #include "mav_trajectory_generation/vertex.h"
 
-namespace mav_trajectory_generation {
+namespace mav_trajectory_generation
+{
 
-Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments,
-                                    const Eigen::VectorXd& pos_min,
-                                    const Eigen::VectorXd& pos_max,
-                                    size_t seed) {
+Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments, const Eigen::VectorXd& pos_min, const Eigen::VectorXd& pos_max, size_t seed) {
   CHECK_GE(static_cast<int>(n_segments), 1);
   CHECK_EQ(pos_min.size(), pos_max.size());
   CHECK_GE((pos_max - pos_min).norm(), 0.2);
   CHECK_GT(maximum_derivative, 0);
 
-  Vertex::Vector vertices;
-  std::mt19937 generator(seed);
-  std::vector<std::uniform_real_distribution<double> > distribution;
+  Vertex::Vector                                      vertices;
+  std::mt19937                                        generator(seed);
+  std::vector<std::uniform_real_distribution<double>> distribution;
 
   const size_t dimension = pos_min.size();
 
   distribution.resize(dimension);
 
   for (size_t i = 0; i < dimension; ++i) {
-    distribution[i] =
-        std::uniform_real_distribution<double>(pos_min[i], pos_max[i]);
+    distribution[i] = std::uniform_real_distribution<double>(pos_min[i], pos_max[i]);
   }
 
   const double min_distance = 0.2;
-  const size_t n_vertices = n_segments + 1;
+  const size_t n_vertices   = n_segments + 1;
 
   Eigen::VectorXd last_pos(dimension);
   for (size_t i = 0; i < dimension; ++i) {
@@ -82,27 +79,21 @@ Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments,
   return vertices;
 }
 
-Vertex::Vector createSquareVertices(int maximum_derivative,
-                                    const Eigen::Vector3d& center,
-                                    double side_length, int rounds) {
+Vertex::Vector createSquareVertices(int maximum_derivative, const Eigen::Vector3d& center, double side_length, int rounds) {
   Vertex::Vector vertices;
-  const size_t dimension = center.size();
+  const size_t   dimension = center.size();
 
-  Eigen::Vector3d pos1(center[0] - side_length / 2.0,
-                       center[1] - side_length / 2.0, center[2]);
-  Vertex v1(dimension);
+  Eigen::Vector3d pos1(center[0] - side_length / 2.0, center[1] - side_length / 2.0, center[2]);
+  Vertex          v1(dimension);
   v1.addConstraint(derivative_order::POSITION, pos1);
-  Eigen::Vector3d pos2(center[0] - side_length / 2.0,
-                       center[1] + side_length / 2.0, center[2]);
-  Vertex v2(dimension);
+  Eigen::Vector3d pos2(center[0] - side_length / 2.0, center[1] + side_length / 2.0, center[2]);
+  Vertex          v2(dimension);
   v2.addConstraint(derivative_order::POSITION, pos2);
-  Eigen::Vector3d pos3(center[0] + side_length / 2.0,
-                       center[1] + side_length / 2.0, center[2]);
-  Vertex v3(dimension);
+  Eigen::Vector3d pos3(center[0] + side_length / 2.0, center[1] + side_length / 2.0, center[2]);
+  Vertex          v3(dimension);
   v3.addConstraint(derivative_order::POSITION, pos3);
-  Eigen::Vector3d pos4(center[0] + side_length / 2.0,
-                       center[1] - side_length / 2.0, center[2]);
-  Vertex v4(dimension);
+  Eigen::Vector3d pos4(center[0] + side_length / 2.0, center[1] - side_length / 2.0, center[2]);
+  Vertex          v4(dimension);
   v4.addConstraint(derivative_order::POSITION, pos4);
 
   vertices.reserve(4 * rounds);
@@ -120,16 +111,11 @@ Vertex::Vector createSquareVertices(int maximum_derivative,
   return vertices;
 }
 
-Vertex::Vector createRandomVertices1D(int maximum_derivative, size_t n_segments,
-                                      double pos_min, double pos_max,
-                                      size_t seed) {
-  return createRandomVertices(maximum_derivative, n_segments,
-                              Eigen::VectorXd::Constant(1, pos_min),
-                              Eigen::VectorXd::Constant(1, pos_max), seed);
+Vertex::Vector createRandomVertices1D(int maximum_derivative, size_t n_segments, double pos_min, double pos_max, size_t seed) {
+  return createRandomVertices(maximum_derivative, n_segments, Eigen::VectorXd::Constant(1, pos_min), Eigen::VectorXd::Constant(1, pos_max), seed);
 }
 
-void Vertex::addConstraint(int derivative_order,
-                           const Eigen::VectorXd& constraint) {
+void Vertex::addConstraint(int derivative_order, const Eigen::VectorXd& constraint) {
   CHECK_EQ(constraint.rows(), static_cast<long>(D_));
   constraints_[derivative_order] = constraint;
 }
@@ -145,8 +131,7 @@ bool Vertex::removeConstraint(int type) {
   }
 }
 
-void Vertex::makeStartOrEnd(const Eigen::VectorXd& constraint,
-                            int up_to_derivative) {
+void Vertex::makeStartOrEnd(const Eigen::VectorXd& constraint, int up_to_derivative) {
   addConstraint(derivative_order::POSITION, constraint);
   for (int i = 1; i <= up_to_derivative; ++i) {
     constraints_[i] = ConstraintValue::Zero(static_cast<int>(D_));
@@ -169,36 +154,37 @@ bool Vertex::hasConstraint(int derivative_order) const {
 }
 
 bool Vertex::isEqualTol(const Vertex& rhs, double tol) const {
-  if (constraints_.size() != rhs.constraints_.size()) return false;
+  if (constraints_.size() != rhs.constraints_.size())
+    return false;
   // loop through lhs constraint map
   for (typename Constraints::const_iterator it = cBegin(); it != cEnd(); ++it) {
     // look for matching key
-    typename Constraints::const_iterator rhs_it =
-        rhs.constraints_.find(it->first);
-    if (rhs_it == rhs.constraints_.end()) return false;
+    typename Constraints::const_iterator rhs_it = rhs.constraints_.find(it->first);
+    if (rhs_it == rhs.constraints_.end())
+      return false;
     // check value
-    if (!((it->second - rhs_it->second).isZero(tol))) return false;
+    if (!((it->second - rhs_it->second).isZero(tol)))
+      return false;
   }
   return true;
 }
 
-bool Vertex::getSubdimension(const std::vector<size_t>& subdimensions,
-                             int max_derivative_order,
-                             Vertex* subvertex) const {
+bool Vertex::getSubdimension(const std::vector<size_t>& subdimensions, int max_derivative_order, Vertex* subvertex) const {
   CHECK_NOTNULL(subvertex);
   *subvertex = Vertex(subdimensions.size());
 
   // Check if all subdimensions exist.
   for (size_t subdimension : subdimensions)
-    if (subdimension >= D_) return false;
+    if (subdimension >= D_)
+      return false;
 
   // Copy constraints up to maximum derivative order.
-  for (Constraints::const_iterator it = constraints_.begin();
-       it != constraints_.end(); ++it) {
+  for (Constraints::const_iterator it = constraints_.begin(); it != constraints_.end(); ++it) {
     int derivative_order = it->first;
-    if (derivative_order > max_derivative_order) continue;
+    if (derivative_order > max_derivative_order)
+      continue;
     const ConstraintValue& original_constraint = it->second;
-    ConstraintValue subsconstraint(subvertex->D());
+    ConstraintValue        subsconstraint(subvertex->D());
     for (size_t i = 0; i < subdimensions.size(); i++) {
       subsconstraint[i] = original_constraint[subdimensions[i]];
     }
@@ -210,30 +196,25 @@ bool Vertex::getSubdimension(const std::vector<size_t>& subdimensions,
 std::ostream& operator<<(std::ostream& stream, const Vertex& v) {
   stream << "constraints: " << std::endl;
   Eigen::IOFormat format(4, 0, ", ", "\n", "[", "]");
-  for (typename Vertex::Constraints::const_iterator it = v.cBegin();
-       it != v.cEnd(); ++it) {
+  for (typename Vertex::Constraints::const_iterator it = v.cBegin(); it != v.cEnd(); ++it) {
     stream << "  type: " << positionDerivativeToString(it->first);
     stream << "  value: " << it->second.transpose().format(format) << std::endl;
   }
   return stream;
 }
 
-std::ostream& operator<<(std::ostream& stream,
-                         const std::vector<Vertex>& vertices) {
+std::ostream& operator<<(std::ostream& stream, const std::vector<Vertex>& vertices) {
   for (const Vertex& v : vertices) {
     stream << v << std::endl;
   }
   return stream;
 }
 
-std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices,
-                                         double v_max, double a_max) {
-  return estimateSegmentTimesNfabian(vertices, v_max, a_max);
+std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, double v_max, double a_max, double j_max) {
+  return estimateSegmentTimesNfabian(vertices, v_max, a_max, j_max);
 }
 
-std::vector<double> estimateSegmentTimesVelocityRamp(
-    const Vertex::Vector& vertices, double v_max, double a_max,
-    double time_factor) {
+std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector& vertices, double v_max, double a_max, double time_factor) {
   CHECK_GE(vertices.size(), 2);
   std::vector<double> segment_times;
 
@@ -246,16 +227,14 @@ std::vector<double> estimateSegmentTimesVelocityRamp(
     vertices[i].getConstraint(derivative_order::POSITION, &start);
     vertices[i + 1].getConstraint(derivative_order::POSITION, &end);
     double t = computeTimeVelocityRamp(start, end, v_max, a_max);
-    t = std::max(kMinSegmentTime, t);
+    t        = std::max(kMinSegmentTime, t);
     segment_times.push_back(t);
   }
 
   return segment_times;
 }
 
-std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices,
-                                                double v_max, double a_max,
-                                                double magic_fabian_constant) {
+std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, double v_max, double a_max, double j_max, double magic_fabian_constant) {
   CHECK_GE(vertices.size(), 2);
   std::vector<double> segment_times;
   segment_times.reserve(vertices.size() - 1);
@@ -267,60 +246,79 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices,
     vertices[i].getConstraint(derivative_order::POSITION, &start);
     vertices[i + 1].getConstraint(derivative_order::POSITION, &end);
 
-    double acceleration_term = 0;
+    double acceleration_time_1 = 0;
+    double acceleration_time_2 = 0;
+
+    double acc_1_coeff = 0;
+    double acc_2_coeff = 0;
+
+    double velocity_coeff = 1.0;
 
     if (i >= 1) {
 
       Eigen::VectorXd pre;
 
-      vertices[i-1].getConstraint(derivative_order::POSITION, &pre);
+      vertices[i - 1].getConstraint(derivative_order::POSITION, &pre);
 
-      Eigen::VectorXd vec1 = start-pre;
-      Eigen::VectorXd vec2 = end-start;
+      Eigen::VectorXd vec1 = start - pre;
+      Eigen::VectorXd vec2 = end - start;
 
       vec1.normalize();
       vec2.normalize();
 
-      double term = (1 - fabs(vec1.dot(vec2))) * (v_max / a_max);
+      acc_1_coeff = (1 - fabs(vec1.dot(vec2)));
 
-      acceleration_term += term;
-    } 
+      acceleration_time_1 = acc_1_coeff * ((v_max / a_max) + (a_max / j_max));
+    }
 
-    if (i < vertices.size()-2) {
+    if (i < vertices.size() - 2) {
 
       Eigen::VectorXd post;
 
-      vertices[i+2].getConstraint(derivative_order::POSITION, &post);
+      vertices[i + 2].getConstraint(derivative_order::POSITION, &post);
 
-      Eigen::VectorXd vec1 = end-start;
-      Eigen::VectorXd vec2 = post-end;
+      Eigen::VectorXd vec1 = end - start;
+      Eigen::VectorXd vec2 = post - end;
 
       vec1.normalize();
       vec2.normalize();
 
-      double term = (1 - fabs(vec1.dot(vec2))) * (v_max / a_max);
+      acc_2_coeff = (1 - fabs(vec1.dot(vec2)));
 
-      acceleration_term += term;
+      acceleration_time_2 = acc_2_coeff * ((v_max / a_max) + (a_max / j_max));
     }
 
-    if (i == 1 && i == vertices.size()-1) {
+    if (i == 0) {
 
-      acceleration_term += (v_max / a_max);
+      acc_1_coeff         = 1.0;
+      acceleration_time_1 = (v_max / a_max) + (a_max / j_max);
+    }
+
+    if (i == vertices.size() - 2) {
+      acc_2_coeff         = 1.0;
+      acceleration_time_2 = (v_max / a_max) + (a_max / j_max);
     }
 
     double distance = (end - start).norm();
 
     /* double t = (distance / v_max) * 2 * (1.0 + magic_fabian_constant * (v_max / a_max) * exp((-distance / v_max) * 2)); */
-    double t = (distance / v_max) + acceleration_term;
+    double t;
+
+    printf("point %d, time1 %.2f time2 %.2f, coeff1 %.2f coeff2 %.2f\n", int(i), acceleration_time_1, acceleration_time_2, acc_1_coeff, acc_2_coeff);
+
+    if (((distance - ((v_max * v_max) / a_max)) / v_max) < 0) {
+      t = acceleration_time_1 + acceleration_time_2 + (2 * (a_max / j_max));
+      printf("not\n");
+    } else {
+      t = acceleration_time_1 + acceleration_time_2 + ((distance - ((v_max * v_max) / a_max)) / v_max);
+    }
 
     segment_times.push_back(t);
   }
   return segment_times;
 }
 
-double computeTimeVelocityRamp(const Eigen::VectorXd& start,
-                               const Eigen::VectorXd& goal, double v_max,
-                               double a_max) {
+double computeTimeVelocityRamp(const Eigen::VectorXd& start, const Eigen::VectorXd& goal, double v_max, double a_max) {
   const double distance = (start - goal).norm();
   // Time to accelerate or decelerate to or from maximum velocity:
   const double acc_time = v_max / a_max;

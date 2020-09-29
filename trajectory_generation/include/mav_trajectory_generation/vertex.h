@@ -120,7 +120,7 @@ std::ostream& operator<<(std::ostream& stream,
 // required to get from one vertex to the next. Uses the current preferred
 // method.
 std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices,
-                                         double v_max, double a_max);
+                                         double v_max, double a_max, double j_max);
 
 // Calculate the velocity assuming instantaneous constant acceleration a_max
 // and straight line rest-to-rest trajectories.
@@ -137,7 +137,7 @@ std::vector<double> estimateSegmentTimesVelocityRamp(
 // distance/v_max * 2);
 // magic_fabian_constant was determined to 6.5 in a student project ...
 std::vector<double> estimateSegmentTimesNfabian(
-    const Vertex::Vector& vertices, double v_max, double a_max,
+    const Vertex::Vector& vertices, double v_max, double a_max, double j_max,
     double magic_fabian_constant = 6.5);
 
 double computeTimeVelocityRamp(const Eigen::VectorXd& start,

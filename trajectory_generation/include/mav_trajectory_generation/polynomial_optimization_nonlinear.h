@@ -86,12 +86,12 @@ struct NonlinearOptimizationParameters {
   double soft_constraint_weight = 100.0;
 
   enum TimeAllocMethod {
-    kSquaredTime,
-    kRichterTime,
-    kMellingerOuterLoop,
-    kSquaredTimeAndConstraints,
-    kRichterTimeAndConstraints,
-    kUnknown
+    kSquaredTime = 0,
+    kRichterTime = 1,
+    kMellingerOuterLoop = 2,
+    kSquaredTimeAndConstraints = 3,
+    kRichterTimeAndConstraints = 4,
+    kUnknown = 5,
   } time_alloc_method = kSquaredTimeAndConstraints;
 
   bool print_debug_info = false;
