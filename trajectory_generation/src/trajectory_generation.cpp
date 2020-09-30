@@ -191,7 +191,7 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(2, 0.1, 1, 0));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(2, 0.3, 1, 0));
     vertices.push_back(vertex);
   }
 
@@ -209,7 +209,7 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(6, 0.1, 1, 0));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(6, 0.3, 1, 0));
     vertices.push_back(vertex);
   }
 
@@ -225,41 +225,47 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
   /*   vertices.push_back(vertex); */
   /* } */
 
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 0, 1, 0));
-    vertices.push_back(vertex);
-  }
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(20, 0, 1, 0)); */
+  /*   vertices.push_back(vertex); */
+  /* } */
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 2, 1, 0));
+    vertex.makeStartOrEnd(Eigen::Vector4d(20, 0, 1, 0), derivative_to_optimize);
     vertices.push_back(vertex);
   }
 
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 5, 1, 0));
-    vertices.push_back(vertex);
-  }
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 2, 1, 0)); */
+  /*   vertices.push_back(vertex); */
+  /* } */
 
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(7, 5, 1, 3.14));
-    vertices.push_back(vertex);
-  }
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 5, 1, 0)); */
+  /*   vertices.push_back(vertex); */
+  /* } */
 
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(0, 5, 1, 0));
-    vertices.push_back(vertex);
-  }
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(7, 5, 1, 3.14)); */
+  /*   vertices.push_back(vertex); */
+  /* } */
 
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.makeStartOrEnd(Eigen::Vector4d(0, 0, 1, 0), derivative_to_optimize);
-    vertices.push_back(vertex);
-  }
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(0, 5, 1, 0)); */
+  /*   vertices.push_back(vertex); */
+  /* } */
+
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.makeStartOrEnd(Eigen::Vector4d(0, 0, 1, 0), derivative_to_optimize); */
+  /*   vertices.push_back(vertex); */
+  /* } */
 
   // | ---------------- compute the segment times --------------- |
 
