@@ -101,7 +101,7 @@ void TrajectoryGeneration::onInit() {
   params_.equality_constraint_tolerance   = 1.0e-3;
   params_.inequality_constraint_tolerance = 0.1;
   params_.max_iterations                  = 10000;
-  params_.derivative_to_optimize          = 1;
+  params_.derivative_to_optimize          = 0;
 
   drs_.reset(new Drs_t(mutex_drs_, nh_));
   drs_->updateConfig(params_);
@@ -600,6 +600,17 @@ void TrajectoryGeneration::callbackDrs(trajectory_generation::trajectory_generat
   mutex_params_.lock();
   params_ = params;
   mutex_params_.unlock();
+
+  if (params.test) {
+    params.test = false;
+
+    drs_->updateConfig(params_);
+
+    std_srvs::Trigger::Request  req;
+    std_srvs::Trigger::Response res;
+
+    callbackTest(req, res);
+  }
 
   ROS_INFO("[TrajectoryGeneration]: DRS updated");
 }
