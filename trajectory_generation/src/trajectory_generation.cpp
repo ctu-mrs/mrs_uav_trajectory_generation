@@ -11,6 +11,7 @@
 
 #include <mrs_msgs/DynamicsConstraints.h>
 #include <mrs_msgs/Path.h>
+#include <mrs_msgs/PositionCommand.h>
 
 #include <mav_trajectory_generation/polynomial_optimization_nonlinear.h>
 #include <mav_trajectory_generation/trajectory.h>
@@ -46,6 +47,12 @@ private:
   mrs_msgs::DynamicsConstraints constraints_;
   std::mutex                    mutex_constraints_;
 
+  void                      callbackPositionCmd(const mrs_msgs::PositionCommandConstPtr& msg);
+  ros::Subscriber           subscriber_position_cmd_;
+  bool                      got_position_cmd_ = false;
+  mrs_msgs::PositionCommand position_cmd_;
+  std::mutex                mutex_position_cmd_;
+
   void            callbackPath(const mrs_msgs::PathConstPtr& msg);
   ros::Subscriber subscriber_path_;
 
@@ -75,8 +82,9 @@ void TrajectoryGeneration::onInit() {
 
   // | ----------------------- subscribers ---------------------- |
 
-  subscriber_constraints_ = nh_.subscribe("constraints_in", 1, &TrajectoryGeneration::callbackConstraints, this, ros::TransportHints().tcpNoDelay());
-  subscriber_path_        = nh_.subscribe("path_in", 1, &TrajectoryGeneration::callbackPath, this, ros::TransportHints().tcpNoDelay());
+  subscriber_constraints_  = nh_.subscribe("constraints_in", 1, &TrajectoryGeneration::callbackConstraints, this, ros::TransportHints().tcpNoDelay());
+  subscriber_position_cmd_ = nh_.subscribe("position_cmd_in", 1, &TrajectoryGeneration::callbackPositionCmd, this, ros::TransportHints().tcpNoDelay());
+  subscriber_path_         = nh_.subscribe("path_in", 1, &TrajectoryGeneration::callbackPath, this, ros::TransportHints().tcpNoDelay());
 
   // | --------------------- service servers -------------------- |
 
@@ -125,15 +133,25 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
     res.message = ss.str();
   }
 
+  if (!got_position_cmd_) {
+    std::stringstream ss;
+    ss << "missing position cmd";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
+    res.success = false;
+    res.message = ss.str();
+  }
+
   mutex_params_.lock();
   DrsParams_t params = params_;
   mutex_params_.unlock();
 
-  mrs_msgs::DynamicsConstraints constraints;
-
   mutex_constraints_.lock();
-  constraints = constraints_;
+  mrs_msgs::DynamicsConstraints constraints = constraints_;
   mutex_constraints_.unlock();
+
+  mutex_position_cmd_.lock();
+  mrs_msgs::PositionCommand position_cmd = position_cmd_;
+  mutex_position_cmd_.unlock();
 
   mav_trajectory_generation::NonlinearOptimizationParameters parameters;
 
@@ -159,10 +177,15 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.makeStartOrEnd(Eigen::Vector4d(0, 0, 1, 0), derivative_to_optimize);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector4d(0, 0, 0, 0));
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, Eigen::Vector4d(0, 0, 0, 0));
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::JERK, Eigen::Vector4d(0, 0, 0, 0));
+    vertex.makeStartOrEnd(Eigen::Vector4d(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z, position_cmd.heading),
+                          derivative_to_optimize);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                         Eigen::Vector4d(position_cmd.velocity.x, position_cmd.velocity.y, position_cmd.velocity.z, position_cmd.heading_rate));
+    vertex.addConstraint(
+        mav_trajectory_generation::derivative_order::ACCELERATION,
+        Eigen::Vector4d(position_cmd.acceleration.x, position_cmd.acceleration.y, position_cmd.acceleration.z, position_cmd.heading_acceleration));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::JERK,
+                         Eigen::Vector4d(position_cmd.jerk.x, position_cmd.jerk.y, position_cmd.jerk.z, position_cmd.heading_jerk));
     vertices.push_back(vertex);
   }
 
@@ -196,47 +219,47 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
     vertices.push_back(vertex);
   }
 
+  /* { */
+  /*   mav_trajectory_generation::Vertex vertex(dimension); */
+  /*   vertex.makeStartOrEnd(Eigen::Vector4d(10, 2, 1, 0), derivative_to_optimize); */
+  /*   vertices.push_back(vertex); */
+  /* } */
+
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.makeStartOrEnd(Eigen::Vector4d(10, 2, 1, 0), derivative_to_optimize);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 0, 1, 0));
     vertices.push_back(vertex);
   }
 
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 0, 1, 0)); */
-  /*   vertices.push_back(vertex); */
-  /* } */
+  {
+    mav_trajectory_generation::Vertex vertex(dimension);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 2, 1, 0));
+    vertices.push_back(vertex);
+  }
 
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 2, 1, 0)); */
-  /*   vertices.push_back(vertex); */
-  /* } */
+  {
+    mav_trajectory_generation::Vertex vertex(dimension);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 5, 1, 0));
+    vertices.push_back(vertex);
+  }
 
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 5, 1, 0)); */
-  /*   vertices.push_back(vertex); */
-  /* } */
+  {
+    mav_trajectory_generation::Vertex vertex(dimension);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(7, 5, 1, 3.14));
+    vertices.push_back(vertex);
+  }
 
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(7, 5, 1, 3.14)); */
-  /*   vertices.push_back(vertex); */
-  /* } */
+  {
+    mav_trajectory_generation::Vertex vertex(dimension);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(0, 5, 1, 0));
+    vertices.push_back(vertex);
+  }
 
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(0, 5, 1, 0)); */
-  /*   vertices.push_back(vertex); */
-  /* } */
-
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.makeStartOrEnd(Eigen::Vector4d(0, 0, 1, 0), derivative_to_optimize); */
-  /*   vertices.push_back(vertex); */
-  /* } */
+  {
+    mav_trajectory_generation::Vertex vertex(dimension);
+    vertex.makeStartOrEnd(Eigen::Vector4d(0, 0, 1, 0), derivative_to_optimize);
+    vertices.push_back(vertex);
+  }
 
   // | ---------------- compute the segment times --------------- |
 
@@ -326,17 +349,26 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     return;
   }
 
+  if (!got_position_cmd_) {
+    std::stringstream ss;
+    ss << "missing position cmd";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
+    return;
+  }
+
   ROS_INFO("[TrajectoryGeneration]: got trajectory");
 
   mutex_params_.lock();
   DrsParams_t params = params_;
   mutex_params_.unlock();
 
-  mrs_msgs::DynamicsConstraints constraints;
-
   mutex_constraints_.lock();
-  constraints = constraints_;
+  mrs_msgs::DynamicsConstraints constraints = constraints_;
   mutex_constraints_.unlock();
+
+  mutex_position_cmd_.lock();
+  mrs_msgs::PositionCommand position_cmd = position_cmd_;
+  mutex_position_cmd_.unlock();
 
   mrs_msgs::Path path = *msg;
 
@@ -370,6 +402,22 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
   double lx, ly, lz;
 
+  // | ------------------ add the current state ----------------- |
+
+  {
+    mav_trajectory_generation::Vertex vertex(dimension);
+    vertex.makeStartOrEnd(Eigen::Vector4d(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z, position_cmd.heading),
+                          derivative_to_optimize);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                         Eigen::Vector4d(position_cmd.velocity.x, position_cmd.velocity.y, position_cmd.velocity.z, position_cmd.heading_rate));
+    vertex.addConstraint(
+        mav_trajectory_generation::derivative_order::ACCELERATION,
+        Eigen::Vector4d(position_cmd.acceleration.x, position_cmd.acceleration.y, position_cmd.acceleration.z, position_cmd.heading_acceleration));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::JERK,
+                         Eigen::Vector4d(position_cmd.jerk.x, position_cmd.jerk.y, position_cmd.jerk.z, position_cmd.heading_jerk));
+    vertices.push_back(vertex);
+  }
+
   for (size_t i = 0; i < path.points.size(); i++) {
 
     double x       = path.points[i].position.x;
@@ -379,16 +427,9 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
     if (i == 0) {
 
-      ROS_INFO("[TrajectoryGeneration]: first point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
-
-      vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), mav_trajectory_generation::derivative_order::POSITION);
-      vertices.push_back(vertex);
-
-    } else if (i == (path.points.size() - 1)) {
-
       ROS_INFO("[TrajectoryGeneration]: last point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
 
-      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.1) {
+      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.15) {
         ROS_INFO("[TrajectoryGeneration]: point too close, skipping");
         continue;
       }
@@ -400,7 +441,7 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
       ROS_INFO("[TrajectoryGeneration]: mid point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
 
-      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.1) {
+      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.15) {
         ROS_INFO("[TrajectoryGeneration]: point too close, skipping");
         continue;
       }
@@ -492,6 +533,25 @@ void TrajectoryGeneration::callbackConstraints(const mrs_msgs::DynamicsConstrain
   mutex_constraints_.lock();
   constraints_ = *msg;
   mutex_constraints_.unlock();
+}
+
+//}
+
+/* callbackPositionCmd() //{ */
+
+void TrajectoryGeneration::callbackPositionCmd(const mrs_msgs::PositionCommandConstPtr& msg) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  ROS_INFO_ONCE("[TrajectoryGeneration]: got position cmd");
+
+  got_position_cmd_ = true;
+
+  mutex_position_cmd_.lock();
+  position_cmd_ = *msg;
+  mutex_position_cmd_.unlock();
 }
 
 //}

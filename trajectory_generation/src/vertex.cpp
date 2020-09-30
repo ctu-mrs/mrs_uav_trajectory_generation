@@ -252,8 +252,6 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
     double acc_1_coeff = 0;
     double acc_2_coeff = 0;
 
-    double velocity_coeff = 1.0;
-
     if (i >= 1) {
 
       Eigen::VectorXd pre;
@@ -266,7 +264,9 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
       vec1.normalize();
       vec2.normalize();
 
-      acc_1_coeff = (1 - fabs(vec1.dot(vec2)));
+      double scalar = vec1.dot(vec2) < 0 ? 0.0 : vec1.dot(vec2);
+
+      acc_1_coeff = (1 - scalar);
 
       acceleration_time_1 = acc_1_coeff * ((v_max / a_max) + (a_max / j_max));
     }
@@ -283,7 +283,9 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
       vec1.normalize();
       vec2.normalize();
 
-      acc_2_coeff = (1 - fabs(vec1.dot(vec2)));
+      double scalar = vec1.dot(vec2) < 0 ? 0.0 : vec1.dot(vec2);
+
+      acc_2_coeff = (1 - scalar);
 
       acceleration_time_2 = acc_2_coeff * ((v_max / a_max) + (a_max / j_max));
     }
