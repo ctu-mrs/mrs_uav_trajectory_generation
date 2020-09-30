@@ -100,7 +100,8 @@ void TrajectoryGeneration::onInit() {
   params_.time_allocation                 = 3;
   params_.equality_constraint_tolerance   = 1.0e-3;
   params_.inequality_constraint_tolerance = 0.1;
-  params_.max_iterations                  = 3000;
+  params_.max_iterations                  = 10000;
+  params_.derivative_to_optimize          = 1;
 
   drs_.reset(new Drs_t(mutex_drs_, nh_));
   drs_->updateConfig(params_);
@@ -170,8 +171,23 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
   parameters.max_iterations                  = params.max_iterations;
 
   mav_trajectory_generation::Vertex::Vector vertices;
-  const int                                 dimension              = 4;
-  const int                                 derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
+  const int                                 dimension = 4;
+
+  int derivative_to_optimize;
+  switch (params.derivative_to_optimize) {
+    case 0: {
+      derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
+      break;
+    }
+    case 1: {
+      derivative_to_optimize = mav_trajectory_generation::derivative_order::JERK;
+      break;
+    }
+    case 2: {
+      derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
+      break;
+    }
+  }
 
   // | --------------- add constraints to vertices -------------- |
 
@@ -191,19 +207,19 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(2, 0.3, 1, 0));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(0, 0.0, 1, 0));
+    vertices.push_back(vertex);
+  }
+
+  {
+    mav_trajectory_generation::Vertex vertex(dimension);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(1, 0.1, 1, 0));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
     vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(3, 0, 1, 0));
-    vertices.push_back(vertex);
-  }
-
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(4, 0, 1, 0));
     vertices.push_back(vertex);
   }
 
@@ -400,9 +416,24 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   parameters.max_iterations                  = params.max_iterations;
 
   mav_trajectory_generation::Vertex::Vector vertices;
-  const int                                 dimension              = 4;
-  const int                                 derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
+  const int                                 dimension = 4;
   mav_trajectory_generation::Vertex         vertex(dimension);
+
+  int derivative_to_optimize;
+  switch (params.derivative_to_optimize) {
+    case 0: {
+      derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
+      break;
+    }
+    case 1: {
+      derivative_to_optimize = mav_trajectory_generation::derivative_order::JERK;
+      break;
+    }
+    case 2: {
+      derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
+      break;
+    }
+  }
 
   // | --------------- add constraints to vertices -------------- |
 

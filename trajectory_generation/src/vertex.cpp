@@ -310,7 +310,6 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
 
     if (((distance - ((v_max * v_max) / a_max)) / v_max) < 0) {
       t = acceleration_time_1 + acceleration_time_2 + (2 * (a_max / j_max));
-      printf("not\n");
     } else {
       t = acceleration_time_1 + acceleration_time_2 + ((distance - ((v_max * v_max) / a_max)) / v_max);
     }
