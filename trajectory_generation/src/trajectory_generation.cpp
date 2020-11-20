@@ -9,6 +9,8 @@
 
 #include <std_srvs/Trigger.h>
 
+#include <stdlib.h>
+
 #include <mrs_msgs/DynamicsConstraints.h>
 #include <mrs_msgs/Path.h>
 #include <mrs_msgs/PathSrv.h>
@@ -21,11 +23,23 @@
 #include <mav_msgs/eigen_mav_msgs.h>
 
 #include <mrs_lib/param_loader.h>
+#include <mrs_lib/geometry/cyclic.h>
+#include <mrs_lib/geometry/misc.h>
 
 #include <mutex>
 
 #include <dynamic_reconfigure/server.h>
 #include <trajectory_generation/trajectory_generationConfig.h>
+
+//}
+
+/* using //{ */
+
+using vec2_t = mrs_lib::geometry::vec_t<2>;
+using vec3_t = mrs_lib::geometry::vec_t<3>;
+
+using radians  = mrs_lib::geometry::radians;
+using sradians = mrs_lib::geometry::sradians;
 
 //}
 
@@ -40,6 +54,8 @@ public:
 
 private:
   bool is_initialized_ = false;
+
+  double randd(const double from, const double to);
 
   bool               callbackTest(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
   ros::ServiceServer service_server_test_;
@@ -59,11 +75,18 @@ private:
   mrs_msgs::PositionCommand position_cmd_;
   std::mutex                mutex_position_cmd_;
 
+  bool   _subdivide_segments_enabled_;
+  int    _subdivide_segments_factor_;
+  double _subdivide_segments_min_distance_;
+
   Eigen::MatrixXd _yaml_path_;
   bool            _yaml_fly_now_;
   bool            _yaml_use_heading_;
   bool            _yaml_stop_at_waypoints_;
   std::string     _yaml_frame_id_;
+
+  bool   _noise_enabled_;
+  double _noise_max_;
 
   void            callbackPath(const mrs_msgs::PathConstPtr& msg);
   ros::Subscriber subscriber_path_;
@@ -116,6 +139,13 @@ void TrajectoryGeneration::onInit() {
   param_loader.loadParam("frame_id", _yaml_frame_id_);
   param_loader.loadParam("use_heading", _yaml_use_heading_);
   param_loader.loadParam("stop_at_waypoints", _yaml_stop_at_waypoints_);
+
+  param_loader.loadParam("add_noise/enabled", _noise_enabled_);
+  param_loader.loadParam("add_noise/max", _noise_max_);
+
+  param_loader.loadParam("subdivide_segments/enabled", _subdivide_segments_enabled_);
+  param_loader.loadParam("subdivide_segments/factor", _subdivide_segments_factor_);
+  param_loader.loadParam("subdivide_segments/min_distance", _subdivide_segments_min_distance_);
 
   // | --------------------- service clients -------------------- |
 
@@ -327,11 +357,26 @@ void TrajectoryGeneration::setPath(const mrs_msgs::Path path) {
 
 //}
 
+/* //{ randd() */
+
+double TrajectoryGeneration::randd(const double from, const double to) {
+
+  if (!_noise_enabled_) {
+    return 0;
+  }
+
+  double zero_to_one = double((float)rand()) / double(RAND_MAX);
+
+  return (to - from) * zero_to_one + from;
+}
+
+//}
+
 // | ------------------------ callbacks ----------------------- |
 
 /* callbackTest() //{ */
 
-bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+bool TrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
 
   if (!is_initialized_) {
     return false;
@@ -403,6 +448,9 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
   // | --------------- add constraints to vertices -------------- |
 
   {
+
+    ROS_INFO("[TrajectoryGeneration]: start");
+
     mav_trajectory_generation::Vertex vertex(dimension);
     vertex.makeStartOrEnd(Eigen::Vector4d(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z, position_cmd.heading),
                           derivative_to_optimize);
@@ -416,20 +464,89 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
     vertices.push_back(vertex);
   }
 
+  double last_heading = position_cmd.heading;
+
+  /* // subdivide from the start */
+  /* if (_subdivide_segments_enabled_) { */
+
+  /*   double dist_to_start = mrs_lib::geometry::dist(vec3_t(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z), vec3_t(_yaml_path_(0,
+   * 0), _yaml_path_(0, 1), _yaml_path_(0, 2))); */
+
+  /*   if (dist_to_start > 2.0) { */
+  /*     for (int j = 0; j < subdivision_segments - 1; j++) { */
+
+  /*       double interp_factor = ((double(j) + 1) / double(subdivision_segments)); */
+
+  /*       double x = position_cmd.position.x + interp_factor * (_yaml_path_(0, 0) - position_cmd.position.x); */
+  /*       double y = position_cmd.position.y + interp_factor * (_yaml_path_(0, 1) - position_cmd.position.y); */
+  /*       double z = position_cmd.position.z + interp_factor * (_yaml_path_(0, 2) - position_cmd.position.z); */
+
+  /*       double heading = sradians::unwrap(radians::interp(position_cmd.heading, _yaml_path_(0, 3), interp_factor), last_heading); */
+
+  /*       ROS_INFO("[TrajectoryGeneration]: adding sub vertex, x=%.2f, y=%.2f, z=%.2f, heading=%.2f", x, y, z, heading); */
+
+  /*       mav_trajectory_generation::Vertex sub_vertex(dimension); */
+  /*       sub_vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading)); */
+  /*       vertices.push_back(sub_vertex); */
+
+  /*       last_heading = heading; */
+  /*     } */
+  /*   } */
+  /* } */
+
   for (int i = 0; i < _yaml_path_.rows(); i++) {
 
-    if (i == 0 || i == _yaml_path_.rows() - 1) {
+    if (i == _yaml_path_.rows() - 1) {
+      ROS_INFO("[TrajectoryGeneration]: end");
       mav_trajectory_generation::Vertex vertex(dimension);
-      vertex.makeStartOrEnd(Eigen::Vector4d(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2), _yaml_path_(i, 3)), derivative_to_optimize);
+      double                            new_heading = sradians::unwrap(_yaml_path_(i, 3), last_heading);
+      vertex.makeStartOrEnd(Eigen::Vector4d(_yaml_path_(i, 0) + randd(-_noise_max_, _noise_max_), _yaml_path_(i, 1) + randd(-_noise_max_, _noise_max_),
+                                            _yaml_path_(i, 2) + randd(-_noise_max_, _noise_max_), new_heading + randd(-_noise_max_, _noise_max_)),
+                            derivative_to_optimize);
+      last_heading = new_heading;
       vertices.push_back(vertex);
     } else {
+
+      ROS_INFO("[TrajectoryGeneration]: adding vertex %.2f, %.2f, %.2f, %.2f", _yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2), _yaml_path_(i, 3));
+
       mav_trajectory_generation::Vertex vertex(dimension);
+      double                            new_heading = sradians::unwrap(_yaml_path_(i, 3), last_heading);
       vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
-                           Eigen::Vector4d(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2), _yaml_path_(i, 3)));
+                           Eigen::Vector4d(_yaml_path_(i, 0) + randd(-_noise_max_, _noise_max_), _yaml_path_(i, 1) + randd(-_noise_max_, _noise_max_),
+                                           _yaml_path_(i, 2) + randd(-_noise_max_, _noise_max_), new_heading + randd(-_noise_max_, _noise_max_)));
+      last_heading = new_heading;
       if (_yaml_stop_at_waypoints_) {
         vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector4d(0, 0.0, 0, 0));
       }
       vertices.push_back(vertex);
+
+      double distance = mrs_lib::geometry::dist(vec3_t(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2)),
+                                                vec3_t(_yaml_path_(i + 1, 0), _yaml_path_(i + 1, 1), _yaml_path_(i + 1, 2)));
+
+      int subdivision_segments = pow(2, _subdivide_segments_factor_);
+
+      if (distance / subdivision_segments > _subdivide_segments_min_distance_ && _subdivide_segments_enabled_) {
+
+        for (int j = 0; j < subdivision_segments - 1; j++) {
+
+          double interp_factor = ((double(j) + 1) / double(subdivision_segments));
+
+          double x = _yaml_path_(i, 0) + interp_factor * (_yaml_path_(i + 1, 0) - _yaml_path_(i, 0)) + randd(-_noise_max_, _noise_max_);
+          double y = _yaml_path_(i, 1) + interp_factor * (_yaml_path_(i + 1, 1) - _yaml_path_(i, 1)) + randd(-_noise_max_, _noise_max_);
+          double z = _yaml_path_(i, 2) + interp_factor * (_yaml_path_(i + 1, 2) - _yaml_path_(i, 2)) + randd(-_noise_max_, _noise_max_);
+
+          double heading =
+              sradians::unwrap(radians::interp(_yaml_path_(i, 3), _yaml_path_(i + 1, 3), interp_factor), last_heading) + randd(-_noise_max_, _noise_max_);
+
+          ROS_INFO("[TrajectoryGeneration]: adding sub vertex, x=%.2f, y=%.2f, z=%.2f, heading=%.2f", x, y, z, heading);
+
+          mav_trajectory_generation::Vertex sub_vertex(dimension);
+          sub_vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+          vertices.push_back(sub_vertex);
+
+          last_heading = heading;
+        }
+      }
     }
   }
 
@@ -446,7 +563,7 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
   /* segment_times = estimateSegmentTimesVelocityRamp(vertices, constraints.horizontal_speed, constraints.horizontal_acceleration, 2.0); */
 
   for (size_t i = 0; i < segment_times.size(); i++) {
-    ROS_INFO_STREAM("[TrajectoryGeneration]: segment: " << segment_times[i]);
+    ROS_INFO_STREAM("[TrajectoryGeneration]: segment " << i << " time: " << segment_times[i]);
   }
 
   // | --------- create an optimizer object and solve it -------- |
@@ -482,9 +599,10 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
 
     mrs_msgs::TrajectoryReferenceSrv srv;
 
-    srv.request.trajectory.dt          = sampling_interval;
-    srv.request.trajectory.fly_now     = true;
-    srv.request.trajectory.use_heading = true;
+    srv.request.trajectory.header.stamp = position_cmd.header.stamp;
+    srv.request.trajectory.dt           = sampling_interval;
+    srv.request.trajectory.fly_now      = true;
+    srv.request.trajectory.use_heading  = true;
 
     for (size_t it = 0; it < states.size(); it++) {
 

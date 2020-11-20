@@ -127,9 +127,18 @@ class Trajectory {
   // Returns false in case of extremum calculation failure.
   bool computeMinMaxMagnitude(int derivative,
                               const std::vector<int>& dimensions,
+                              Extremum* minimum, Extremum* maximum, int seg) const;
+
+  // Compute the analytic minimum and maximum of magnitude for a given
+  // derivative and dimensions, e.g., [0, 1, 2] for position or [3] for yaw.
+  // Returns false in case of extremum calculation failure.
+  bool computeMinMaxMagnitude(int derivative,
+                              const std::vector<int>& dimensions,
                               Extremum* minimum, Extremum* maximum) const;
 
   // Compute max velocity and max acceleration. Shorthand for the method above.
+  bool computeMaxVelocityAndAcceleration(double* v_max, double* a_max, int seg) const;
+
   bool computeMaxVelocityAndAcceleration(double* v_max, double* a_max) const;
 
   // This method SCALES the segment times evenly.

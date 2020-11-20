@@ -1,3 +1,12 @@
+subdivide_segments:
+  enabled: true
+  factor: 5
+  min_distance: 1.0 # [m]
+
+add_noise:
+  enabled: false
+  max: 0.2 # [m] # even distribution
+
 time_penalty: 100
 soft_constraints_enabled: true
 soft_constraints_weight: 1.5

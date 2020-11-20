@@ -239,6 +239,7 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
   std::vector<double> segment_times;
   segment_times.reserve(vertices.size() - 1);
 
+  // for each vertex in the path
   for (size_t i = 0; i < vertices.size() - 1; ++i) {
 
     Eigen::VectorXd start, end;
@@ -249,8 +250,13 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
     double acceleration_time_1 = 0;
     double acceleration_time_2 = 0;
 
+    double jerk_time_1 = 0;
+    double jerk_time_2 = 0;
+
     double acc_1_coeff = 0;
     double acc_2_coeff = 0;
+
+    double distance = (end - start).norm();
 
     if (i >= 1) {
 
@@ -269,8 +275,25 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
       acc_1_coeff = (1 - scalar);
 
       acceleration_time_1 = acc_1_coeff * ((v_max / a_max) + (a_max / j_max));
+
+      jerk_time_1 = acc_1_coeff * (2 * (a_max / j_max));
     }
 
+    // the first vertex
+    if (i == 0) {
+      acc_1_coeff         = 1.0;
+      acceleration_time_1 = (v_max / a_max) + (a_max / j_max);
+      jerk_time_1         = (2 * (a_max / j_max));
+    }
+
+    // last vertex
+    if (i == vertices.size() - 2) {
+      acc_2_coeff         = 1.0;
+      acceleration_time_2 = (v_max / a_max) + (a_max / j_max);
+      jerk_time_2         = (2 * (a_max / j_max));
+    }
+
+    // a vertex
     if (i < vertices.size() - 2) {
 
       Eigen::VectorXd post;
@@ -288,30 +311,44 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
       acc_2_coeff = (1 - scalar);
 
       acceleration_time_2 = acc_2_coeff * ((v_max / a_max) + (a_max / j_max));
+
+      jerk_time_2 = acc_2_coeff * (2 * (a_max / j_max));
     }
 
-    if (i == 0) {
-
-      acc_1_coeff         = 1.0;
-      acceleration_time_1 = (v_max / a_max) + (a_max / j_max);
+    if (acceleration_time_1 > sqrt(distance / a_max)) {
+      acceleration_time_1 = sqrt(distance / a_max);
     }
 
-    if (i == vertices.size() - 2) {
-      acc_2_coeff         = 1.0;
-      acceleration_time_2 = (v_max / a_max) + (a_max / j_max);
+    if (jerk_time_1 > sqrt(v_max / j_max)) {
+      jerk_time_1 = sqrt(v_max / j_max);
     }
 
-    double distance = (end - start).norm();
+    if (acceleration_time_2 > sqrt(distance / a_max)) {
+      acceleration_time_2 = sqrt(distance / a_max);
+    }
+
+    if (jerk_time_2 > sqrt(v_max / j_max)) {
+      jerk_time_2 = sqrt(v_max / j_max);
+    }
 
     /* double t = (distance / v_max) * 2 * (1.0 + magic_fabian_constant * (v_max / a_max) * exp((-distance / v_max) * 2)); */
-    double t;
 
-    printf("point %d, time1 %.2f time2 %.2f, coeff1 %.2f coeff2 %.2f\n", int(i), acceleration_time_1, acceleration_time_2, acc_1_coeff, acc_2_coeff);
+    double max_velocity_time;
 
     if (((distance - ((v_max * v_max) / a_max)) / v_max) < 0) {
-      t = acceleration_time_1 + acceleration_time_2 + (2 * (a_max / j_max));
+      max_velocity_time = ((distance) / v_max);
     } else {
-      t = acceleration_time_1 + acceleration_time_2 + ((distance - ((v_max * v_max) / a_max)) / v_max);
+      max_velocity_time = ((distance - ((v_max * v_max) / a_max)) / v_max);
+    }
+
+    /* double t = max_velocity_time + acceleration_time_1 + acceleration_time_2 + jerk_time_1 + jerk_time_2; */
+    double t = max_velocity_time + acceleration_time_1 + acceleration_time_2;
+
+    printf("point %d, distance: %.2f, acc_time %.2f dec_time %.2f, jerk_up: %.2f, jerk_down: %.2f, max_vel_time: %.2f, total: %.2f\n", int(i), distance, acceleration_time_1,
+           acceleration_time_2, jerk_time_1, jerk_time_2, max_velocity_time, t);
+
+    if (t < 0.1) {
+      t = 0.1;
     }
 
     segment_times.push_back(t);
