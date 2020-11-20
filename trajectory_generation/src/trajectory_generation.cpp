@@ -257,41 +257,92 @@ void TrajectoryGeneration::setPath(const mrs_msgs::Path path) {
     vertices.push_back(vertex);
   }
 
-  for (size_t i = 0; i < path.points.size(); i++) {
+  double last_heading = position_cmd.heading;
+
+  int subdivision_segments = pow(2, _subdivide_segments_factor_);
+
+  /* subdivide //{ */
+
+  if (_subdivide_segments_enabled_) {
+
+    double distance = mrs_lib::geometry::dist(vec3_t(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z),
+                                              vec3_t(path.points[0].position.x, path.points[0].position.y, path.points[0].position.z));
+
+    if (distance / subdivision_segments > _subdivide_segments_min_distance_ && _subdivide_segments_enabled_) {
+
+      for (int j = 0; j < subdivision_segments - 1; j++) {
+
+        double interp_factor = ((double(j) + 1) / double(subdivision_segments));
+
+        double x       = position_cmd.position.x + interp_factor * (path.points[0].position.x - position_cmd.position.x);
+        double y       = position_cmd.position.y + interp_factor * (path.points[0].position.y - position_cmd.position.y);
+        double z       = position_cmd.position.z + interp_factor * (path.points[0].position.z - position_cmd.position.z);
+        double heading = sradians::unwrap(sradians::interp(position_cmd.heading, path.points[0].heading, interp_factor), last_heading);
+        last_heading   = heading;
+
+        ROS_INFO("[TrajectoryGeneration]: adding sub vertex, x=%.2f, y=%.2f, z=%.2f, heading=%.2f", x, y, z, heading);
+
+        mav_trajectory_generation::Vertex sub_vertex(dimension);
+        sub_vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+        vertices.push_back(sub_vertex);
+      }
+    }
+  }
+
+  //}
+
+  for (int i = 0; i < int(path.points.size()); i++) {
 
     double x       = path.points[i].position.x;
     double y       = path.points[i].position.y;
     double z       = path.points[i].position.z;
-    double heading = path.points[i].heading;
+    double heading = sradians::unwrap(path.points[i].heading, last_heading);
+    last_heading   = heading;
 
-    if (i == 0) {
+    // the last point
+    if (i == (int(path.points.size()) - 1)) {
 
-      ROS_INFO("[TrajectoryGeneration]: last point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
+      mav_trajectory_generation::Vertex vertex(dimension);
 
-      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.15) {
-        ROS_INFO("[TrajectoryGeneration]: point too close, skipping");
-        continue;
-      }
-
-      vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), mav_trajectory_generation::derivative_order::POSITION);
+      vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
       vertices.push_back(vertex);
 
+      // mid points
     } else {
 
-      ROS_INFO("[TrajectoryGeneration]: mid point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
+      ROS_INFO("[TrajectoryGeneration]: adding vertex %.2f, %.2f, %.2f, %.2f", x, y, z, heading);
 
-      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.15) {
-        ROS_INFO("[TrajectoryGeneration]: point too close, skipping");
-        continue;
-      }
-
+      mav_trajectory_generation::Vertex vertex(dimension);
       vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
       vertices.push_back(vertex);
-    }
 
-    lx = x;
-    ly = y;
-    lz = z;
+      /* subdivide //{ */
+
+      double segment_length = mrs_lib::geometry::dist(vec3_t(path.points[i].position.x, path.points[i].position.y, path.points[i].position.z),
+                                                      vec3_t(path.points[i + 1].position.x, path.points[i + 1].position.y, path.points[i + 1].position.z));
+
+      if ((segment_length / subdivision_segments) > _subdivide_segments_min_distance_ && _subdivide_segments_enabled_) {
+
+        for (int j = 0; j < subdivision_segments - 1; j++) {
+
+          double interp_factor = ((double(j) + 1) / double(subdivision_segments));
+
+          double x       = path.points[i].position.x + interp_factor * (path.points[i + 1].position.x - path.points[i].position.x);
+          double y       = path.points[i].position.y + interp_factor * (path.points[i + 1].position.y - path.points[i].position.y);
+          double z       = path.points[i].position.z + interp_factor * (path.points[i + 1].position.z - path.points[i].position.z);
+          double heading = sradians::unwrap(radians::interp(path.points[i].heading, path.points[i + 1].heading, interp_factor), last_heading);
+          last_heading   = heading;
+
+          ROS_INFO("[TrajectoryGeneration]: adding sub vertex, x=%.2f, y=%.2f, z=%.2f, heading=%.2f", x, y, z, heading);
+
+          mav_trajectory_generation::Vertex sub_vertex(dimension);
+          sub_vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+          vertices.push_back(sub_vertex);
+        }
+      }
+
+      //}
+    }
   }
 
 
@@ -342,11 +393,10 @@ void TrajectoryGeneration::setPath(const mrs_msgs::Path path) {
     for (size_t it = 0; it < states.size(); it++) {
 
       mrs_msgs::Reference point;
-      point.heading    = 0;
       point.position.x = states[it].position_W[0];
       point.position.y = states[it].position_W[1];
       point.position.z = states[it].position_W[2];
-      point.heading    = states[it].position_W[3];
+      point.heading    = states[it].getYaw();
 
       srv.request.trajectory.points.push_back(point);
     }
@@ -466,66 +516,78 @@ bool TrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Requ
 
   double last_heading = position_cmd.heading;
 
-  /* // subdivide from the start */
-  /* if (_subdivide_segments_enabled_) { */
+  int subdivision_segments = pow(2, _subdivide_segments_factor_);
 
-  /*   double dist_to_start = mrs_lib::geometry::dist(vec3_t(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z), vec3_t(_yaml_path_(0,
-   * 0), _yaml_path_(0, 1), _yaml_path_(0, 2))); */
+  /* subdivide //{ */
 
-  /*   if (dist_to_start > 2.0) { */
-  /*     for (int j = 0; j < subdivision_segments - 1; j++) { */
+  if (_subdivide_segments_enabled_) {
 
-  /*       double interp_factor = ((double(j) + 1) / double(subdivision_segments)); */
+    double distance = mrs_lib::geometry::dist(vec3_t(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z),
+                                              vec3_t(_yaml_path_(0, 0), _yaml_path_(0, 1), _yaml_path_(0, 2)));
 
-  /*       double x = position_cmd.position.x + interp_factor * (_yaml_path_(0, 0) - position_cmd.position.x); */
-  /*       double y = position_cmd.position.y + interp_factor * (_yaml_path_(0, 1) - position_cmd.position.y); */
-  /*       double z = position_cmd.position.z + interp_factor * (_yaml_path_(0, 2) - position_cmd.position.z); */
+    if (distance / subdivision_segments > _subdivide_segments_min_distance_ && _subdivide_segments_enabled_) {
 
-  /*       double heading = sradians::unwrap(radians::interp(position_cmd.heading, _yaml_path_(0, 3), interp_factor), last_heading); */
+      for (int j = 0; j < subdivision_segments - 1; j++) {
 
-  /*       ROS_INFO("[TrajectoryGeneration]: adding sub vertex, x=%.2f, y=%.2f, z=%.2f, heading=%.2f", x, y, z, heading); */
+        double interp_factor = ((double(j) + 1) / double(subdivision_segments));
 
-  /*       mav_trajectory_generation::Vertex sub_vertex(dimension); */
-  /*       sub_vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading)); */
-  /*       vertices.push_back(sub_vertex); */
+        double x       = position_cmd.position.x + interp_factor * (_yaml_path_(0, 0) - position_cmd.position.x);
+        double y       = position_cmd.position.y + interp_factor * (_yaml_path_(0, 1) - position_cmd.position.y);
+        double z       = position_cmd.position.z + interp_factor * (_yaml_path_(0, 2) - position_cmd.position.z);
+        double heading = sradians::unwrap(radians::interp(position_cmd.heading, _yaml_path_(0, 3), interp_factor), last_heading);
+        last_heading   = heading;
 
-  /*       last_heading = heading; */
-  /*     } */
-  /*   } */
-  /* } */
+        ROS_INFO("[TrajectoryGeneration]: adding sub vertex, x=%.2f, y=%.2f, z=%.2f, heading=%.2f", x, y, z, heading);
+
+        mav_trajectory_generation::Vertex sub_vertex(dimension);
+        sub_vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+        vertices.push_back(sub_vertex);
+      }
+    }
+  }
+
+  //}
 
   for (int i = 0; i < _yaml_path_.rows(); i++) {
 
+    // the last point
     if (i == _yaml_path_.rows() - 1) {
-      ROS_INFO("[TrajectoryGeneration]: end");
+
       mav_trajectory_generation::Vertex vertex(dimension);
-      double                            new_heading = sradians::unwrap(_yaml_path_(i, 3), last_heading);
-      vertex.makeStartOrEnd(Eigen::Vector4d(_yaml_path_(i, 0) + randd(-_noise_max_, _noise_max_), _yaml_path_(i, 1) + randd(-_noise_max_, _noise_max_),
-                                            _yaml_path_(i, 2) + randd(-_noise_max_, _noise_max_), new_heading + randd(-_noise_max_, _noise_max_)),
-                            derivative_to_optimize);
-      last_heading = new_heading;
+
+      double x       = _yaml_path_(i, 0) + randd(-_noise_max_, _noise_max_);
+      double y       = _yaml_path_(i, 1) + randd(-_noise_max_, _noise_max_);
+      double z       = _yaml_path_(i, 2) + randd(-_noise_max_, _noise_max_);
+      double heading = sradians::unwrap(_yaml_path_(i, 3), last_heading) + randd(-_noise_max_, _noise_max_);
+      last_heading   = heading;
+
+      vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
       vertices.push_back(vertex);
+
+      // mid points
     } else {
 
-      ROS_INFO("[TrajectoryGeneration]: adding vertex %.2f, %.2f, %.2f, %.2f", _yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2), _yaml_path_(i, 3));
+      double x       = _yaml_path_(i, 0) + randd(-_noise_max_, _noise_max_);
+      double y       = _yaml_path_(i, 1) + randd(-_noise_max_, _noise_max_);
+      double z       = _yaml_path_(i, 2) + randd(-_noise_max_, _noise_max_);
+      double heading = sradians::unwrap(_yaml_path_(i, 3), last_heading) + randd(-_noise_max_, _noise_max_);
+      last_heading   = heading;
+
+      ROS_INFO("[TrajectoryGeneration]: adding vertex %.2f, %.2f, %.2f, %.2f", x, y, z, heading);
 
       mav_trajectory_generation::Vertex vertex(dimension);
-      double                            new_heading = sradians::unwrap(_yaml_path_(i, 3), last_heading);
-      vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
-                           Eigen::Vector4d(_yaml_path_(i, 0) + randd(-_noise_max_, _noise_max_), _yaml_path_(i, 1) + randd(-_noise_max_, _noise_max_),
-                                           _yaml_path_(i, 2) + randd(-_noise_max_, _noise_max_), new_heading + randd(-_noise_max_, _noise_max_)));
-      last_heading = new_heading;
+      vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
       if (_yaml_stop_at_waypoints_) {
         vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector4d(0, 0.0, 0, 0));
       }
       vertices.push_back(vertex);
 
-      double distance = mrs_lib::geometry::dist(vec3_t(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2)),
-                                                vec3_t(_yaml_path_(i + 1, 0), _yaml_path_(i + 1, 1), _yaml_path_(i + 1, 2)));
+      /* subdivide //{ */
 
-      int subdivision_segments = pow(2, _subdivide_segments_factor_);
+      double segment_length = mrs_lib::geometry::dist(vec3_t(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2)),
+                                                      vec3_t(_yaml_path_(i + 1, 0), _yaml_path_(i + 1, 1), _yaml_path_(i + 1, 2)));
 
-      if (distance / subdivision_segments > _subdivide_segments_min_distance_ && _subdivide_segments_enabled_) {
+      if ((segment_length / subdivision_segments) > _subdivide_segments_min_distance_ && _subdivide_segments_enabled_) {
 
         for (int j = 0; j < subdivision_segments - 1; j++) {
 
@@ -547,6 +609,8 @@ bool TrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Requ
           last_heading = heading;
         }
       }
+
+      //}
     }
   }
 
