@@ -25,6 +25,7 @@
 
       <!-- ROS parameters config file -->
       <rosparam file="$(find trajectory_generation)/config/default.yaml" />
+      <rosparam file="$(find trajectory_generation)/paths/example.yaml" />
 
         <!-- Subscribers -->
       <remap from="~constraints_in" to="control_manager/current_constraints" />

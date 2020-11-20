@@ -1,0 +1,8 @@
+time_penalty: 100
+soft_constraints_enabled: true
+soft_constraints_weight: 1.5
+time_allocation: 2
+equality_constraint_tolerance: 1.0e-3
+inequality_constraint_tolerance: 0.1
+max_iterations: 10000
+derivative_to_optimize: 0

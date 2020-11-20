@@ -1,0 +1,18 @@
+frame_id: "gps_origin"
+
+path: [
+  # x, y, z, heading
+  0, 0, 2, 0.78,
+  5, 0, 2, 1.57,
+  10, 0, 2, 2.35,
+  10, 5, 2, 3.14,
+  10, 10, 2, 3.92,
+  5, 10, 2, 4.71,
+  0, 10, 2, 5.49,
+  0, 5, 2, 6.25,
+  0, 0, 2, 7.03,
+]
+
+use_heading: true
+fly_now: true # tracker will fly it immediately after receiving
+stop_at_waypoints: false

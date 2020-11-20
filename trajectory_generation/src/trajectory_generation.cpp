@@ -20,6 +20,8 @@
 
 #include <mav_msgs/eigen_mav_msgs.h>
 
+#include <mrs_lib/param_loader.h>
+
 #include <mutex>
 
 #include <dynamic_reconfigure/server.h>
@@ -56,6 +58,12 @@ private:
   bool                      got_position_cmd_ = false;
   mrs_msgs::PositionCommand position_cmd_;
   std::mutex                mutex_position_cmd_;
+
+  Eigen::MatrixXd _yaml_path_;
+  bool            _yaml_fly_now_;
+  bool            _yaml_use_heading_;
+  bool            _yaml_stop_at_waypoints_;
+  std::string     _yaml_frame_id_;
 
   void            callbackPath(const mrs_msgs::PathConstPtr& msg);
   ros::Subscriber subscriber_path_;
@@ -99,16 +107,34 @@ void TrajectoryGeneration::onInit() {
 
   service_client_trajectory_reference_ = nh_.serviceClient<mrs_msgs::TrajectoryReferenceSrv>("trajectory_reference_out");
 
+  // | ----------------------- parameters ----------------------- |
+
+  mrs_lib::ParamLoader param_loader(nh_, "TrajectoryGeneration");
+
+  _yaml_path_ = param_loader.loadMatrixDynamic2("path", -1, 4);
+  param_loader.loadParam("fly_now", _yaml_fly_now_);
+  param_loader.loadParam("frame_id", _yaml_frame_id_);
+  param_loader.loadParam("use_heading", _yaml_use_heading_);
+  param_loader.loadParam("stop_at_waypoints", _yaml_stop_at_waypoints_);
+
   // | --------------------- service clients -------------------- |
 
-  params_.time_penalty                    = 100;
-  params_.soft_constraints_enabled        = true;
-  params_.soft_constraints_weight         = 1.5;
-  params_.time_allocation                 = 2;
-  params_.equality_constraint_tolerance   = 1.0e-3;
-  params_.inequality_constraint_tolerance = 0.1;
-  params_.max_iterations                  = 10000;
-  params_.derivative_to_optimize          = 0;
+  param_loader.loadParam("time_penalty", params_.time_penalty);
+  param_loader.loadParam("soft_constraints_enabled", params_.soft_constraints_enabled);
+  param_loader.loadParam("soft_constraints_weight", params_.soft_constraints_weight);
+  param_loader.loadParam("time_allocation", params_.time_allocation);
+  param_loader.loadParam("equality_constraint_tolerance", params_.equality_constraint_tolerance);
+  param_loader.loadParam("inequality_constraint_tolerance", params_.inequality_constraint_tolerance);
+  param_loader.loadParam("max_iterations", params_.max_iterations);
+  param_loader.loadParam("derivative_to_optimize", params_.derivative_to_optimize);
+
+
+  if (!param_loader.loadedSuccessfully()) {
+    ROS_ERROR("[ControlManager]: could not load all parameters!");
+    ros::shutdown();
+  }
+
+  // | --------------- dynamic reconfigure server --------------- |
 
   drs_.reset(new Drs_t(mutex_drs_, nh_));
   drs_->updateConfig(params_);
@@ -121,6 +147,7 @@ void TrajectoryGeneration::onInit() {
 
   is_initialized_ = true;
 }
+
 //}
 
 /* setPath() //{ */
@@ -389,83 +416,22 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
     vertices.push_back(vertex);
   }
 
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(0, 0.0, 1, 0));
-    vertices.push_back(vertex);
+  for (int i = 0; i < _yaml_path_.rows(); i++) {
+
+    if (i == 0 || i == _yaml_path_.rows() - 1) {
+      mav_trajectory_generation::Vertex vertex(dimension);
+      vertex.makeStartOrEnd(Eigen::Vector4d(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2), _yaml_path_(i, 3)), derivative_to_optimize);
+      vertices.push_back(vertex);
+    } else {
+      mav_trajectory_generation::Vertex vertex(dimension);
+      vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
+                           Eigen::Vector4d(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2), _yaml_path_(i, 3)));
+      if (_yaml_stop_at_waypoints_) {
+        vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector4d(0, 0.0, 0, 0));
+      }
+      vertices.push_back(vertex);
+    }
   }
-
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(10, 0.0, 1, 0));
-    vertices.push_back(vertex);
-  }
-
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(20, 20, 1, 0));
-    vertices.push_back(vertex);
-  }
-
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(5, 5, 1, 0));
-    vertices.push_back(vertex);
-  }
-
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(0, 0.0, 1, 0));
-    vertices.push_back(vertex);
-  }
-
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.makeStartOrEnd(Eigen::Vector4d(10, 2, 1, 0), derivative_to_optimize); */
-  /*   vertices.push_back(vertex); */
-  /* } */
-
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(20, 0, 1, 0)); */
-  /*   vertices.push_back(vertex); */
-  /* } */
-
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.makeStartOrEnd(Eigen::Vector4d(20, 0, 1, 0), derivative_to_optimize);
-    vertices.push_back(vertex);
-  }
-
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 2, 1, 0)); */
-  /*   vertices.push_back(vertex); */
-  /* } */
-
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(15, 5, 1, 0)); */
-  /*   vertices.push_back(vertex); */
-  /* } */
-
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(7, 5, 1, 3.14)); */
-  /*   vertices.push_back(vertex); */
-  /* } */
-
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(0, 5, 1, 0)); */
-  /*   vertices.push_back(vertex); */
-  /* } */
-
-  /* { */
-  /*   mav_trajectory_generation::Vertex vertex(dimension); */
-  /*   vertex.makeStartOrEnd(Eigen::Vector4d(0, 0, 1, 0), derivative_to_optimize); */
-  /*   vertices.push_back(vertex); */
-  /* } */
 
   // | ---------------- compute the segment times --------------- |
 
@@ -601,9 +567,9 @@ bool TrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_
 
   setPath(req.path);
 
-    res.message = "set";
-    res.success = true;
-    return true;
+  res.message = "set";
+  res.success = true;
+  return true;
 }
 
 //}
