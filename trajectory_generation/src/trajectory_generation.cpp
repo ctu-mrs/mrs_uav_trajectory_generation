@@ -97,7 +97,7 @@ void TrajectoryGeneration::onInit() {
   params_.time_penalty                    = 100;
   params_.soft_constraints_enabled        = true;
   params_.soft_constraints_weight         = 1.5;
-  params_.time_allocation                 = 3;
+  params_.time_allocation                 = 2;
   params_.equality_constraint_tolerance   = 1.0e-3;
   params_.inequality_constraint_tolerance = 0.1;
   params_.max_iterations                  = 10000;
@@ -213,25 +213,25 @@ bool TrajectoryGeneration::callbackTest(std_srvs::Trigger::Request& req, std_srv
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(1, 0.1, 1, 0));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(10, 0.0, 1, 0));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(3, 0, 1, 0));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(20, 20, 1, 0));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(6, 0.3, 1, 0));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(5, 5, 1, 0));
     vertices.push_back(vertex);
   }
 
   {
     mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(8, 0.0, 1, 0));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(0, 0.0, 1, 0));
     vertices.push_back(vertex);
   }
 
