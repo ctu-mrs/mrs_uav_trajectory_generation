@@ -1,7 +1,7 @@
 subdivide_segments:
   enabled: true
-  factor: 5
-  min_distance: 1.0 # [m]
+  factor: 2 # 2^factor segments
+  min_distance: 1.0 # [m] # will not divide if too close already
 
 add_noise:
   enabled: false
