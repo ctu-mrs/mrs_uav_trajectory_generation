@@ -29,7 +29,7 @@
         <!-- Subscribers -->
       <remap from="~constraints_in" to="control_manager/current_constraints" />
       <remap from="~position_cmd_in" to="control_manager/position_cmd" />
-      <remap from="~path_in" to="~path_in" />
+      <remap from="~path_in" to="~path" />
 
       <!-- Service servers -->
       <remap from="~test_in" to="~test" />

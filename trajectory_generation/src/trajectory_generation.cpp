@@ -11,6 +11,7 @@
 
 #include <mrs_msgs/DynamicsConstraints.h>
 #include <mrs_msgs/Path.h>
+#include <mrs_msgs/PathSrv.h>
 #include <mrs_msgs/PositionCommand.h>
 
 #include <mav_trajectory_generation/polynomial_optimization_nonlinear.h>
@@ -39,6 +40,9 @@ private:
   bool is_initialized_ = false;
 
   bool               callbackTest(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
+  ros::ServiceServer service_server_test_;
+
+  bool               callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_msgs::PathSrv::Response& res);
   ros::ServiceServer service_server_path_;
 
   void                          callbackConstraints(const mrs_msgs::DynamicsConstraintsConstPtr& msg);
@@ -57,6 +61,8 @@ private:
   ros::Subscriber subscriber_path_;
 
   ros::ServiceClient service_client_trajectory_reference_;
+
+  void setPath(const mrs_msgs::Path path);
 
   // | --------------- dynamic reconfigure server --------------- |
 
@@ -88,7 +94,8 @@ void TrajectoryGeneration::onInit() {
 
   // | --------------------- service servers -------------------- |
 
-  service_server_path_ = nh_.advertiseService("test_in", &TrajectoryGeneration::callbackTest, this);
+  service_server_test_ = nh_.advertiseService("test_in", &TrajectoryGeneration::callbackTest, this);
+  service_server_path_ = nh_.advertiseService("path_in", &TrajectoryGeneration::callbackPathSrv, this);
 
   service_client_trajectory_reference_ = nh_.serviceClient<mrs_msgs::TrajectoryReferenceSrv>("trajectory_reference_out");
 
@@ -114,6 +121,183 @@ void TrajectoryGeneration::onInit() {
 
   is_initialized_ = true;
 }
+//}
+
+/* setPath() //{ */
+
+void TrajectoryGeneration::setPath(const mrs_msgs::Path path) {
+
+  mutex_params_.lock();
+  DrsParams_t params = params_;
+  mutex_params_.unlock();
+
+  mutex_constraints_.lock();
+  mrs_msgs::DynamicsConstraints constraints = constraints_;
+  mutex_constraints_.unlock();
+
+  mutex_position_cmd_.lock();
+  mrs_msgs::PositionCommand position_cmd = position_cmd_;
+  mutex_position_cmd_.unlock();
+
+  if (path.points.size() == 0) {
+    ROS_ERROR_THROTTLE(1.0, "[TrajectoryGeneration]: trajectory is empty");
+    return;
+  }
+
+  mav_trajectory_generation::NonlinearOptimizationParameters parameters;
+
+  parameters.f_rel                  = 0.05;
+  parameters.x_rel                  = 0.1;
+  parameters.time_penalty           = params.time_penalty;
+  parameters.use_soft_constraints   = params.soft_constraints_enabled;
+  parameters.soft_constraint_weight = params.soft_constraints_weight;
+  parameters.time_alloc_method      = static_cast<mav_trajectory_generation::NonlinearOptimizationParameters::TimeAllocMethod>(params.time_allocation);
+  if (params.time_allocation == 2) {
+    parameters.algorithm = nlopt::LD_LBFGS;
+  }
+  parameters.initial_stepsize_rel            = 0.1;
+  parameters.inequality_constraint_tolerance = params.inequality_constraint_tolerance;
+  parameters.equality_constraint_tolerance   = params.equality_constraint_tolerance;
+  parameters.max_iterations                  = params.max_iterations;
+
+  mav_trajectory_generation::Vertex::Vector vertices;
+  const int                                 dimension = 4;
+  mav_trajectory_generation::Vertex         vertex(dimension);
+
+  int derivative_to_optimize;
+  switch (params.derivative_to_optimize) {
+    case 0: {
+      derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
+      break;
+    }
+    case 1: {
+      derivative_to_optimize = mav_trajectory_generation::derivative_order::JERK;
+      break;
+    }
+    case 2: {
+      derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
+      break;
+    }
+  }
+
+  // | --------------- add constraints to vertices -------------- |
+
+  double lx, ly, lz;
+
+  // | ------------------ add the current state ----------------- |
+
+  {
+    mav_trajectory_generation::Vertex vertex(dimension);
+    vertex.makeStartOrEnd(Eigen::Vector4d(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z, position_cmd.heading),
+                          derivative_to_optimize);
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                         Eigen::Vector4d(position_cmd.velocity.x, position_cmd.velocity.y, position_cmd.velocity.z, position_cmd.heading_rate));
+    vertex.addConstraint(
+        mav_trajectory_generation::derivative_order::ACCELERATION,
+        Eigen::Vector4d(position_cmd.acceleration.x, position_cmd.acceleration.y, position_cmd.acceleration.z, position_cmd.heading_acceleration));
+    vertex.addConstraint(mav_trajectory_generation::derivative_order::JERK,
+                         Eigen::Vector4d(position_cmd.jerk.x, position_cmd.jerk.y, position_cmd.jerk.z, position_cmd.heading_jerk));
+    vertices.push_back(vertex);
+  }
+
+  for (size_t i = 0; i < path.points.size(); i++) {
+
+    double x       = path.points[i].position.x;
+    double y       = path.points[i].position.y;
+    double z       = path.points[i].position.z;
+    double heading = path.points[i].heading;
+
+    if (i == 0) {
+
+      ROS_INFO("[TrajectoryGeneration]: last point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
+
+      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.15) {
+        ROS_INFO("[TrajectoryGeneration]: point too close, skipping");
+        continue;
+      }
+
+      vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), mav_trajectory_generation::derivative_order::POSITION);
+      vertices.push_back(vertex);
+
+    } else {
+
+      ROS_INFO("[TrajectoryGeneration]: mid point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
+
+      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.15) {
+        ROS_INFO("[TrajectoryGeneration]: point too close, skipping");
+        continue;
+      }
+
+      vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+      vertices.push_back(vertex);
+    }
+
+    lx = x;
+    ly = y;
+    lz = z;
+  }
+
+
+  // | ---------------- compute the segment times --------------- |
+
+  std::vector<double> segment_times;
+  segment_times = estimateSegmentTimes(vertices, constraints.horizontal_speed, constraints.horizontal_acceleration, constraints.horizontal_jerk);
+  /* segment_times = estimateSegmentTimesVelocityRamp(vertices, constraints.horizontal_speed, constraints.horizontal_acceleration, 1.0); */
+
+  // | --------- create an optimizer object and solve it -------- |
+
+  const int                                                     N = 10;
+  mav_trajectory_generation::PolynomialOptimizationNonLinear<N> opt(dimension, parameters);
+  opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
+  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::VELOCITY, constraints.horizontal_speed);
+  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, constraints.horizontal_acceleration);
+  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::JERK, constraints.horizontal_jerk);
+  opt.optimize();
+
+  // | ------------- obtain the polynomial segments ------------- |
+
+  mav_trajectory_generation::Segment::Vector segments;
+  opt.getPolynomialOptimizationRef().getSegments(&segments);
+
+  // | --------------- create the trajectory class -------------- |
+
+  mav_trajectory_generation::Trajectory trajectory;
+  opt.getTrajectory(&trajectory);
+
+  // | ------------------ sample the trajectory ----------------- |
+
+  mav_msgs::EigenTrajectoryPoint         state;
+  mav_msgs::EigenTrajectoryPoint::Vector states;
+
+  // Whole trajectory:
+  double sampling_interval = 0.1;
+  bool   success           = mav_trajectory_generation::sampleWholeTrajectory(trajectory, sampling_interval, &states);
+
+  if (success) {
+
+    mrs_msgs::TrajectoryReferenceSrv srv;
+
+    srv.request.trajectory.header      = path.header;
+    srv.request.trajectory.dt          = sampling_interval;
+    srv.request.trajectory.fly_now     = path.fly_now;
+    srv.request.trajectory.use_heading = path.use_heading;
+
+    for (size_t it = 0; it < states.size(); it++) {
+
+      mrs_msgs::Reference point;
+      point.heading    = 0;
+      point.position.x = states[it].position_W[0];
+      point.position.y = states[it].position_W[1];
+      point.position.z = states[it].position_W[2];
+      point.heading    = states[it].position_W[3];
+
+      srv.request.trajectory.points.push_back(point);
+    }
+
+    service_client_trajectory_reference_.call(srv);
+  }
+}
+
 //}
 
 // | ------------------------ callbacks ----------------------- |
@@ -380,177 +564,46 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
   ROS_INFO("[TrajectoryGeneration]: got trajectory");
 
-  mutex_params_.lock();
-  DrsParams_t params = params_;
-  mutex_params_.unlock();
+  setPath(*msg);
+}
 
-  mutex_constraints_.lock();
-  mrs_msgs::DynamicsConstraints constraints = constraints_;
-  mutex_constraints_.unlock();
+//}
 
-  mutex_position_cmd_.lock();
-  mrs_msgs::PositionCommand position_cmd = position_cmd_;
-  mutex_position_cmd_.unlock();
+/* callbackPathSrv() //{ */
 
-  mrs_msgs::Path path = *msg;
+bool TrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_msgs::PathSrv::Response& res) {
 
-  if (path.points.size() == 0) {
-    ROS_ERROR_THROTTLE(1.0, "[TrajectoryGeneration]: trajectory is empty");
-    return;
+  if (!is_initialized_) {
+    return false;
   }
 
-  mav_trajectory_generation::NonlinearOptimizationParameters parameters;
+  if (!got_constraints_) {
+    std::stringstream ss;
+    ss << "missing constraints";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
-  parameters.f_rel                  = 0.05;
-  parameters.x_rel                  = 0.1;
-  parameters.time_penalty           = params.time_penalty;
-  parameters.use_soft_constraints   = params.soft_constraints_enabled;
-  parameters.soft_constraint_weight = params.soft_constraints_weight;
-  parameters.time_alloc_method      = static_cast<mav_trajectory_generation::NonlinearOptimizationParameters::TimeAllocMethod>(params.time_allocation);
-  if (params.time_allocation == 2) {
-    parameters.algorithm = nlopt::LD_LBFGS;
-  }
-  parameters.initial_stepsize_rel            = 0.1;
-  parameters.inequality_constraint_tolerance = params.inequality_constraint_tolerance;
-  parameters.equality_constraint_tolerance   = params.equality_constraint_tolerance;
-  parameters.max_iterations                  = params.max_iterations;
-
-  mav_trajectory_generation::Vertex::Vector vertices;
-  const int                                 dimension = 4;
-  mav_trajectory_generation::Vertex         vertex(dimension);
-
-  int derivative_to_optimize;
-  switch (params.derivative_to_optimize) {
-    case 0: {
-      derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
-      break;
-    }
-    case 1: {
-      derivative_to_optimize = mav_trajectory_generation::derivative_order::JERK;
-      break;
-    }
-    case 2: {
-      derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
-      break;
-    }
+    res.message = ss.str();
+    res.success = false;
+    return true;
   }
 
-  // | --------------- add constraints to vertices -------------- |
+  if (!got_position_cmd_) {
+    std::stringstream ss;
+    ss << "missing position cmd";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
-  double lx, ly, lz;
-
-  // | ------------------ add the current state ----------------- |
-
-  {
-    mav_trajectory_generation::Vertex vertex(dimension);
-    vertex.makeStartOrEnd(Eigen::Vector4d(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z, position_cmd.heading),
-                          derivative_to_optimize);
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
-                         Eigen::Vector4d(position_cmd.velocity.x, position_cmd.velocity.y, position_cmd.velocity.z, position_cmd.heading_rate));
-    vertex.addConstraint(
-        mav_trajectory_generation::derivative_order::ACCELERATION,
-        Eigen::Vector4d(position_cmd.acceleration.x, position_cmd.acceleration.y, position_cmd.acceleration.z, position_cmd.heading_acceleration));
-    vertex.addConstraint(mav_trajectory_generation::derivative_order::JERK,
-                         Eigen::Vector4d(position_cmd.jerk.x, position_cmd.jerk.y, position_cmd.jerk.z, position_cmd.heading_jerk));
-    vertices.push_back(vertex);
+    res.message = ss.str();
+    res.success = false;
+    return true;
   }
 
-  for (size_t i = 0; i < path.points.size(); i++) {
+  ROS_INFO("[TrajectoryGeneration]: got trajectory");
 
-    double x       = path.points[i].position.x;
-    double y       = path.points[i].position.y;
-    double z       = path.points[i].position.z;
-    double heading = path.points[i].heading;
+  setPath(req.path);
 
-    if (i == 0) {
-
-      ROS_INFO("[TrajectoryGeneration]: last point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
-
-      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.15) {
-        ROS_INFO("[TrajectoryGeneration]: point too close, skipping");
-        continue;
-      }
-
-      vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), mav_trajectory_generation::derivative_order::POSITION);
-      vertices.push_back(vertex);
-
-    } else {
-
-      ROS_INFO("[TrajectoryGeneration]: mid point x %.2f, y %.2f, z %.2f, h %.2f", x, y, z, heading);
-
-      if (sqrt(pow(lx - x, 2) + pow(ly - y, 2) + pow(lz - z, 2)) <= 0.15) {
-        ROS_INFO("[TrajectoryGeneration]: point too close, skipping");
-        continue;
-      }
-
-      vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
-      vertices.push_back(vertex);
-    }
-
-    lx = x;
-    ly = y;
-    lz = z;
-  }
-
-
-  // | ---------------- compute the segment times --------------- |
-
-  std::vector<double> segment_times;
-  segment_times = estimateSegmentTimes(vertices, constraints.horizontal_speed, constraints.horizontal_acceleration, constraints.horizontal_jerk);
-  /* segment_times = estimateSegmentTimesVelocityRamp(vertices, constraints.horizontal_speed, constraints.horizontal_acceleration, 1.0); */
-
-  // | --------- create an optimizer object and solve it -------- |
-
-  const int                                                     N = 10;
-  mav_trajectory_generation::PolynomialOptimizationNonLinear<N> opt(dimension, parameters);
-  opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
-  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::VELOCITY, constraints.horizontal_speed);
-  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, constraints.horizontal_acceleration);
-  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::JERK, constraints.horizontal_jerk);
-  opt.optimize();
-
-  // | ------------- obtain the polynomial segments ------------- |
-
-  mav_trajectory_generation::Segment::Vector segments;
-  opt.getPolynomialOptimizationRef().getSegments(&segments);
-
-  // | --------------- create the trajectory class -------------- |
-
-  mav_trajectory_generation::Trajectory trajectory;
-  opt.getTrajectory(&trajectory);
-
-  // | ------------------ sample the trajectory ----------------- |
-
-  mav_msgs::EigenTrajectoryPoint         state;
-  mav_msgs::EigenTrajectoryPoint::Vector states;
-
-  // Whole trajectory:
-  double sampling_interval = 0.1;
-  bool   success           = mav_trajectory_generation::sampleWholeTrajectory(trajectory, sampling_interval, &states);
-
-  if (success) {
-
-    mrs_msgs::TrajectoryReferenceSrv srv;
-
-    srv.request.trajectory.header      = path.header;
-    srv.request.trajectory.dt          = sampling_interval;
-    srv.request.trajectory.fly_now     = path.fly_now;
-    srv.request.trajectory.use_heading = path.use_heading;
-
-    for (size_t it = 0; it < states.size(); it++) {
-
-      mrs_msgs::Reference point;
-      point.heading    = 0;
-      point.position.x = states[it].position_W[0];
-      point.position.y = states[it].position_W[1];
-      point.position.z = states[it].position_W[2];
-      point.heading    = states[it].position_W[3];
-
-      srv.request.trajectory.points.push_back(point);
-    }
-
-    service_client_trajectory_reference_.call(srv);
-  }
+    res.message = "set";
+    res.success = true;
+    return true;
 }
 
 //}
