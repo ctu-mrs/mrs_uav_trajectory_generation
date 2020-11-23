@@ -292,7 +292,7 @@ void PolynomialOptimization<_N>::updateSegmentTimes(
 
   segment_times_ = segment_times;
 
-  for (size_t i = 0; i < n_segments_; ++i) {
+  for (size_t i = 0; i < n_segments_; i++) {
     const double segment_time = segment_times[i];
     CHECK_GT(segment_time, 0) << "Segment times need to be greater than zero";
 

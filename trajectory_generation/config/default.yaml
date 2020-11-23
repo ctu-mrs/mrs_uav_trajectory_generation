@@ -1,16 +1,19 @@
-subdivide_segments:
-  enabled: true
-  factor: 2 # 2^factor segments
-  min_distance: 1.0 # [m] # will not divide if too close already
+# minimal distance between waypoints in the path
+path_min_waypoint_distance: 0.1 # [m]
+
+# maximum allowed distance between the trajectory and the path
+trajectory_max_segment_deviation: 0.10 # [m]
+
+sampling_dt: 0.1 # [s]
 
 add_noise:
   enabled: false
-  max: 0.2 # [m] # even distribution
+  max: 0.50 # [m] # even distribution
 
 time_penalty: 100
 soft_constraints_enabled: true
 soft_constraints_weight: 1.5
-time_allocation: 2
+time_allocation: 2 # method, 2 = Mellinger
 equality_constraint_tolerance: 1.0e-3
 inequality_constraint_tolerance: 0.1
 max_iterations: 10000

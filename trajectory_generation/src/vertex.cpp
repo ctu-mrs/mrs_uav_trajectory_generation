@@ -342,13 +342,14 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
     }
 
     /* double t = max_velocity_time + acceleration_time_1 + acceleration_time_2 + jerk_time_1 + jerk_time_2; */
-    double t = max_velocity_time + acceleration_time_1 + acceleration_time_2;
+    /* double t = max_velocity_time + acceleration_time_1 + acceleration_time_2; */
+    double t = max_velocity_time;
 
     /* printf("point %d, distance: %.2f, acc_time %.2f dec_time %.2f, jerk_up: %.2f, jerk_down: %.2f, max_vel_time: %.2f, total: %.2f\n", int(i), distance, acceleration_time_1, */
     /*        acceleration_time_2, jerk_time_1, jerk_time_2, max_velocity_time, t); */
 
-    if (t < 0.1) {
-      t = 0.1;
+    if (t < 0.01) {
+      t = 0.01;
     }
 
     segment_times.push_back(t);
