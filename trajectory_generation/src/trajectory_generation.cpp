@@ -523,7 +523,7 @@ Eigen::Vector4d TrajectoryGeneration::interpolatePoint(const Eigen::Vector4d& a,
   out[0] = a[0] + coeff * diff[0];
   out[1] = a[1] + coeff * diff[1];
   out[2] = a[2] + coeff * diff[2];
-  out[4] = radians::interp(a[3], b[3], coeff);
+  out[3] = radians::interp(a[3], b[3], coeff);
 
   return out;
 }
