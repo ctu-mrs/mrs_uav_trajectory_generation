@@ -665,7 +665,7 @@ bool TrajectoryGeneration::optimize(const std::vector<Waypoint_t>& waypoints_in)
 
   mrs_msgs::TrajectoryReferenceSrv srv;
 
-  srv.request.trajectory = getTrajectoryReference(trajectory, position_cmd.header.stamp);
+  srv.request.trajectory = getTrajectoryReference(trajectory, _max_deviation_first_segment_ ? ros::Time::now() : position_cmd.header.stamp);
 
   service_client_trajectory_reference_.call(srv);
 
