@@ -645,8 +645,8 @@ bool TrajectoryGeneration::optimize(const std::vector<Eigen::Vector4d>& waypoint
 
   service_client_trajectory_reference_.call(srv);
 
-  bw_final_.publish();
   bw_original_.publish();
+  bw_final_.publish();
 }
 
 //}
