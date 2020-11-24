@@ -333,17 +333,17 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
 
     /* double t = (distance / v_max) * 2 * (1.0 + magic_fabian_constant * (v_max / a_max) * exp((-distance / v_max) * 2)); */
 
-    double max_velocity_time;
+    double t = distance / v_max;
 
-    if (((distance - ((v_max * v_max) / a_max)) / v_max) < 0) {
-      max_velocity_time = ((distance) / v_max);
-    } else {
-      max_velocity_time = ((distance - ((v_max * v_max) / a_max)) / v_max);
-    }
+    /* if (((distance - ((v_max * v_max) / a_max)) / v_max) < 0) { */
+    /*   max_velocity_time = ((distance) / v_max); */
+    /* } else { */
+    /*   max_velocity_time = ((distance - ((v_max * v_max) / a_max)) / v_max); */
+    /* } */
 
     /* double t = max_velocity_time + acceleration_time_1 + acceleration_time_2 + jerk_time_1 + jerk_time_2; */
     /* double t = max_velocity_time + acceleration_time_1 + acceleration_time_2; */
-    double t = max_velocity_time;
+    /* double t = max_velocity_time; */
 
     /* printf("point %d, distance: %.2f, acc_time %.2f dec_time %.2f, jerk_up: %.2f, jerk_down: %.2f, max_vel_time: %.2f, total: %.2f\n", int(i), distance, acceleration_time_1, */
     /*        acceleration_time_2, jerk_time_1, jerk_time_2, max_velocity_time, t); */

@@ -26,6 +26,8 @@
 #include <mrs_lib/geometry/cyclic.h>
 #include <mrs_lib/geometry/misc.h>
 #include <mrs_lib/mutex.h>
+#include <mrs_lib/batch_visualizer.h>
+#include <mrs_lib/scope_timer.h>
 
 #include <mutex>
 
@@ -55,7 +57,8 @@ public:
   virtual void onInit();
 
 private:
-  bool is_initialized_ = false;
+  bool        is_initialized_ = false;
+  std::string _uav_name_;
 
   double randd(const double from, const double to);
 
@@ -77,6 +80,9 @@ private:
   mrs_msgs::PositionCommand position_cmd_;
   std::mutex                mutex_position_cmd_;
 
+  mrs_lib::BatchVisualizer bw_original_;
+  mrs_lib::BatchVisualizer bw_final_;
+
   double _path_min_waypoint_distance_;
 
   double _sampling_dt_;
@@ -96,6 +102,8 @@ private:
 
   ros::ServiceClient service_client_trajectory_reference_;
 
+  bool optimize(const std::vector<Eigen::Vector4d>& waypoints_in);
+
   // | ------------------ trajectory validation ----------------- |
 
   /**
@@ -106,16 +114,21 @@ private:
    *
    * @return <success, traj_fail_idx, path_fail_segment>
    */
-  std::tuple<bool, int, int> validateTrajectory(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const std::vector<Eigen::Vector4d>& waypoints);
+  std::tuple<bool, int, std::vector<bool>, double> validateTrajectory(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
+                                                                      const std::vector<Eigen::Vector4d>&           waypoints);
 
   std::optional<mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Eigen::Vector4d>& waypoints,
                                                                        const mrs_msgs::PositionCommand&    initial_state);
 
   mrs_msgs::TrajectoryReference getTrajectoryReference(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const ros::Time& stamp);
 
+  Eigen::Vector4d interpolatePoint(const Eigen::Vector4d& a, const Eigen::Vector4d& b, const double& coeff);
+
   double distFromSegment(const vec3_t& point, const vec3_t& seg1, const vec3_t& seg2);
 
+  bool   _trajectory_max_segment_deviation_enabled_;
   double _trajectory_max_segment_deviation_;
+  int    _trajectory_max_segment_deviation_max_iterations_;
 
   // | --------------- dynamic reconfigure server --------------- |
 
@@ -157,6 +170,7 @@ void TrajectoryGeneration::onInit() {
   mrs_lib::ParamLoader param_loader(nh_, "TrajectoryGeneration");
 
   _yaml_path_ = param_loader.loadMatrixDynamic2("path", -1, 4);
+  param_loader.loadParam("uav_name", _uav_name_);
   param_loader.loadParam("fly_now", fly_now_);
   param_loader.loadParam("frame_id", frame_id_);
   param_loader.loadParam("use_heading", use_heading_);
@@ -169,7 +183,9 @@ void TrajectoryGeneration::onInit() {
 
   param_loader.loadParam("sampling_dt", _sampling_dt_);
 
-  param_loader.loadParam("trajectory_max_segment_deviation", _trajectory_max_segment_deviation_);
+  param_loader.loadParam("check_trajectory_deviation/enabled", _trajectory_max_segment_deviation_enabled_);
+  param_loader.loadParam("check_trajectory_deviation/max_deviation", _trajectory_max_segment_deviation_);
+  param_loader.loadParam("check_trajectory_deviation/max_iterations", _trajectory_max_segment_deviation_max_iterations_);
 
   // | --------------------- service clients -------------------- |
 
@@ -187,6 +203,18 @@ void TrajectoryGeneration::onInit() {
     ROS_ERROR("[ControlManager]: could not load all parameters!");
     ros::shutdown();
   }
+
+  // | -------------------- batch visualizer -------------------- |
+
+  bw_original_ = mrs_lib::BatchVisualizer(nh_, "markers/original", _uav_name_ + "/gps_origin");
+
+  bw_original_.clearBuffers();
+  bw_original_.clearVisuals();
+
+  bw_final_ = mrs_lib::BatchVisualizer(nh_, "markers/final", _uav_name_ + "/gps_origin");
+
+  bw_final_.clearBuffers();
+  bw_final_.clearVisuals();
 
   // | --------------- dynamic reconfigure server --------------- |
 
@@ -248,18 +276,34 @@ double TrajectoryGeneration::distFromSegment(const vec3_t& point, const vec3_t& 
 
 /* validateTrajectory() //{ */
 
-std::tuple<bool, int, int> TrajectoryGeneration::validateTrajectory(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
-                                                                    const std::vector<Eigen::Vector4d>&           waypoints) {
+std::tuple<bool, int, std::vector<bool>, double> TrajectoryGeneration::validateTrajectory(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
+                                                                                          const std::vector<Eigen::Vector4d>&           waypoints) {
+
+  // prepare the output
+
+  std::vector<bool> segments;
+  for (size_t i = 0; i < waypoints.size() - 1; i++) {
+    segments.push_back(true);
+  }
 
   int waypoint_idx = 0;
 
-  for (size_t i = 0; i < trajectory.size(); i++) {
+  bool   is_safe       = true;
+  double max_deviation = 0;
+
+  for (size_t i = 0; i < trajectory.size() - 1; i++) {
 
     // the trajectory sample
     double sample_x = trajectory[i].position_W[0];
     double sample_y = trajectory[i].position_W[1];
     double sample_z = trajectory[i].position_W[2];
     vec3_t sample   = vec3_t(sample_x, sample_y, sample_z);
+
+    // next sample
+    double next_sample_x = trajectory[i + 1].position_W[0];
+    double next_sample_y = trajectory[i + 1].position_W[1];
+    double next_sample_z = trajectory[i + 1].position_W[2];
+    vec3_t next_sample   = vec3_t(next_sample_x, next_sample_y, next_sample_z);
 
     // segment start
     double segment_start_x = waypoints.at(waypoint_idx)[0];
@@ -275,32 +319,26 @@ std::tuple<bool, int, int> TrajectoryGeneration::validateTrajectory(const mav_ms
 
     double distance_from_segment = distFromSegment(sample, segment_start, segment_end);
 
-    // try the next segment
-    if ((waypoint_idx + 2) < int(waypoints.size())) {
+    double segment_end_dist = distFromSegment(segment_end, sample, next_sample);
 
-      double distance_from_next_segment = std::numeric_limits<float>::max();
+    if (waypoint_idx > 0) {
 
-      double next_segment_end_x = waypoints.at(waypoint_idx + 2)[0];
-      double next_segment_end_y = waypoints.at(waypoint_idx + 2)[1];
-      double next_segment_end_z = waypoints.at(waypoint_idx + 2)[2];
-      vec3_t next_segment_end   = vec3_t(next_segment_end_x, next_segment_end_y, next_segment_end_z);
+      if (distance_from_segment > max_deviation) {
+        max_deviation = distance_from_segment;
+      }
 
-      distance_from_next_segment = distFromSegment(sample, segment_end, next_segment_end);
-
-      if (distance_from_next_segment < distance_from_segment) {
-
-        waypoint_idx++;
-        ROS_INFO("[TrajectoryGeneration]: waypoint++ %d", waypoint_idx);
-        continue;
+      if (distance_from_segment > _trajectory_max_segment_deviation_) {
+        segments.at(waypoint_idx) = false;
+        is_safe                   = false;
       }
     }
 
-    if (distance_from_segment > _trajectory_max_segment_deviation_) {
-      return std::tuple(false, i, waypoint_idx);
+    if (segment_end_dist < 0.05 && waypoint_idx < (int(waypoints.size()) - 2)) {
+      waypoint_idx++;
     }
   }
 
-  return std::tuple(true, trajectory.size(), waypoint_idx);
+  return std::tuple(is_safe, trajectory.size(), segments, max_deviation);
 }
 
 //}
@@ -309,6 +347,8 @@ std::tuple<bool, int, int> TrajectoryGeneration::validateTrajectory(const mav_ms
 
 std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::findTrajectory(const std::vector<Eigen::Vector4d>& waypoints,
                                                                                            const mrs_msgs::PositionCommand&    initial_state) {
+
+  mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("findTrajectory()");
 
   ROS_INFO("[TrajectoryGeneration]: planning");
 
@@ -319,6 +359,8 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
   mutex_constraints_.lock();
   auto constraints = constraints_;
   mutex_constraints_.unlock();
+
+  // optimizer
 
   mav_trajectory_generation::NonlinearOptimizationParameters parameters;
 
@@ -359,8 +401,6 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
 
   double last_heading = initial_state.heading;
 
-  ROS_INFO("[TrajectoryGeneration]: processing waypoints");
-
   for (size_t i = 0; i < waypoints.size(); i++) {
 
     double x       = waypoints.at(i)[0];
@@ -371,7 +411,21 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
 
     mav_trajectory_generation::Vertex vertex(dimension);
 
-    if (i == (waypoints.size() - 1)) {  // the last point
+    if (i == 0) {
+      vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
+
+      vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+
+      vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                           Eigen::Vector4d(initial_state.velocity.x, initial_state.velocity.y, initial_state.velocity.z, initial_state.heading_rate));
+
+      vertex.addConstraint(
+          mav_trajectory_generation::derivative_order::ACCELERATION,
+          Eigen::Vector4d(initial_state.acceleration.x, initial_state.acceleration.y, initial_state.acceleration.z, initial_state.heading_acceleration));
+
+      vertex.addConstraint(mav_trajectory_generation::derivative_order::JERK,
+                           Eigen::Vector4d(initial_state.jerk.x, initial_state.jerk.y, initial_state.jerk.z, initial_state.heading_jerk));
+    } else if (i == (waypoints.size() - 1)) {  // the last point
       vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
     } else {  // mid points
       vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
@@ -385,14 +439,16 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
 
   // | ---------------- compute the segment times --------------- |
 
-  ROS_INFO("[TrajectoryGeneration]: computing segment times");
-
   const double v_max = constraints.horizontal_speed;
   const double a_max = constraints.horizontal_acceleration;
   const double j_max = constraints.horizontal_jerk;
 
   std::vector<double> segment_times;
   segment_times = estimateSegmentTimes(vertices, v_max, a_max, j_max);
+
+  /* for (int i = 0; i < int(segment_times.size()); i++) { */
+  /*   ROS_INFO("[TrajectoryGeneration]: segment time %d = %.2f s", i, segment_times.at(i)); */
+  /* } */
 
   // | --------- create an optimizer object and solve it -------- |
 
@@ -455,6 +511,146 @@ mrs_msgs::TrajectoryReference TrajectoryGeneration::getTrajectoryReference(const
 
 //}
 
+/* interpolatePoint() //{ */
+
+Eigen::Vector4d TrajectoryGeneration::interpolatePoint(const Eigen::Vector4d& a, const Eigen::Vector4d& b, const double& coeff) {
+
+  Eigen::Vector4d out;
+  Eigen::Vector4d diff = b - a;
+
+  out[0] = a[0] + coeff * diff[0];
+  out[1] = a[1] + coeff * diff[1];
+  out[2] = a[2] + coeff * diff[2];
+  out[4] = radians::interp(a[3], b[3], coeff);
+
+  return out;
+}
+
+//}
+
+/* optimize() //{ */
+
+bool TrajectoryGeneration::optimize(const std::vector<Eigen::Vector4d>& waypoints_in) {
+
+  auto position_cmd = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
+
+  // visualizer
+
+  bw_original_.clearBuffers();
+  bw_original_.clearVisuals();
+
+  bw_final_.clearBuffers();
+  bw_final_.clearVisuals();
+
+  /* copy the waypoints //{ */
+
+  std::vector<Eigen::Vector4d> waypoints;
+
+  // add current position to the beginning
+  waypoints.push_back(Eigen::Vector4d(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z, position_cmd.heading));
+
+  bw_original_.setPointsScale(0.8);
+  bw_final_.setPointsScale(0.5);
+
+  bw_original_.addPoint(vec3_t(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z), 1.0, 0.0, 0.0, 1.0);
+
+  for (int i = 0; i < int(waypoints_in.size()); i++) {
+
+    /* Eigen::Vector4d last = waypoints.back(); */
+
+    /* double distance_from_last = mrs_lib::geometry::dist(vec3_t(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2)), vec3_t(last[0], last[1], last[2])); */
+
+    /* if (distance_from_last < _path_min_waypoint_distance_) { */
+    /*   ROS_INFO("[TrajectoryGeneration]: skipping vertex, too close to the previous one"); */
+    /*   continue; */
+    /* } */
+
+    double x       = waypoints_in.at(i)[0] + randd(-_noise_max_, _noise_max_);
+    double y       = waypoints_in.at(i)[1] + randd(-_noise_max_, _noise_max_);
+    double z       = waypoints_in.at(i)[2] + randd(-_noise_max_, _noise_max_);
+    double heading = waypoints_in.at(i)[3];
+
+    bw_original_.addPoint(vec3_t(x, y, z), 1.0, 0.0, 0.0, 1.0);
+
+    waypoints.push_back(Eigen::Vector4d(x, y, z, heading));
+  }
+
+  //}
+
+  bool              safe = false;
+  int               traj_idx;
+  std::vector<bool> segment_safeness;
+  double            max_deviation;
+
+  mav_msgs::EigenTrajectoryPoint::Vector trajectory;
+
+  auto result = findTrajectory(waypoints, position_cmd);
+
+  if (result) {
+    trajectory = result.value();
+  } else {
+    ROS_ERROR("[TrajectoryGeneration]: failed to find trajectory");
+    return true;
+  }
+
+  for (int k = 0; k < _trajectory_max_segment_deviation_max_iterations_; k++) {
+
+    ROS_INFO("[TrajectoryGeneration]: revalidation cycle #%d", k);
+
+    std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectory(trajectory, waypoints);
+
+    if (_trajectory_max_segment_deviation_enabled_ && !safe) {
+
+      ROS_INFO("[TrajectoryGeneration]: not safe, max deviation %.2f m", max_deviation);
+
+      std::vector<Eigen::Vector4d>::iterator waypoint = waypoints.begin();
+      std::vector<bool>::iterator            safeness = segment_safeness.begin();
+
+      for (; waypoint < waypoints.end() - 1; waypoint++) {
+
+        if (!(*safeness)) {
+
+          if (waypoint > waypoints.begin()) {
+            Eigen::Vector4d midpoint2 = interpolatePoint(*(waypoint), *(waypoint + 1), 0.5);
+            waypoint                  = waypoints.insert(waypoint + 1, midpoint2);
+          }
+        }
+
+        safeness++;
+      }
+
+      auto result = findTrajectory(waypoints, position_cmd);
+
+      if (result) {
+        trajectory = result.value();
+      } else {
+        ROS_ERROR("[TrajectoryGeneration]: failed to find trajectory");
+        return true;
+      }
+
+    } else {
+      ROS_INFO("[TrajectoryGeneration]: trajectory is finally safe (%.2f)", max_deviation);
+      safe = true;
+      break;
+    }
+  }
+
+  for (int i = 0; i < int(waypoints.size()); i++) {
+    bw_final_.addPoint(vec3_t(waypoints.at(i)[0], waypoints.at(i)[1], waypoints.at(i)[2]), 0.0, 1.0, 0.0, 1.0);
+  }
+
+  mrs_msgs::TrajectoryReferenceSrv srv;
+
+  srv.request.trajectory = getTrajectoryReference(trajectory, position_cmd.header.stamp);
+
+  service_client_trajectory_reference_.call(srv);
+
+  bw_final_.publish();
+  bw_original_.publish();
+}
+
+//}
+
 // | ------------------------ callbacks ----------------------- |
 
 /* callbackTest() //{ */
@@ -464,6 +660,8 @@ bool TrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Requ
   if (!is_initialized_) {
     return false;
   }
+
+  mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("callbackTest()");
 
   /* preconditions //{ */
 
@@ -485,86 +683,22 @@ bool TrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Requ
 
   //}
 
-  auto position_cmd = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
-
-  /* copy the waypoints //{ */
-
   std::vector<Eigen::Vector4d> waypoints;
-
-  // add current position to the beginning
-  waypoints.push_back(Eigen::Vector4d(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z, position_cmd.heading));
 
   for (int i = 0; i < _yaml_path_.rows(); i++) {
 
-    Eigen::Vector4d last = waypoints.back();
-
-    double distance_from_last = mrs_lib::geometry::dist(vec3_t(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2)), vec3_t(last[0], last[1], last[2]));
-
-    if (distance_from_last < _path_min_waypoint_distance_) {
-      ROS_INFO("[TrajectoryGeneration]: skipping vertex, too close to the previous one");
-      continue;
-    }
-
-    double x       = _yaml_path_(i, 0);
-    double y       = _yaml_path_(i, 1);
-    double z       = _yaml_path_(i, 2);
+    double x       = _yaml_path_(i, 0) + randd(-_noise_max_, _noise_max_);
+    double y       = _yaml_path_(i, 1) + randd(-_noise_max_, _noise_max_);
+    double z       = _yaml_path_(i, 2) + randd(-_noise_max_, _noise_max_);
     double heading = _yaml_path_(i, 3);
 
     waypoints.push_back(Eigen::Vector4d(x, y, z, heading));
   }
 
-  //}
+  bool success = optimize(waypoints);
 
-  bool safe = false;
-  int  traj_idx;
-  int  way_idx;
-
-  mav_msgs::EigenTrajectoryPoint::Vector trajectory;
-
-  for (int k = 0; k < 30; k++) {
-
-    for (size_t it = 0; it < waypoints.size(); it++) {
-      ROS_INFO("[TrajectoryGeneration]: waypoint %d, x %.2f, y %.2f z %.2f hdg %.2f", int(it), waypoints.at(it)[0], waypoints.at(it)[1], waypoints.at(it)[2],
-               waypoints.at(it)[3]);
-    }
-
-    auto result = findTrajectory(waypoints, position_cmd);
-
-    if (result) {
-      trajectory = result.value();
-    } else {
-      ROS_ERROR("[TrajectoryGeneration]: failed to find trajectory");
-      return true;
-    }
-
-    std::tie(safe, traj_idx, way_idx) = validateTrajectory(trajectory, waypoints);
-
-    if (!safe) {
-
-      Eigen::Vector4d midpoint;
-      midpoint[0] = (waypoints[way_idx][0] + waypoints[way_idx + 1][0]) / 2.0;
-      midpoint[1] = (waypoints[way_idx][1] + waypoints[way_idx + 1][1]) / 2.0;
-      midpoint[2] = (waypoints[way_idx][2] + waypoints[way_idx + 1][2]) / 2.0;
-      midpoint[3] = radians::interp(waypoints[way_idx][3], waypoints[way_idx + 1][3], 0.5);
-
-      ROS_INFO("[TrajectoryGeneration]: inserting midpoint between %d and %d", way_idx, way_idx + 1);
-
-      waypoints.insert(waypoints.begin() + way_idx + 1, midpoint);
-
-    } else {
-      safe = true;
-      break;
-    }
-  }
-
-  /* ROS_INFO("[TrajectoryGeneration]: safe: %d, traj id: %d, waypoint: %d", safe, traj_idx, way_idx); */
-
-  mrs_msgs::TrajectoryReferenceSrv srv;
-
-  srv.request.trajectory = getTrajectoryReference(trajectory, position_cmd.header.stamp);
-
-  service_client_trajectory_reference_.call(srv);
-
+  res.success = success;
+  res.message = "dog";
   return true;
 }
 
@@ -593,6 +727,24 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   }
 
   ROS_INFO("[TrajectoryGeneration]: got trajectory");
+
+  std::vector<Eigen::Vector4d> waypoints;
+
+  for (size_t i = 0; i < msg->points.size(); i++) {
+
+    double x       = msg->points[i].position.x;
+    double y       = msg->points[i].position.y;
+    double z       = msg->points[i].position.z;
+    double heading = msg->points[i].heading;
+
+    waypoints.push_back(Eigen::Vector4d(x, y, z, heading));
+  }
+
+  fly_now_     = msg->fly_now;
+  use_heading_ = msg->use_heading;
+  frame_id_    = msg->header.frame_id;
+
+  optimize(waypoints);
 }
 
 //}
@@ -627,7 +779,25 @@ bool TrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_
 
   ROS_INFO("[TrajectoryGeneration]: got trajectory");
 
-  res.message = "set";
+  std::vector<Eigen::Vector4d> waypoints;
+
+  for (size_t i = 0; i < req.path.points.size(); i++) {
+
+    double x       = req.path.points[i].position.x;
+    double y       = req.path.points[i].position.y;
+    double z       = req.path.points[i].position.z;
+    double heading = req.path.points[i].heading;
+
+    waypoints.push_back(Eigen::Vector4d(x, y, z, heading));
+  }
+
+  fly_now_     = req.path.fly_now;
+  use_heading_ = req.path.use_heading;
+  frame_id_    = req.path.header.frame_id;
+
+  bool success = optimize(waypoints);
+
+  res.message = success;
   res.success = true;
   return true;
 }

@@ -1,10 +1,14 @@
 # minimal distance between waypoints in the path
 path_min_waypoint_distance: 0.1 # [m]
 
-# maximum allowed distance between the trajectory and the path
-trajectory_max_segment_deviation: 0.10 # [m]
+# check and fix the max deviation between the input path and the output trajectory
+check_trajectory_deviation:
+  enabled: true
+  max_deviation: 0.1 # [m]
+  max_iterations: 20 # [-]
 
-sampling_dt: 0.1 # [s]
+# sampling dt of the output trajectory
+sampling_dt: 0.01 # [s]
 
 add_noise:
   enabled: false
@@ -16,5 +20,5 @@ soft_constraints_weight: 1.5
 time_allocation: 2 # method, 2 = Mellinger
 equality_constraint_tolerance: 1.0e-3
 inequality_constraint_tolerance: 0.1
-max_iterations: 10000
+max_iterations: 100
 derivative_to_optimize: 0

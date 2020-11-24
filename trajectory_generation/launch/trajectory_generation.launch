@@ -27,6 +27,8 @@
       <rosparam file="$(find trajectory_generation)/config/default.yaml" />
       <rosparam file="$(find trajectory_generation)/paths/example.yaml" />
 
+      <param name="uav_name" value="$(arg UAV_NAME)" />
+
         <!-- Subscribers -->
       <remap from="~constraints_in" to="control_manager/current_constraints" />
       <remap from="~position_cmd_in" to="control_manager/position_cmd" />

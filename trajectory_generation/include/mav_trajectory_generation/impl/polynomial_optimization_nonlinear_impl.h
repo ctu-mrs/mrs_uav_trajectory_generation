@@ -172,12 +172,6 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTimeMellingerOuterLoop() {
   std::vector<double> segment_times;
   poly_opt_.getSegmentTimes(&segment_times);
 
-  for (int i = 0; i < segment_times.size(); i++) {
-    ROS_INFO("[%s]: segment time %d = %.2f", ros::this_node::getName().c_str(), i, segment_times[i]); 
-  }
-
-  ROS_INFO("[%s]: segment_times", ros::this_node::getName().c_str());
-
   // Save original segment times
   std::vector<double> original_segment_times = segment_times;
 
