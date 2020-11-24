@@ -129,6 +129,7 @@ private:
   bool   _trajectory_max_segment_deviation_enabled_;
   double _trajectory_max_segment_deviation_;
   int    _trajectory_max_segment_deviation_max_iterations_;
+  bool   _max_deviation_first_segment_;
 
   // | --------------- dynamic reconfigure server --------------- |
 
@@ -185,6 +186,7 @@ void TrajectoryGeneration::onInit() {
 
   param_loader.loadParam("check_trajectory_deviation/enabled", _trajectory_max_segment_deviation_enabled_);
   param_loader.loadParam("check_trajectory_deviation/max_deviation", _trajectory_max_segment_deviation_);
+  param_loader.loadParam("check_trajectory_deviation/first_segment", _max_deviation_first_segment_);
   param_loader.loadParam("check_trajectory_deviation/max_iterations", _trajectory_max_segment_deviation_max_iterations_);
 
   // | --------------------- service clients -------------------- |
@@ -321,7 +323,7 @@ std::tuple<bool, int, std::vector<bool>, double> TrajectoryGeneration::validateT
 
     double segment_end_dist = distFromSegment(segment_end, sample, next_sample);
 
-    if (waypoint_idx > 0) {
+    if (waypoint_idx > 0 || _max_deviation_first_segment_) {
 
       if (distance_from_segment > max_deviation) {
         max_deviation = distance_from_segment;
@@ -556,14 +558,14 @@ bool TrajectoryGeneration::optimize(const std::vector<Eigen::Vector4d>& waypoint
 
   for (int i = 0; i < int(waypoints_in.size()); i++) {
 
-    /* Eigen::Vector4d last = waypoints.back(); */
+    Eigen::Vector4d last = waypoints.back();
 
-    /* double distance_from_last = mrs_lib::geometry::dist(vec3_t(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2)), vec3_t(last[0], last[1], last[2])); */
+    double distance_from_last = mrs_lib::geometry::dist(vec3_t(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2)), vec3_t(last[0], last[1], last[2]));
 
-    /* if (distance_from_last < _path_min_waypoint_distance_) { */
-    /*   ROS_INFO("[TrajectoryGeneration]: skipping vertex, too close to the previous one"); */
-    /*   continue; */
-    /* } */
+    if (distance_from_last < _path_min_waypoint_distance_) {
+      ROS_INFO("[TrajectoryGeneration]: skipping vertex, too close to the previous one");
+      continue;
+    }
 
     double x       = waypoints_in.at(i)[0] + randd(-_noise_max_, _noise_max_);
     double y       = waypoints_in.at(i)[1] + randd(-_noise_max_, _noise_max_);
@@ -610,7 +612,7 @@ bool TrajectoryGeneration::optimize(const std::vector<Eigen::Vector4d>& waypoint
 
         if (!(*safeness)) {
 
-          if (waypoint > waypoints.begin()) {
+          if (waypoint > waypoints.begin() || _max_deviation_first_segment_) {
             Eigen::Vector4d midpoint2 = interpolatePoint(*(waypoint), *(waypoint + 1), 0.5);
             waypoint                  = waypoints.insert(waypoint + 1, midpoint2);
           }
@@ -634,6 +636,10 @@ bool TrajectoryGeneration::optimize(const std::vector<Eigen::Vector4d>& waypoint
       break;
     }
   }
+
+  std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectory(trajectory, waypoints);
+
+  ROS_INFO("[TrajectoryGeneration]: final max deviation %.2f m", max_deviation);
 
   for (int i = 0; i < int(waypoints.size()); i++) {
     bw_final_.addPoint(vec3_t(waypoints.at(i)[0], waypoints.at(i)[1], waypoints.at(i)[2]), 0.0, 1.0, 0.0, 1.0);

@@ -3,16 +3,17 @@ path_min_waypoint_distance: 0.1 # [m]
 
 # check and fix the max deviation between the input path and the output trajectory
 check_trajectory_deviation:
-  enabled: true
+  enabled: false
   max_deviation: 0.1 # [m]
-  max_iterations: 20 # [-]
+  max_iterations: 6 # [-]
+  first_segment: false
 
 # sampling dt of the output trajectory
 sampling_dt: 0.01 # [s]
 
 add_noise:
-  enabled: false
-  max: 0.50 # [m] # even distribution
+  enabled: true
+  max: 0.30 # [m] # even distribution
 
 time_penalty: 100
 soft_constraints_enabled: true
