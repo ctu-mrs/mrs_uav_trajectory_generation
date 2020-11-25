@@ -23,7 +23,10 @@
 #include <cmath>
 #include <limits>
 
-namespace mav_trajectory_generation {
+namespace mav_trajectory_generation
+{
+
+/* operator==(const Segment& rhs)() //{ */
 
 bool Segment::operator==(const Segment& rhs) const {
   if (D_ != rhs.D_ || time_ != rhs.time_) {
@@ -38,15 +41,27 @@ bool Segment::operator==(const Segment& rhs) const {
   return true;
 }
 
+//}
+
+/* Segment::operator[](size_t idx) //{ */
+
 Polynomial& Segment::operator[](size_t idx) {
   CHECK_LT(idx, static_cast<size_t>(D_));
   return polynomials_[idx];
 }
 
+//}
+
+/* Segment::operator[](size_t idx) //{ */
+
 const Polynomial& Segment::operator[](size_t idx) const {
   CHECK_LT(idx, static_cast<size_t>(D_));
   return polynomials_[idx];
 }
+
+//}
+
+/* evaluate() //{ */
 
 Eigen::VectorXd Segment::evaluate(double t, int derivative) const {
   Eigen::VectorXd result(D_);
@@ -57,32 +72,46 @@ Eigen::VectorXd Segment::evaluate(double t, int derivative) const {
   return result;
 }
 
+//}
+
+/* printSegment() //{ */
+
 void printSegment(std::ostream& stream, const Segment& s, int derivative) {
   CHECK(derivative >= 0 && derivative < s.N());
   stream << "t: " << s.getTime() << std::endl;
-  stream << " coefficients for " << positionDerivativeToString(derivative)
-         << ": " << std::endl;
+  stream << " coefficients for " << positionDerivativeToString(derivative) << ": " << std::endl;
   for (int i = 0; i < s.D(); ++i) {
     stream << s[i].getCoefficients(derivative) << std::endl;
   }
 }
+
+//}
+
+/* operator<<(std::ostream& stream, const Segment& s) //{ */
 
 std::ostream& operator<<(std::ostream& stream, const Segment& s) {
   printSegment(stream, s, derivative_order::POSITION);
   return stream;
 }
 
-std::ostream& operator<<(std::ostream& stream,
-                         const std::vector<Segment>& segments) {
-  for (const Segment& s : segments) stream << s << std::endl;
+//}
+
+/* operator<<(std::ostream& stream, const std::vector<Segment>& segments) //{ */
+
+std::ostream& operator<<(std::ostream& stream, const std::vector<Segment>& segments) {
+  for (const Segment& s : segments)
+    stream << s << std::endl;
 
   return stream;
 }
 
+//}
+
+/* computeMinMaxMagnitudeCandidateTimes() //{ */
+
 bool Segment::computeMinMaxMagnitudeCandidateTimes(
-    int derivative, double t_start, double t_end,
-    const std::vector<int>& dimensions,
-    std::vector<double>* candidate_times) const {
+
+    int derivative, double t_start, double t_end, const std::vector<int>& dimensions, std::vector<double>* candidate_times) const {
   CHECK_NOTNULL(candidate_times);
   candidate_times->clear();
   // Compute magnitude derivative roots.
@@ -90,26 +119,21 @@ bool Segment::computeMinMaxMagnitudeCandidateTimes(
     LOG(WARNING) << "No dimensions specified." << std::endl;
     return false;
   } else if (dimensions.size() > 1) {
-    const int n_d = N_ - derivative;
-    const int n_dd = n_d - 1;
-    const int convolved_coefficients_length =
-        Polynomial::getConvolutionLength(n_d, n_dd);
+    const int       n_d                           = N_ - derivative;
+    const int       n_dd                          = n_d - 1;
+    const int       convolved_coefficients_length = Polynomial::getConvolutionLength(n_d, n_dd);
     Eigen::VectorXd convolved_coefficients(convolved_coefficients_length);
     convolved_coefficients.setZero();
     for (int dim : dimensions) {
       if (dim < 0 || dim >= D_) {
-        LOG(WARNING) << "Specified dimensions " << dim
-                     << " are out of bounds [0.." << D_ - 1 << "]."
-                     << std::endl;
+        LOG(WARNING) << "Specified dimensions " << dim << " are out of bounds [0.." << D_ - 1 << "]." << std::endl;
         return false;
       }
       // Our coefficients are INCREASING, so when you take the derivative,
       // only the lower powers of t have non-zero coefficients.
       // So we take the head.
-      Eigen::VectorXd d =
-          polynomials_[dim].getCoefficients(derivative).head(n_d);
-      Eigen::VectorXd dd =
-          polynomials_[dim].getCoefficients(derivative + 1).head(n_dd);
+      Eigen::VectorXd d  = polynomials_[dim].getCoefficients(derivative).head(n_d);
+      Eigen::VectorXd dd = polynomials_[dim].getCoefficients(derivative + 1).head(n_dd);
       convolved_coefficients += Polynomial::convolve(d, dd);
     }
     Polynomial polynomial_convolved(convolved_coefficients);
@@ -117,50 +141,53 @@ bool Segment::computeMinMaxMagnitudeCandidateTimes(
     // derivative = -1 because the convolved polynomial is the derivative
     // already. We wish to find the minimum and maximum candidates for the
     // integral.
-    if (!polynomial_convolved.computeMinMaxCandidates(t_start, t_end, -1,
-                                                      candidate_times)) {
+    if (!polynomial_convolved.computeMinMaxCandidates(t_start, t_end, -1, candidate_times)) {
       return false;
     }
   } else {
     // For dimension.size() == 1  we can simply evaluate the roots of the
     // derivative.
-    if (!polynomials_[dimensions[0]].computeMinMaxCandidates(
-            t_start, t_end, derivative, candidate_times)) {
+    if (!polynomials_[dimensions[0]].computeMinMaxCandidates(t_start, t_end, derivative, candidate_times)) {
       return false;
     }
   }
   return true;
 }
 
+//}
+
+/* computeMinMaxMagnitudeCandidates() //{ */
+
 bool Segment::computeMinMaxMagnitudeCandidates(
-    int derivative, double t_start, double t_end,
-    const std::vector<int>& dimensions,
-    std::vector<Extremum>* candidates) const {
+
+    int derivative, double t_start, double t_end, const std::vector<int>& dimensions, std::vector<Extremum>* candidates) const {
   CHECK_NOTNULL(candidates);
   // Find candidate times (roots + start + end).
   std::vector<double> candidate_times;
-  computeMinMaxMagnitudeCandidateTimes(derivative, t_start, t_end, dimensions,
-                                       &candidate_times);
+  computeMinMaxMagnitudeCandidateTimes(derivative, t_start, t_end, dimensions, &candidate_times);
 
   // Evaluate candidate times.
   candidates->resize(candidate_times.size());
   for (size_t i = 0; i < candidate_times.size(); i++) {
     double magnitude = 0.0;
     for (int dim : dimensions) {
-      magnitude += std::pow(
-          polynomials_[dim].evaluate(candidate_times[i], derivative), 2);
+      magnitude += std::pow(polynomials_[dim].evaluate(candidate_times[i], derivative), 2);
     }
-    magnitude = std::sqrt(magnitude);
+    magnitude        = std::sqrt(magnitude);
     (*candidates)[i] = Extremum(candidate_times[i], magnitude, 0);
   }
 
   return true;
 }
 
+//}
+
+/* selectMinMaxMagnitudeFromCandidates() //{ */
+
 bool Segment::selectMinMaxMagnitudeFromCandidates(
-    int derivative, double t_start, double t_end,
-    const std::vector<int>& dimensions, const std::vector<Extremum>& candidates,
-    Extremum* minimum, Extremum* maximum) const {
+
+    int derivative, double t_start, double t_end, const std::vector<int>& dimensions, const std::vector<Extremum>& candidates, Extremum* minimum,
+    Extremum* maximum) const {
   CHECK_NOTNULL(minimum);
   CHECK_NOTNULL(maximum);
   if (t_start > t_end) {
@@ -183,22 +210,27 @@ bool Segment::selectMinMaxMagnitudeFromCandidates(
   return true;
 }
 
-bool Segment::getSegmentWithSingleDimension(int dimension,
-                                            Segment* new_segment) const {
+//}
+
+/* selectMinMaxMagnitudeFromCandidates() //{ */
+
+bool Segment::getSegmentWithSingleDimension(int dimension, Segment* new_segment) const {
   if (dimension < 0 || dimension >= D_) {
-    LOG(WARNING)
-        << "You shan't ask for a dimension that does not exist in the segment.";
+    LOG(WARNING) << "You shan't ask for a dimension that does not exist in the segment.";
     return false;
   }
 
-  *new_segment = Segment(N_, 1);
+  *new_segment      = Segment(N_, 1);
   (*new_segment)[0] = polynomials_[dimension];
   new_segment->setTime(time_);
   return true;
 }
 
-bool Segment::getSegmentWithAppendedDimension(const Segment& segment_to_append,
-                                              Segment* new_segment) const {
+//}
+
+/* getSegmentWithAppendedDimension() //{ */
+
+bool Segment::getSegmentWithAppendedDimension(const Segment& segment_to_append, Segment* new_segment) const {
   if (N_ == 0 || D_ == 0) {
     *new_segment = segment_to_append;
     return true;
@@ -211,14 +243,14 @@ bool Segment::getSegmentWithAppendedDimension(const Segment& segment_to_append,
   // Get common polynomial order.
   const int new_N = std::max(segment_to_append.N(), N_);
   const int new_D = D_ + segment_to_append.D();
-  
+
   // Create temporary segments to scale polynomials if necessary.
-  Segment current_segment = *this;
+  Segment current_segment        = *this;
   Segment segment_to_append_temp = segment_to_append;
-  
+
   // Scale segment polynomials to the longer segment time.
   const double new_time = std::max(time_, segment_to_append.getTime());
-  if (time_ < new_time && new_time > 0.0){
+  if (time_ < new_time && new_time > 0.0) {
     for (int d = 0; d < D_; d++) {
       current_segment[d].scalePolynomialInTime(time_ / new_time);
     }
@@ -227,7 +259,7 @@ bool Segment::getSegmentWithAppendedDimension(const Segment& segment_to_append,
       segment_to_append_temp[d].scalePolynomialInTime(segment_to_append.getTime() / new_time);
     }
   }
-  
+
   *new_segment = Segment(new_N, new_D);
 
   if (N_ == segment_to_append.N()) {
@@ -242,13 +274,11 @@ bool Segment::getSegmentWithAppendedDimension(const Segment& segment_to_append,
     for (int i = 0; i < new_D; i++) {
       Polynomial polynomial_to_append(new_N);
       if (i < D_) {
-        if (!polynomials_[i].getPolynomialWithAppendedCoefficients(
-                new_N, &polynomial_to_append)) {
+        if (!polynomials_[i].getPolynomialWithAppendedCoefficients(new_N, &polynomial_to_append)) {
           return false;
         }
       } else {
-        if (!segment_to_append[i - D_].getPolynomialWithAppendedCoefficients(
-                new_N, &polynomial_to_append)) {
+        if (!segment_to_append[i - D_].getPolynomialWithAppendedCoefficients(new_N, &polynomial_to_append)) {
           return false;
         }
       }
@@ -260,7 +290,12 @@ bool Segment::getSegmentWithAppendedDimension(const Segment& segment_to_append,
   return true;
 }
 
+//}
+
+/* offsetSegment() //{ */
+
 bool Segment::offsetSegment(const Eigen::VectorXd& A_r_B) {
+
   if (A_r_B.size() < std::min(D_, 3)) {
     LOG(WARNING) << "Offset vector size smaller than segment dimension.";
     return false;
@@ -273,5 +308,7 @@ bool Segment::offsetSegment(const Eigen::VectorXd& A_r_B) {
 
   return true;
 }
+
+//}
 
 }  // namespace mav_trajectory_generation

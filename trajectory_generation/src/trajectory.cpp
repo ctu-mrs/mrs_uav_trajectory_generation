@@ -32,6 +32,8 @@
 namespace mav_trajectory_generation
 {
 
+/* operator==(const Trajectory& rhs) //{ */
+
 bool Trajectory::operator==(const Trajectory& rhs) const {
   if (segments_.size() != rhs.segments_.size()) {
     // Different number of segments.
@@ -46,7 +48,12 @@ bool Trajectory::operator==(const Trajectory& rhs) const {
   }
 }
 
+//}
+
+/* evaluate() //{ */
+
 Eigen::VectorXd Trajectory::evaluate(double t, int derivative_order) const {
+
   double accumulated_time = 0.0;
 
   // Look for the correct segment.
@@ -78,6 +85,10 @@ Eigen::VectorXd Trajectory::evaluate(double t, int derivative_order) const {
 
   return segments_[i].evaluate(t - accumulated_time, derivative_order);
 }
+
+//}
+
+/* evaluateRange() //{ */
 
 void Trajectory::evaluateRange(double t_start, double t_end, double dt, int derivative_order, std::vector<Eigen::VectorXd>* result,
                                std::vector<double>* sampling_times) const {
@@ -139,6 +150,10 @@ void Trajectory::evaluateRange(double t_start, double t_end, double dt, int deri
   }
 }
 
+//}
+
+/* getTrajectoryWithSingleDimension() //{ */
+
 Trajectory Trajectory::getTrajectoryWithSingleDimension(int dimension) const {
   CHECK_LT(dimension, D_);
 
@@ -156,6 +171,10 @@ Trajectory Trajectory::getTrajectoryWithSingleDimension(int dimension) const {
   traj.setSegments(segments);
   return traj;
 }
+
+//}
+
+/* getTrajectoryWithAppendedDimension() //{ */
 
 bool Trajectory::getTrajectoryWithAppendedDimension(const Trajectory& trajectory_to_append, Trajectory* new_trajectory) const {
   // Handle the case of one of the trajectories being empty.
@@ -184,6 +203,10 @@ bool Trajectory::getTrajectoryWithAppendedDimension(const Trajectory& trajectory
   new_trajectory->setSegments(segments);
   return true;
 }
+
+//}
+
+/* computeMinMaxMagnitude() //{ */
 
 bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int>& dimensions, Extremum* minimum, Extremum* maximum, int seg) const {
   CHECK_NOTNULL(minimum);
@@ -214,6 +237,10 @@ bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int>& 
 
   return true;
 }
+
+//}
+
+/* computeMinMaxMagnitude() //{ */
 
 bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int>& dimensions, Extremum* minimum, Extremum* maximum) const {
   CHECK_NOTNULL(minimum);
@@ -247,6 +274,10 @@ bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int>& 
   return true;
 }
 
+//}
+
+/* getSegmentTimes() //{ */
+
 std::vector<double> Trajectory::getSegmentTimes() const {
   std::vector<double> segment_times(segments_.size());
   for (size_t i = 0; i < segment_times.size(); ++i) {
@@ -254,6 +285,10 @@ std::vector<double> Trajectory::getSegmentTimes() const {
   }
   return segment_times;
 }
+
+//}
+
+/* addTrajectories() //{ */
 
 bool Trajectory::addTrajectories(const std::vector<Trajectory>& trajectories, Trajectory* merged) const {
   CHECK_NOTNULL(merged);
@@ -277,6 +312,10 @@ bool Trajectory::addTrajectories(const std::vector<Trajectory>& trajectories, Tr
   return true;
 }
 
+//}
+
+/* offsetTrajectory() //{ */
+
 bool Trajectory::offsetTrajectory(const Eigen::VectorXd& A_r_B) {
   if (A_r_B.size() < std::min(D_, 3)) {
     LOG(WARNING) << "Offset vector size smaller than trajectory dimension.";
@@ -292,21 +331,37 @@ bool Trajectory::offsetTrajectory(const Eigen::VectorXd& A_r_B) {
   return true;
 }
 
+//}
+
+/* offsetTrajectory() //{ */
+
 Vertex Trajectory::getVertexAtTime(double t, int max_derivative_order) const {
   Vertex v(D_);
-  for (size_t i = 0; i <= max_derivative_order; i++) {
+  for (int i = 0; i <= max_derivative_order; i++) {
     v.addConstraint(i, evaluate(t, i));
   }
   return v;
 }
 
+//}
+
+/* getStartVertex() //{ */
+
 Vertex Trajectory::getStartVertex(int max_derivative_order) const {
   return getVertexAtTime(0.0, max_derivative_order);
 }
 
+//}
+
+/* getGoalVertex() //{ */
+
 Vertex Trajectory::getGoalVertex(int max_derivative_order) const {
   return getVertexAtTime(max_time_, max_derivative_order);
 }
+
+//}
+
+/* getVertices() //{ */
 
 bool Trajectory::getVertices(int max_derivative_order_pos, int max_derivative_order_yaw, Vertex::Vector* pos_vertices, Vertex::Vector* yaw_vertices) const {
   CHECK_NOTNULL(pos_vertices);
@@ -337,6 +392,10 @@ bool Trajectory::getVertices(int max_derivative_order_pos, int max_derivative_or
   return true;
 }
 
+//}
+
+/* getVertices() //{ */
+
 bool Trajectory::getVertices(int max_derivative_order, Vertex::Vector* vertices) const {
   CHECK_NOTNULL(vertices);
   vertices->resize(segments_.size() + 1, D_);
@@ -349,6 +408,10 @@ bool Trajectory::getVertices(int max_derivative_order, Vertex::Vector* vertices)
   }
   return true;
 }
+
+//}
+
+/* computeMaxVelocityAndAcceleration() //{ */
 
 // Compute max velocity and max acceleration.
 bool Trajectory::computeMaxVelocityAndAcceleration(double* v_max, double* a_max, int seg) const {
@@ -365,6 +428,10 @@ bool Trajectory::computeMaxVelocityAndAcceleration(double* v_max, double* a_max,
   return success;
 }
 
+//}
+
+/* computeMaxVelocityAndAcceleration() //{ */
+
 // Compute max velocity and max acceleration.
 bool Trajectory::computeMaxVelocityAndAcceleration(double* v_max, double* a_max) const {
   std::vector<int> dimensions(D_);  // Evaluate in whatever dimensions we have.
@@ -379,6 +446,10 @@ bool Trajectory::computeMaxVelocityAndAcceleration(double* v_max, double* a_max)
   *a_max = a_max_traj.value;
   return success;
 }
+
+//}
+
+/* scaleSegmentTimes() //{ */
 
 bool Trajectory::scaleSegmentTimes(double scaling) {
   if (scaling < 1.0e-6)
@@ -399,6 +470,10 @@ bool Trajectory::scaleSegmentTimes(double scaling) {
 
   return true;
 }
+
+//}
+
+/* scaleSegmentTimesToMeetConstraints() //{ */
 
 // This method SCALES the segment times evenly to ensure that the trajectory
 // is feasible given the provided v_max and a_max. Does not change the shape
@@ -456,5 +531,7 @@ bool Trajectory::scaleSegmentTimesToMeetConstraints(double v_max, double a_max) 
   }
   return within_range;
 }
+
+//}
 
 }  // namespace mav_trajectory_generation

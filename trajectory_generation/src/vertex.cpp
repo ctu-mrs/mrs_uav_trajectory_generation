@@ -26,6 +26,8 @@
 namespace mav_trajectory_generation
 {
 
+/* createRandomVertices() //{ */
+
 Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments, const Eigen::VectorXd& pos_min, const Eigen::VectorXd& pos_max, size_t seed) {
   CHECK_GE(static_cast<int>(n_segments), 1);
   CHECK_EQ(pos_min.size(), pos_max.size());
@@ -79,6 +81,10 @@ Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments, c
   return vertices;
 }
 
+//}
+
+/* createSquareVertices() //{ */
+
 Vertex::Vector createSquareVertices(int maximum_derivative, const Eigen::Vector3d& center, double side_length, int rounds) {
   Vertex::Vector vertices;
   const size_t   dimension = center.size();
@@ -111,14 +117,26 @@ Vertex::Vector createSquareVertices(int maximum_derivative, const Eigen::Vector3
   return vertices;
 }
 
+//}
+
+/* createRandomVertices1D() //{ */
+
 Vertex::Vector createRandomVertices1D(int maximum_derivative, size_t n_segments, double pos_min, double pos_max, size_t seed) {
   return createRandomVertices(maximum_derivative, n_segments, Eigen::VectorXd::Constant(1, pos_min), Eigen::VectorXd::Constant(1, pos_max), seed);
 }
+
+//}
+
+/* addConstraint() //{ */
 
 void Vertex::addConstraint(int derivative_order, const Eigen::VectorXd& constraint) {
   CHECK_EQ(constraint.rows(), static_cast<long>(D_));
   constraints_[derivative_order] = constraint;
 }
+
+//}
+
+/* removeConstraint() //{ */
 
 bool Vertex::removeConstraint(int type) {
   Constraints::const_iterator it = constraints_.find(type);
@@ -131,12 +149,20 @@ bool Vertex::removeConstraint(int type) {
   }
 }
 
+//}
+
+/* makeStartOrEnd() //{ */
+
 void Vertex::makeStartOrEnd(const Eigen::VectorXd& constraint, int up_to_derivative) {
   addConstraint(derivative_order::POSITION, constraint);
   for (int i = 1; i <= up_to_derivative; ++i) {
     constraints_[i] = ConstraintValue::Zero(static_cast<int>(D_));
   }
 }
+
+//}
+
+/* getConstraint() //{ */
 
 bool Vertex::getConstraint(int derivative_order, Eigen::VectorXd* value) const {
   CHECK_NOTNULL(value);
@@ -148,10 +174,18 @@ bool Vertex::getConstraint(int derivative_order, Eigen::VectorXd* value) const {
     return false;
 }
 
+//}
+
+/* hasConstraint() //{ */
+
 bool Vertex::hasConstraint(int derivative_order) const {
   typename Constraints::const_iterator it = constraints_.find(derivative_order);
   return it != constraints_.end();
 }
+
+//}
+
+/* isEqualTol() //{ */
 
 bool Vertex::isEqualTol(const Vertex& rhs, double tol) const {
   if (constraints_.size() != rhs.constraints_.size())
@@ -168,6 +202,10 @@ bool Vertex::isEqualTol(const Vertex& rhs, double tol) const {
   }
   return true;
 }
+
+//}
+
+/* getSubdimension() //{ */
 
 bool Vertex::getSubdimension(const std::vector<size_t>& subdimensions, int max_derivative_order, Vertex* subvertex) const {
   CHECK_NOTNULL(subvertex);
@@ -193,6 +231,10 @@ bool Vertex::getSubdimension(const std::vector<size_t>& subdimensions, int max_d
   return true;
 }
 
+//}
+
+/* operator<<(std::ostream& stream, const Vertex& v) //{ */
+
 std::ostream& operator<<(std::ostream& stream, const Vertex& v) {
   stream << "constraints: " << std::endl;
   Eigen::IOFormat format(4, 0, ", ", "\n", "[", "]");
@@ -203,6 +245,10 @@ std::ostream& operator<<(std::ostream& stream, const Vertex& v) {
   return stream;
 }
 
+//}
+
+/* operator<<(std::ostream& stream, const std::vector<Vertex>& vertices) //{ */
+
 std::ostream& operator<<(std::ostream& stream, const std::vector<Vertex>& vertices) {
   for (const Vertex& v : vertices) {
     stream << v << std::endl;
@@ -210,9 +256,17 @@ std::ostream& operator<<(std::ostream& stream, const std::vector<Vertex>& vertic
   return stream;
 }
 
+//}
+
+/* estimateSegmentTimes() //{ */
+
 std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, double v_max, double a_max, double j_max) {
-  return estimateSegmentTimesNfabian(vertices, v_max, a_max, j_max);
+  return estimateSegmentTimesEuclidean(vertices, v_max);
 }
+
+//}
+
+/* estimateSegmentTimesVelocityRamp() //{ */
 
 std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector& vertices, double v_max, double a_max, double time_factor) {
   CHECK_GE(vertices.size(), 2);
@@ -234,7 +288,12 @@ std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector& verti
   return segment_times;
 }
 
-std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, double v_max, double a_max, double j_max, double magic_fabian_constant) {
+//}
+
+/* estimateSegmentTimesBaca() //{ */
+
+std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, double v_max, double a_max, double j_max) {
+
   CHECK_GE(vertices.size(), 2);
   std::vector<double> segment_times;
   segment_times.reserve(vertices.size() - 1);
@@ -331,22 +390,16 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
       jerk_time_2 = sqrt(v_max / j_max);
     }
 
-    /* double t = (distance / v_max) * 2 * (1.0 + magic_fabian_constant * (v_max / a_max) * exp((-distance / v_max) * 2)); */
+    double max_velocity_time;
 
-    double t = distance / v_max;
-
-    /* if (((distance - ((v_max * v_max) / a_max)) / v_max) < 0) { */
-    /*   max_velocity_time = ((distance) / v_max); */
-    /* } else { */
-    /*   max_velocity_time = ((distance - ((v_max * v_max) / a_max)) / v_max); */
-    /* } */
+    if (((distance - ((v_max * v_max) / a_max)) / v_max) < 0) {
+      max_velocity_time = ((distance) / v_max);
+    } else {
+      max_velocity_time = ((distance - ((v_max * v_max) / a_max)) / v_max);
+    }
 
     /* double t = max_velocity_time + acceleration_time_1 + acceleration_time_2 + jerk_time_1 + jerk_time_2; */
-    /* double t = max_velocity_time + acceleration_time_1 + acceleration_time_2; */
-    /* double t = max_velocity_time; */
-
-    /* printf("point %d, distance: %.2f, acc_time %.2f dec_time %.2f, jerk_up: %.2f, jerk_down: %.2f, max_vel_time: %.2f, total: %.2f\n", int(i), distance, acceleration_time_1, */
-    /*        acceleration_time_2, jerk_time_1, jerk_time_2, max_velocity_time, t); */
+    double t = max_velocity_time + acceleration_time_1 + acceleration_time_2;
 
     if (t < 0.01) {
       t = 0.01;
@@ -357,7 +410,44 @@ std::vector<double> estimateSegmentTimesNfabian(const Vertex::Vector& vertices, 
   return segment_times;
 }
 
+//}
+
+/* estimateSegmentTimesEuclidean() //{ */
+
+std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices, double v_max) {
+
+  CHECK_GE(vertices.size(), 2);
+  std::vector<double> segment_times;
+  segment_times.reserve(vertices.size() - 1);
+
+  // for each vertex in the path
+  for (size_t i = 0; i < vertices.size() - 1; ++i) {
+
+    Eigen::VectorXd start, end;
+
+    vertices[i].getConstraint(derivative_order::POSITION, &start);
+    vertices[i + 1].getConstraint(derivative_order::POSITION, &end);
+
+    double distance = (end - start).norm();
+
+    double t = distance / v_max;
+
+    if (t < 0.01) {
+      t = 0.01;
+    }
+
+    segment_times.push_back(t);
+  }
+
+  return segment_times;
+}
+
+//}
+
+/* computeTimeVelocityRamp() //{ */
+
 double computeTimeVelocityRamp(const Eigen::VectorXd& start, const Eigen::VectorXd& goal, double v_max, double a_max) {
+
   const double distance = (start - goal).norm();
   // Time to accelerate or decelerate to or from maximum velocity:
   const double acc_time = v_max / a_max;
@@ -372,5 +462,7 @@ double computeTimeVelocityRamp(const Eigen::VectorXd& start, const Eigen::Vector
     return 2.0 * acc_time + (distance - 2.0 * acc_distance) / v_max;
   }
 }
+
+//}
 
 }  // namespace mav_trajectory_generation

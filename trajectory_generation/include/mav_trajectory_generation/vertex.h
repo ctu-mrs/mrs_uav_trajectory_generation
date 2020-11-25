@@ -30,7 +30,8 @@
 #include "mav_trajectory_generation/motion_defines.h"
 #include "mav_trajectory_generation/polynomial.h"
 
-namespace mav_trajectory_generation {
+namespace mav_trajectory_generation
+{
 
 // A vertex describes the properties of a support point of a path.
 // A vertex has a set of constraints, the derivative of position a value, that
@@ -40,17 +41,20 @@ namespace mav_trajectory_generation {
 //     X------------X---------------X
 //   vertex             segment
 class Vertex {
- public:
-  typedef std::vector<Vertex> Vector;
-  typedef Eigen::VectorXd ConstraintValue;
+public:
+  typedef std::vector<Vertex>             Vector;
+  typedef Eigen::VectorXd                 ConstraintValue;
   typedef std::pair<int, ConstraintValue> Constraint;
-  typedef std::map<int, ConstraintValue> Constraints;
+  typedef std::map<int, ConstraintValue>  Constraints;
 
   // Constructs an empty vertex and sets time_to_next and
   // derivative_to_optimize to zero.
-  Vertex(size_t dimension) : D_(dimension) {}
+  Vertex(size_t dimension) : D_(dimension) {
+  }
 
-  int D() const { return D_; }
+  int D() const {
+    return D_;
+  }
 
   // Adds a constraint for the specified derivative order with the given
   // value. If this is a multi-dimensional vertex, all dimensions are
@@ -97,54 +101,46 @@ class Vertex {
   }
 
   // Returns the number of constraints.
-  size_t getNumberOfConstraints() const { return constraints_.size(); }
+  size_t getNumberOfConstraints() const {
+    return constraints_.size();
+  }
 
   // Checks if both lhs and rhs are equal up to tol in case of double values.
   bool isEqualTol(const Vertex& rhs, double tol) const;
 
   // Get subdimension vertex.
-  bool getSubdimension(const std::vector<size_t>& subdimensions,
-                       int max_derivative_order, Vertex* subvertex) const;
+  bool getSubdimension(const std::vector<size_t>& subdimensions, int max_derivative_order, Vertex* subvertex) const;
 
- private:
-  int D_;
+private:
+  int         D_;
   Constraints constraints_;
 };
 
 std::ostream& operator<<(std::ostream& stream, const Vertex& v);
 
-std::ostream& operator<<(std::ostream& stream,
-                         const std::vector<Vertex>& vertices);
+std::ostream& operator<<(std::ostream& stream, const std::vector<Vertex>& vertices);
 
 // Makes a rough estimate based on v_max and a_max about the time
 // required to get from one vertex to the next. Uses the current preferred
 // method.
-std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices,
-                                         double v_max, double a_max, double j_max);
+std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, double v_max, double a_max, double j_max);
 
 // Calculate the velocity assuming instantaneous constant acceleration a_max
 // and straight line rest-to-rest trajectories.
 // The time_factor \in [1..Inf] increases the allocated time making the segments
 // slower and thus feasibility more likely. This method does not take into
 // account the start and goal velocity and acceleration.
-std::vector<double> estimateSegmentTimesVelocityRamp(
-    const Vertex::Vector& vertices, double v_max, double a_max,
-    double time_factor = 1.0);
+std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector& vertices, double v_max, double a_max, double time_factor = 1.0);
 
-// Makes a rough estimate based on v_max and a_max about the time
-// required to get from one vertex to the next.
-// t_est = 2 * distance/v_max * (1 + magic_fabian_constant * v_max/a_max * exp(-
-// distance/v_max * 2);
-// magic_fabian_constant was determined to 6.5 in a student project ...
-std::vector<double> estimateSegmentTimesNfabian(
-    const Vertex::Vector& vertices, double v_max, double a_max, double j_max,
-    double magic_fabian_constant = 6.5);
+std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices, double v_max);
 
-double computeTimeVelocityRamp(const Eigen::VectorXd& start,
-                               const Eigen::VectorXd& goal, double v_max,
-                               double a_max);
+std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, double v_max, double a_max, double j_max);
 
-inline int getHighestDerivativeFromN(int N) { return N / 2 - 1; }
+double computeTimeVelocityRamp(const Eigen::VectorXd& start, const Eigen::VectorXd& goal, double v_max, double a_max);
+
+inline int getHighestDerivativeFromN(int N) {
+  return N / 2 - 1;
+}
 
 // Creates random vertices for position within minimum_position and
 // maximum_position.
@@ -159,19 +155,13 @@ inline int getHighestDerivativeFromN(int N) { return N / 2 - 1; }
 // Input: maximum_position = Maximum position of the space to sample.
 // Input: seed = Initial seed for random number generation.
 // Output: return = Vector containing n_segments + 1 vertices.
-Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments,
-                                    const Eigen::VectorXd& minimum_position,
-                                    const Eigen::VectorXd& maximum_position,
+Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments, const Eigen::VectorXd& minimum_position, const Eigen::VectorXd& maximum_position,
                                     size_t seed = 0);
 
-Vertex::Vector createSquareVertices(int maximum_derivative,
-                                    const Eigen::Vector3d& center,
-                                    double side_length, int rounds);
+Vertex::Vector createSquareVertices(int maximum_derivative, const Eigen::Vector3d& center, double side_length, int rounds);
 
 // Conveninence function to create 1D vertices.
-Vertex::Vector createRandomVertices1D(int maximum_derivative, size_t n_segments,
-                                      double minimum_position,
-                                      double maximum_position, size_t seed = 0);
+Vertex::Vector createRandomVertices1D(int maximum_derivative, size_t n_segments, double minimum_position, double maximum_position, size_t seed = 0);
 }  // namespace mav_trajectory_generation
 
 #endif  // MAV_TRAJECTORY_GENERATION_VERTEX_H_

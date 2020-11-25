@@ -23,16 +23,17 @@
 #include <algorithm>
 #include <limits>
 
-namespace mav_trajectory_generation {
+namespace mav_trajectory_generation
+{
 
 bool Polynomial::getRoots(int derivative, Eigen::VectorXcd* roots) const {
   return findRootsJenkinsTraub(getCoefficients(derivative), roots);
 }
 
-bool Polynomial::selectMinMaxCandidatesFromRoots(
-    double t_start, double t_end,
-    const Eigen::VectorXcd& roots_derivative_of_derivative,
-    std::vector<double>* candidates) {
+/* selectMinMaxCandidatesFromRoots() //{ */
+
+bool Polynomial::selectMinMaxCandidatesFromRoots(double t_start, double t_end, const Eigen::VectorXcd& roots_derivative_of_derivative,
+                                                 std::vector<double>* candidates) {
   CHECK_NOTNULL(candidates);
   if (t_start > t_end) {
     LOG(WARNING) << "t_start is greater than t_end.";
@@ -43,11 +44,9 @@ bool Polynomial::selectMinMaxCandidatesFromRoots(
   // Put start and end in, as they are valid candidates.
   candidates->push_back(t_start);
   candidates->push_back(t_end);
-  for (size_t i = 0;
-       i < static_cast<size_t>(roots_derivative_of_derivative.size()); i++) {
+  for (size_t i = 0; i < static_cast<size_t>(roots_derivative_of_derivative.size()); i++) {
     // Only real roots are considered as critical points.
-    if (std::abs(roots_derivative_of_derivative[i].imag()) >
-        std::numeric_limits<double>::epsilon()) {
+    if (std::abs(roots_derivative_of_derivative[i].imag()) > std::numeric_limits<double>::epsilon()) {
       continue;
     }
     const double candidate = roots_derivative_of_derivative[i].real();
@@ -62,9 +61,11 @@ bool Polynomial::selectMinMaxCandidatesFromRoots(
   return true;
 }
 
-bool Polynomial::computeMinMaxCandidates(
-    double t_start, double t_end, int derivative,
-    std::vector<double>* candidates) const {
+//}
+
+/* computeMinMaxCandidates() //{ */
+
+bool Polynomial::computeMinMaxCandidates(double t_start, double t_end, int derivative, std::vector<double>* candidates) const {
   CHECK_NOTNULL(candidates);
   candidates->clear();
   if (N_ - derivative - 1 < 0) {
@@ -72,7 +73,7 @@ bool Polynomial::computeMinMaxCandidates(
     return false;
   }
   Eigen::VectorXcd roots;
-  bool success = getRoots(derivative + 1, &roots);
+  bool             success = getRoots(derivative + 1, &roots);
   if (!success) {
     VLOG(1) << "Couldn't find roots, polynomial may be constant.";
   }
@@ -82,26 +83,28 @@ bool Polynomial::computeMinMaxCandidates(
   return true;
 }
 
-bool Polynomial::selectMinMaxFromRoots(
-    double t_start, double t_end, int derivative,
-    const Eigen::VectorXcd& roots_derivative_of_derivative,
-    std::pair<double, double>* minimum,
-    std::pair<double, double>* maximum) const {
+//}
+
+/* selectMinMaxFromRoots() //{ */
+
+bool Polynomial::selectMinMaxFromRoots(double t_start, double t_end, int derivative, const Eigen::VectorXcd& roots_derivative_of_derivative,
+                                       std::pair<double, double>* minimum, std::pair<double, double>* maximum) const {
   CHECK_NOTNULL(minimum);
   CHECK_NOTNULL(maximum);
   // Find candidates in interval t_start to t_end computing the roots.
   std::vector<double> candidates;
-  if (!selectMinMaxCandidatesFromRoots(
-          t_start, t_end, roots_derivative_of_derivative, &candidates)) {
+  if (!selectMinMaxCandidatesFromRoots(t_start, t_end, roots_derivative_of_derivative, &candidates)) {
     return false;
   }
   // Evaluate minimum and maximum.
   return selectMinMaxFromCandidates(candidates, derivative, minimum, maximum);
 }
 
-bool Polynomial::computeMinMax(double t_start, double t_end, int derivative,
-                               std::pair<double, double>* minimum,
-                               std::pair<double, double>* maximum) const {
+//}
+
+/* computeMinMax() //{ */
+
+bool Polynomial::computeMinMax(double t_start, double t_end, int derivative, std::pair<double, double>* minimum, std::pair<double, double>* maximum) const {
   CHECK_NOTNULL(minimum);
   CHECK_NOTNULL(maximum);
   // Find candidates in interval t_start to t_end by computing the roots.
@@ -113,34 +116,40 @@ bool Polynomial::computeMinMax(double t_start, double t_end, int derivative,
   return selectMinMaxFromCandidates(candidates, derivative, minimum, maximum);
 }
 
-bool Polynomial::selectMinMaxFromCandidates(
-    const std::vector<double>& candidates, int derivative,
-    std::pair<double, double>* minimum,
-    std::pair<double, double>* maximum) const {
+//}
+
+/* selectMinMaxFromCandidates() //{ */
+
+bool Polynomial::selectMinMaxFromCandidates(const std::vector<double>& candidates, int derivative, std::pair<double, double>* minimum,
+                                            std::pair<double, double>* maximum) const {
   CHECK_NOTNULL(minimum);
   CHECK_NOTNULL(maximum);
   if (candidates.empty()) {
     LOG(WARNING) << "Cannot find extrema from an empty candidates vector.";
     return false;
   }
-  minimum->first = candidates[0];
+  minimum->first  = candidates[0];
   minimum->second = std::numeric_limits<double>::max();
-  maximum->first = candidates[0];
+  maximum->first  = candidates[0];
   maximum->second = std::numeric_limits<double>::lowest();
 
   for (const double& t : candidates) {
     const double value = evaluate(t, derivative);
     if (value < minimum->second) {
-      minimum->first = t;
+      minimum->first  = t;
       minimum->second = value;
     }
     if (value > maximum->second) {
-      maximum->first = t;
+      maximum->first  = t;
       maximum->second = value;
     }
   }
   return true;
 }
+
+//}
+
+/* computeBaseCoefficients() //{ */
 
 Eigen::MatrixXd computeBaseCoefficients(int N) {
   Eigen::MatrixXd base_coefficients(N, N);
@@ -148,8 +157,8 @@ Eigen::MatrixXd computeBaseCoefficients(int N) {
   base_coefficients.setZero();
   base_coefficients.row(0).setOnes();
 
-  const int DEG = N - 1;
-  int order = DEG;
+  const int DEG   = N - 1;
+  int       order = DEG;
   for (int n = 1; n < N; n++) {
     for (int i = DEG - order; i < N; i++) {
       base_coefficients(n, i) = (order - DEG + i) * base_coefficients(n - 1, i);
@@ -159,12 +168,14 @@ Eigen::MatrixXd computeBaseCoefficients(int N) {
   return base_coefficients;
 }
 
-Eigen::VectorXd Polynomial::convolve(const Eigen::VectorXd& data,
-                                     const Eigen::VectorXd& kernel) {
-  const int convolution_dimension =
-      getConvolutionLength(data.size(), kernel.size());
-  Eigen::VectorXd convolved = Eigen::VectorXd::Zero(convolution_dimension);
-  Eigen::VectorXd kernel_reverse = kernel.reverse();
+//}
+
+/* convolve() //{ */
+
+Eigen::VectorXd Polynomial::convolve(const Eigen::VectorXd& data, const Eigen::VectorXd& kernel) {
+  const int       convolution_dimension = getConvolutionLength(data.size(), kernel.size());
+  Eigen::VectorXd convolved             = Eigen::VectorXd::Zero(convolution_dimension);
+  Eigen::VectorXd kernel_reverse        = kernel.reverse();
 
   for (int i = 0; i < convolution_dimension; i++) {
     const int data_idx = i - kernel.size() + 1;
@@ -179,8 +190,11 @@ Eigen::VectorXd Polynomial::convolve(const Eigen::VectorXd& data,
   return convolved;
 }
 
-bool Polynomial::getPolynomialWithAppendedCoefficients(
-    int new_N, Polynomial* new_polynomial) const {
+//}
+
+/* getPolynomialWithAppendedCoefficients() //{ */
+
+bool Polynomial::getPolynomialWithAppendedCoefficients(int new_N, Polynomial* new_polynomial) const {
   if (new_N == N_) {
     *new_polynomial = *this;
     return true;
@@ -190,11 +204,15 @@ bool Polynomial::getPolynomialWithAppendedCoefficients(
     return false;
   } else {
     Eigen::VectorXd coeffs = Eigen::VectorXd::Zero(new_N);
-    coeffs.head(N_) = coefficients_;
-    *new_polynomial = Polynomial(coeffs);
+    coeffs.head(N_)        = coefficients_;
+    *new_polynomial        = Polynomial(coeffs);
     return true;
   }
 }
+
+//}
+
+/* scalePolynomialInTime() //{ */
 
 void Polynomial::scalePolynomialInTime(double scaling_factor) {
   double scale = 1.0;
@@ -204,13 +222,19 @@ void Polynomial::scalePolynomialInTime(double scaling_factor) {
   }
 }
 
+//}
+
+/* offsetPolynomial() //{ */
+
 void Polynomial::offsetPolynomial(const double offset) {
-  if (coefficients_.size() == 0) return;
+  if (coefficients_.size() == 0)
+    return;
 
   coefficients_[0] += offset;
 }
 
-Eigen::MatrixXd Polynomial::base_coefficients_ =
-    computeBaseCoefficients(Polynomial::kMaxConvolutionSize);
+//}
+
+Eigen::MatrixXd Polynomial::base_coefficients_ = computeBaseCoefficients(Polynomial::kMaxConvolutionSize);
 
 }  // namespace mav_trajectory_generation

@@ -455,12 +455,19 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
   const double a_max = constraints.horizontal_acceleration;
   const double j_max = constraints.horizontal_jerk;
 
-  std::vector<double> segment_times;
-  segment_times = estimateSegmentTimes(vertices, v_max, a_max, j_max);
+  std::vector<double> segment_times, segment_times_baca;
+  segment_times      = estimateSegmentTimes(vertices, v_max, a_max, j_max);
+  segment_times_baca = estimateSegmentTimesBaca(vertices, v_max, a_max, j_max);
 
-  /* for (int i = 0; i < int(segment_times.size()); i++) { */
-  /*   ROS_INFO("[TrajectoryGeneration]: segment time %d = %.2f s", i, segment_times.at(i)); */
-  /* } */
+  double initial_total_time      = 0;
+  double initial_total_time_baca = 0;
+  for (int i = 0; i < int(segment_times_baca.size()); i++) {
+    initial_total_time += segment_times[i];
+    initial_total_time_baca += segment_times_baca[i];
+  }
+
+  ROS_INFO("[TrajectoryGeneration]: initial total time (Euclidean): %.2f", initial_total_time);
+  ROS_INFO("[TrajectoryGeneration]: initial total time (Baca): %.2f", initial_total_time_baca);
 
   // | --------- create an optimizer object and solve it -------- |
 
@@ -657,7 +664,7 @@ bool TrajectoryGeneration::optimize(const std::vector<Waypoint_t>& waypoints_in)
 
   std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectory(trajectory, waypoints);
 
-  ROS_INFO("[TrajectoryGeneration]: final max deviation %.2f m", max_deviation);
+  ROS_INFO("[TrajectoryGeneration]: final max deviation %.2f m, total time: %.2f", max_deviation, trajectory.size() * _sampling_dt_);
 
   for (int i = 0; i < int(waypoints.size()); i++) {
     bw_final_.addPoint(vec3_t(waypoints.at(i).coords[0], waypoints.at(i).coords[1], waypoints.at(i).coords[2]), 0.0, 1.0, 0.0, 1.0);
@@ -671,6 +678,8 @@ bool TrajectoryGeneration::optimize(const std::vector<Waypoint_t>& waypoints_in)
 
   bw_original_.publish();
   bw_final_.publish();
+
+  return true;
 }
 
 //}
