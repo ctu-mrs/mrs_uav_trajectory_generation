@@ -58,7 +58,6 @@ add_library(TrajectoryGeneration
   src/trajectory.cpp
   src/trajectory_sampling.cpp
   src/vertex.cpp
-  src/io.cpp
   src/rpoly/rpoly_ak1.cpp
 )
 
