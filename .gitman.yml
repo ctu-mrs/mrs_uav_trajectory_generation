@@ -20,7 +20,7 @@ sources:
   - git submodule update --init --recursive
 - name: nlopt
   type: git
-  repo: https://github.com/ethz-asl/nlopt.git
+  repo: https://github.com/ctu-mrs/nlopt.git
   sparse_paths:
   -
   rev: master
