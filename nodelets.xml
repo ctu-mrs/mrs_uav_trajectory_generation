@@ -1,5 +1,5 @@
-<library path="lib/libTrajectoryGenerationNodelet">
-  <class name="mrs_uav_trajectory_generation/TrajectoryGeneration" type="mrs_uav_trajectory_generation::TrajectoryGeneration" base_class_type="nodelet::Nodelet">
-    <description>TrajectoryGeneration nodelet</description>
+<library path="lib/libMrsTrajectoryGeneration">
+  <class name="mrs_uav_trajectory_generation/MrsTrajectoryGeneration" type="mrs_uav_trajectory_generation::MrsTrajectoryGeneration" base_class_type="nodelet::Nodelet">
+    <description>MrsTrajectoryGeneration nodelet</description>
   </class>
 </library>

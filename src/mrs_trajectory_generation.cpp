@@ -56,8 +56,8 @@ typedef struct
 namespace mrs_uav_trajectory_generation
 {
 
-/* class TrajectoryGeneration //{ */
-class TrajectoryGeneration : public nodelet::Nodelet {
+/* class MrsTrajectoryGeneration //{ */
+class MrsTrajectoryGeneration : public nodelet::Nodelet {
 
 public:
   virtual void onInit();
@@ -66,8 +66,6 @@ private:
   bool is_initialized_ = false;
 
   // | ----------------------- parameters ----------------------- |
-
-  std::string _uav_name_;
 
   // path for debuggins
   Eigen::MatrixXd _yaml_path_;
@@ -168,7 +166,7 @@ private:
 
 /* onInit() //{ */
 
-void TrajectoryGeneration::onInit() {
+void MrsTrajectoryGeneration::onInit() {
 
   /* obtain node handle */
   ros::NodeHandle nh_("~");
@@ -178,23 +176,23 @@ void TrajectoryGeneration::onInit() {
 
   // | ----------------------- subscribers ---------------------- |
 
-  subscriber_constraints_  = nh_.subscribe("constraints_in", 1, &TrajectoryGeneration::callbackConstraints, this, ros::TransportHints().tcpNoDelay());
-  subscriber_position_cmd_ = nh_.subscribe("position_cmd_in", 1, &TrajectoryGeneration::callbackPositionCmd, this, ros::TransportHints().tcpNoDelay());
-  subscriber_path_         = nh_.subscribe("path_in", 1, &TrajectoryGeneration::callbackPath, this, ros::TransportHints().tcpNoDelay());
+  subscriber_constraints_  = nh_.subscribe("constraints_in", 1, &MrsTrajectoryGeneration::callbackConstraints, this, ros::TransportHints().tcpNoDelay());
+  subscriber_position_cmd_ = nh_.subscribe("position_cmd_in", 1, &MrsTrajectoryGeneration::callbackPositionCmd, this, ros::TransportHints().tcpNoDelay());
+  subscriber_path_         = nh_.subscribe("path_in", 1, &MrsTrajectoryGeneration::callbackPath, this, ros::TransportHints().tcpNoDelay());
 
   // | --------------------- service servers -------------------- |
 
-  service_server_test_ = nh_.advertiseService("test_in", &TrajectoryGeneration::callbackTest, this);
-  service_server_path_ = nh_.advertiseService("path_in", &TrajectoryGeneration::callbackPathSrv, this);
+  service_server_test_ = nh_.advertiseService("test_in", &MrsTrajectoryGeneration::callbackTest, this);
+  service_server_path_ = nh_.advertiseService("path_in", &MrsTrajectoryGeneration::callbackPathSrv, this);
 
   service_client_trajectory_reference_ = nh_.serviceClient<mrs_msgs::TrajectoryReferenceSrv>("trajectory_reference_out");
 
   // | ----------------------- parameters ----------------------- |
 
-  mrs_lib::ParamLoader param_loader(nh_, "TrajectoryGeneration");
+  mrs_lib::ParamLoader param_loader(nh_, "MrsTrajectoryGeneration");
 
   _yaml_path_ = param_loader.loadMatrixDynamic2("path", -1, 4);
-  param_loader.loadParam("uav_name", _uav_name_);
+
   param_loader.loadParam("fly_now", fly_now_);
   param_loader.loadParam("frame_id", frame_id_);
   param_loader.loadParam("use_heading", use_heading_);
@@ -224,20 +222,20 @@ void TrajectoryGeneration::onInit() {
   param_loader.loadParam("derivative_to_optimize", params_.derivative_to_optimize);
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[TrajectoryGeneration]: could not load all parameters!");
+    ROS_ERROR("[MrsTrajectoryGeneration]: could not load all parameters!");
     ros::shutdown();
   }
 
   // | -------------------- batch visualizer -------------------- |
 
   // TODO should be visualizer in the same frame as the data come in
-  bw_original_ = mrs_lib::BatchVisualizer(nh_, "markers/original", _uav_name_ + "/gps_origin");
+  bw_original_ = mrs_lib::BatchVisualizer(nh_, "markers/original", "");
 
   bw_original_.clearBuffers();
   bw_original_.clearVisuals();
 
   // TODO should be visualizer in the same frame as the data come in
-  bw_final_ = mrs_lib::BatchVisualizer(nh_, "markers/final", _uav_name_ + "/gps_origin");
+  bw_final_ = mrs_lib::BatchVisualizer(nh_, "markers/final", "");
 
   bw_final_.clearBuffers();
   bw_final_.clearVisuals();
@@ -246,12 +244,12 @@ void TrajectoryGeneration::onInit() {
 
   drs_.reset(new Drs_t(mutex_drs_, nh_));
   drs_->updateConfig(params_);
-  Drs_t::CallbackType f = boost::bind(&TrajectoryGeneration::callbackDrs, this, _1, _2);
+  Drs_t::CallbackType f = boost::bind(&MrsTrajectoryGeneration::callbackDrs, this, _1, _2);
   drs_->setCallback(f);
 
   // | --------------------- finish the init -------------------- |
 
-  ROS_INFO_ONCE("[TrajectoryGeneration]: initialized");
+  ROS_INFO_ONCE("[MrsTrajectoryGeneration]: initialized");
 
   is_initialized_ = true;
 }
@@ -262,8 +260,8 @@ void TrajectoryGeneration::onInit() {
 
 /* validateTrajectory() //{ */
 
-std::tuple<bool, int, std::vector<bool>, double> TrajectoryGeneration::validateTrajectory(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
-                                                                                          const std::vector<Waypoint_t>&                waypoints) {
+std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::validateTrajectory(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
+                                                                                             const std::vector<Waypoint_t>&                waypoints) {
 
   // prepare the output
 
@@ -331,12 +329,12 @@ std::tuple<bool, int, std::vector<bool>, double> TrajectoryGeneration::validateT
 
 /* findTrajectory() //{ */
 
-std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::findTrajectory(const std::vector<Waypoint_t>&   waypoints,
-                                                                                           const mrs_msgs::PositionCommand& initial_state) {
+std::optional<mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectory(const std::vector<Waypoint_t>&   waypoints,
+                                                                                              const mrs_msgs::PositionCommand& initial_state) {
 
   mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("findTrajectory()");
 
-  ROS_DEBUG("[TrajectoryGeneration]: planning");
+  ROS_DEBUG("[MrsTrajectoryGeneration]: planning");
 
   auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
   auto constraints = mrs_lib::get_mutexed(mutex_constraints_, constraints_);
@@ -425,13 +423,13 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
   if (override_constraints_) {
     v_max = override_max_velocity_ < constraints.horizontal_speed ? override_max_velocity_ : constraints.horizontal_speed;
     a_max = override_max_acceleration_ < constraints.horizontal_acceleration ? override_max_acceleration_ : constraints.horizontal_acceleration;
-    ROS_DEBUG("[TrajectoryGeneration]: overriding constraints by a user");
+    ROS_DEBUG("[MrsTrajectoryGeneration]: overriding constraints by a user");
   } else {
     v_max = constraints.horizontal_speed;
     a_max = constraints.horizontal_acceleration;
   }
 
-  ROS_INFO("[TrajectoryGeneration]: constraints: max speed=%.2f m/s, max_acceleration=%.2f m/s^2", v_max, a_max);
+  ROS_INFO("[MrsTrajectoryGeneration]: constraints: max speed=%.2f m/s, max_acceleration=%.2f m/s^2", v_max, a_max);
 
   j_max = constraints.horizontal_jerk;
 
@@ -446,8 +444,8 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
     initial_total_time_baca += segment_times_baca[i];
   }
 
-  ROS_DEBUG("[TrajectoryGeneration]: initial total time (Euclidean): %.2f", initial_total_time);
-  ROS_DEBUG("[TrajectoryGeneration]: initial total time (Baca): %.2f", initial_total_time_baca);
+  ROS_DEBUG("[MrsTrajectoryGeneration]: initial total time (Euclidean): %.2f", initial_total_time);
+  ROS_DEBUG("[MrsTrajectoryGeneration]: initial total time (Baca): %.2f", initial_total_time_baca);
 
   // | --------- create an optimizer object and solve it -------- |
 
@@ -483,7 +481,7 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
 
 /* optimize() //{ */
 
-std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneration::optimize(const std::vector<Waypoint_t>& waypoints_in) {
+std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGeneration::optimize(const std::vector<Waypoint_t>& waypoints_in) {
 
   auto position_cmd = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
 
@@ -493,11 +491,14 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneratio
   bw_final_.clearBuffers();
   bw_final_.clearVisuals();
 
+  bw_original_.setParentFrame(frame_id_);
+  bw_final_.setParentFrame(frame_id_);
+
   // empty path is invalid
   if (waypoints_in.size() == 0) {
     std::stringstream ss;
     ss << "the path is empty (before postprocessing)";
-    ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
   }
 
@@ -524,7 +525,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneratio
                                                         vec3_t(last[0], last[1], last[2]));
 
     if (distance_from_last < _path_min_waypoint_distance_) {
-      ROS_DEBUG("[TrajectoryGeneration]: skipping vertex, too close to the previous one");
+      ROS_DEBUG("[MrsTrajectoryGeneration]: skipping vertex, too close to the previous one");
       continue;
     }
 
@@ -546,7 +547,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneratio
   if (waypoints.size() <= 1) {
     std::stringstream ss;
     ss << "the path is empty (after postprocessing)";
-    ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
   }
 
@@ -564,19 +565,19 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneratio
   } else {
     std::stringstream ss;
     ss << "failed to find trajectory";
-    ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
   }
 
   for (int k = 0; k < _trajectory_max_segment_deviation_max_iterations_; k++) {
 
-    ROS_DEBUG("[TrajectoryGeneration]: revalidation cycle #%d", k);
+    ROS_DEBUG("[MrsTrajectoryGeneration]: revalidation cycle #%d", k);
 
     std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectory(trajectory, waypoints);
 
     if (_trajectory_max_segment_deviation_enabled_ && !safe) {
 
-      ROS_DEBUG("[TrajectoryGeneration]: not safe, max deviation %.2f m", max_deviation);
+      ROS_DEBUG("[MrsTrajectoryGeneration]: not safe, max deviation %.2f m", max_deviation);
 
       std::vector<Waypoint_t>::iterator waypoint = waypoints.begin();
       std::vector<bool>::iterator       safeness = segment_safeness.begin();
@@ -601,12 +602,12 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneratio
       } else {
         std::stringstream ss;
         ss << "failed to find trajectory";
-        ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
+        ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
         return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
       }
 
     } else {
-      ROS_DEBUG("[TrajectoryGeneration]: trajectory is finally safe (%.2f)", max_deviation);
+      ROS_DEBUG("[MrsTrajectoryGeneration]: trajectory is finally safe (%.2f)", max_deviation);
       safe = true;
       break;
     }
@@ -614,7 +615,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneratio
 
   std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectory(trajectory, waypoints);
 
-  ROS_INFO("[TrajectoryGeneration]: final max deviation %.2f m, total time: %.2f", max_deviation, trajectory.size() * _sampling_dt_);
+  ROS_INFO("[MrsTrajectoryGeneration]: final max deviation %.2f m, total time: %.2f", max_deviation, trajectory.size() * _sampling_dt_);
 
   for (int i = 0; i < int(waypoints.size()); i++) {
     bw_final_.addPoint(vec3_t(waypoints.at(i).coords[0], waypoints.at(i).coords[1], waypoints.at(i).coords[2]), 0.0, 1.0, 0.0, 1.0);
@@ -639,7 +640,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneratio
 
 /* //{ randd() */
 
-double TrajectoryGeneration::randd(const double from, const double to) {
+double MrsTrajectoryGeneration::randd(const double from, const double to) {
 
   if (!_noise_enabled_) {
     return 0;
@@ -654,7 +655,7 @@ double TrajectoryGeneration::randd(const double from, const double to) {
 
 /* distFromSegment() //{ */
 
-double TrajectoryGeneration::distFromSegment(const vec3_t& point, const vec3_t& seg1, const vec3_t& seg2) {
+double MrsTrajectoryGeneration::distFromSegment(const vec3_t& point, const vec3_t& seg1, const vec3_t& seg2) {
 
   vec3_t segment_vector = seg2 - seg1;
   double segment_len    = segment_vector.norm();
@@ -681,7 +682,8 @@ double TrajectoryGeneration::distFromSegment(const vec3_t& point, const vec3_t& 
 
 /* getTrajectoryReference() //{ */
 
-mrs_msgs::TrajectoryReference TrajectoryGeneration::getTrajectoryReference(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const ros::Time& stamp) {
+mrs_msgs::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReference(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
+                                                                              const ros::Time&                              stamp) {
 
   mrs_msgs::TrajectoryReference msg;
 
@@ -710,7 +712,7 @@ mrs_msgs::TrajectoryReference TrajectoryGeneration::getTrajectoryReference(const
 
 /* interpolatePoint() //{ */
 
-Waypoint_t TrajectoryGeneration::interpolatePoint(const Waypoint_t& a, const Waypoint_t& b, const double& coeff) {
+Waypoint_t MrsTrajectoryGeneration::interpolatePoint(const Waypoint_t& a, const Waypoint_t& b, const double& coeff) {
 
   Waypoint_t      out;
   Eigen::Vector4d diff = b.coords - a.coords;
@@ -729,9 +731,9 @@ Waypoint_t TrajectoryGeneration::interpolatePoint(const Waypoint_t& a, const Way
 
 /* trajectorySrv() //{ */
 
-bool TrajectoryGeneration::trajectorySrv(const mrs_msgs::TrajectoryReference& msg) {
+bool MrsTrajectoryGeneration::trajectorySrv(const mrs_msgs::TrajectoryReference& msg) {
 
-  ROS_DEBUG("[TrajectoryGeneration]: calling trajectory_reference service");
+  ROS_DEBUG("[MrsTrajectoryGeneration]: calling trajectory_reference service");
 
   mrs_msgs::TrajectoryReferenceSrv srv;
   srv.request.trajectory = msg;
@@ -741,14 +743,14 @@ bool TrajectoryGeneration::trajectorySrv(const mrs_msgs::TrajectoryReference& ms
   if (res) {
 
     if (!srv.response.success) {
-      ROS_WARN("[TrajectoryGeneration]: service call for trajectory_reference returned: '%s'", srv.response.message.c_str());
+      ROS_WARN("[MrsTrajectoryGeneration]: service call for trajectory_reference returned: '%s'", srv.response.message.c_str());
     }
 
     return srv.response.success;
 
   } else {
 
-    ROS_ERROR("[TrajectoryGeneration]: service call for trajectory_reference failed!");
+    ROS_ERROR("[MrsTrajectoryGeneration]: service call for trajectory_reference failed!");
 
     return false;
   }
@@ -760,7 +762,7 @@ bool TrajectoryGeneration::trajectorySrv(const mrs_msgs::TrajectoryReference& ms
 
 /* callbackTest() //{ */
 
-bool TrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
+bool MrsTrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
 
   if (!is_initialized_) {
     return false;
@@ -773,7 +775,7 @@ bool TrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Requ
   if (!got_constraints_) {
     std::stringstream ss;
     ss << "missing constraints";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
     res.success = false;
     res.message = ss.str();
   }
@@ -781,7 +783,7 @@ bool TrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Requ
   if (!got_position_cmd_) {
     std::stringstream ss;
     ss << "missing position cmd";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
     res.success = false;
     res.message = ss.str();
   }
@@ -837,7 +839,7 @@ bool TrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Requ
 
 /* callbackPath() //{ */
 
-void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
+void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
   if (!is_initialized_) {
     return;
@@ -848,20 +850,20 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   if (!got_constraints_) {
     std::stringstream ss;
     ss << "missing constraints";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
     return;
   }
 
   if (!got_position_cmd_) {
     std::stringstream ss;
     ss << "missing position cmd";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
     return;
   }
 
   //}
 
-  ROS_INFO("[TrajectoryGeneration]: got path");
+  ROS_INFO("[MrsTrajectoryGeneration]: got path");
 
   std::vector<Waypoint_t> waypoints;
 
@@ -893,7 +895,7 @@ void TrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
 /* callbackPathSrv() //{ */
 
-bool TrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_msgs::PathSrv::Response& res) {
+bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_msgs::PathSrv::Response& res) {
 
   if (!is_initialized_) {
     return false;
@@ -904,7 +906,7 @@ bool TrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_
   if (!got_constraints_) {
     std::stringstream ss;
     ss << "missing constraints";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -914,7 +916,7 @@ bool TrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_
   if (!got_position_cmd_) {
     std::stringstream ss;
     ss << "missing position cmd";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -923,7 +925,7 @@ bool TrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_
 
   //}
 
-  ROS_INFO("[TrajectoryGeneration]: got path");
+  ROS_INFO("[MrsTrajectoryGeneration]: got path");
 
   std::vector<Waypoint_t> waypoints;
 
@@ -981,13 +983,13 @@ bool TrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_
 
 /* callbackConstraints() //{ */
 
-void TrajectoryGeneration::callbackConstraints(const mrs_msgs::DynamicsConstraintsConstPtr& msg) {
+void MrsTrajectoryGeneration::callbackConstraints(const mrs_msgs::DynamicsConstraintsConstPtr& msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[TrajectoryGeneration]: got constraints");
+  ROS_INFO_ONCE("[MrsTrajectoryGeneration]: got constraints");
 
   got_constraints_ = true;
 
@@ -998,13 +1000,13 @@ void TrajectoryGeneration::callbackConstraints(const mrs_msgs::DynamicsConstrain
 
 /* callbackPositionCmd() //{ */
 
-void TrajectoryGeneration::callbackPositionCmd(const mrs_msgs::PositionCommandConstPtr& msg) {
+void MrsTrajectoryGeneration::callbackPositionCmd(const mrs_msgs::PositionCommandConstPtr& msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  ROS_INFO_ONCE("[TrajectoryGeneration]: got position cmd");
+  ROS_INFO_ONCE("[MrsTrajectoryGeneration]: got position cmd");
 
   got_position_cmd_ = true;
 
@@ -1015,7 +1017,7 @@ void TrajectoryGeneration::callbackPositionCmd(const mrs_msgs::PositionCommandCo
 
 /* //{ callbackDrs() */
 
-void TrajectoryGeneration::callbackDrs(mrs_uav_trajectory_generation::drsConfig& params, [[maybe_unused]] uint32_t level) {
+void MrsTrajectoryGeneration::callbackDrs(mrs_uav_trajectory_generation::drsConfig& params, [[maybe_unused]] uint32_t level) {
 
   mrs_lib::set_mutexed(mutex_params_, params, params_);
 
@@ -1030,13 +1032,12 @@ void TrajectoryGeneration::callbackDrs(mrs_uav_trajectory_generation::drsConfig&
     callbackTest(req, res);
   }
 
-  ROS_INFO("[TrajectoryGeneration]: DRS updated");
+  ROS_INFO("[MrsTrajectoryGeneration]: DRS updated");
 }
 
 //}
 
 }  // namespace mrs_uav_trajectory_generation
 
-/* every nodelet must export its class as nodelet plugin */
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(mrs_uav_trajectory_generation::TrajectoryGeneration, nodelet::Nodelet);
+PLUGINLIB_EXPORT_CLASS(mrs_uav_trajectory_generation::MrsTrajectoryGeneration, nodelet::Nodelet);
