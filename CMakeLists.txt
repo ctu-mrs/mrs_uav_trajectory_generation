@@ -29,7 +29,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES TrajectoryGeneration TrajectoryGenerationNodelet
   CATKIN_DEPENDS roscpp mrs_lib mrs_msgs geometry_msgs nav_msgs mav_msgs dynamic_reconfigure nlopt
-  DEPENDS Eigen 
+  DEPENDS Eigen
   )
 
 ###########
@@ -45,7 +45,7 @@ add_library(TrajectoryGeneration
   src/trajectory_sampling.cpp
   src/vertex.cpp
   src/rpoly/rpoly_ak1.cpp
-)
+  )
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations

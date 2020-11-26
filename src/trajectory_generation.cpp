@@ -365,13 +365,8 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
 
   ROS_INFO("[TrajectoryGeneration]: planning");
 
-  mutex_params_.lock();
-  auto params = params_;
-  mutex_params_.unlock();
-
-  mutex_constraints_.lock();
-  auto constraints = constraints_;
-  mutex_constraints_.unlock();
+  auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
+  auto constraints = mrs_lib::get_mutexed(mutex_constraints_, constraints_);
 
   // optimizer
 
@@ -862,9 +857,7 @@ void TrajectoryGeneration::callbackConstraints(const mrs_msgs::DynamicsConstrain
 
   got_constraints_ = true;
 
-  mutex_constraints_.lock();
-  constraints_ = *msg;
-  mutex_constraints_.unlock();
+  mrs_lib::set_mutexed(mutex_constraints_, *msg, constraints_);
 }
 
 //}
@@ -881,9 +874,7 @@ void TrajectoryGeneration::callbackPositionCmd(const mrs_msgs::PositionCommandCo
 
   got_position_cmd_ = true;
 
-  mutex_position_cmd_.lock();
-  position_cmd_ = *msg;
-  mutex_position_cmd_.unlock();
+  mrs_lib::set_mutexed(mutex_position_cmd_, *msg, position_cmd_);
 }
 
 //}
@@ -892,9 +883,7 @@ void TrajectoryGeneration::callbackPositionCmd(const mrs_msgs::PositionCommandCo
 
 void TrajectoryGeneration::callbackDrs(trajectory_generation::trajectory_generationConfig& params, [[maybe_unused]] uint32_t level) {
 
-  mutex_params_.lock();
-  params_ = params;
-  mutex_params_.unlock();
+  mrs_lib::set_mutexed(mutex_params_, params, params_);
 
   if (params.test) {
     params.test = false;
