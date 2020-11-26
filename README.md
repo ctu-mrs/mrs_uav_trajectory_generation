@@ -20,6 +20,7 @@ The main differences are:
 * Iterrative segment subsectioning is added to satisfy maximum distance from the original segmented waypoint path.
 * Removed dependency on the [glog](https://github.com/google/glog) library and the ETH glog [wrapper](https://github.com/ethz-asl/glog_catkin).
 * Removed dependency on [catkin_simple](https://github.com/catkin/catkin_simple).
+* Removed dependency on the _yaml_cpp_ library.
 * Removed dependency on the custom-built [nlopt](https://nlopt.readthedocs.io/en/latest/) ETH [wrapper](https://github.com/ethz-asl/nlopt) and substituded it with the available ROS variant (`sudo apt install ros-melodic-nlopt`).
 * Added dependency on [mrs_lib](https://github.com/ctu-mrs/mrs_lib) (just for convenience).
 * Added dependency on [mrs_msgs](https://github.com/ctu-mrs/mrs_msgs) (for compatibility with the [MRS UAV System](https://github.com/ctu-mrs/mrs_uav_system)).
