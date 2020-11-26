@@ -15,20 +15,17 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_NONLINEAR_IMPL_H_
-#define MAV_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_NONLINEAR_IMPL_H_
+#ifndef ETH_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_NONLINEAR_IMPL_H_
+#define ETH_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_NONLINEAR_IMPL_H_
 
 #include <chrono>
 #include <numeric>
 
-#include <mav_trajectory_generation/polynomial_optimization_linear.h>
-#include <mav_trajectory_generation/timing.h>
+#include <eth_trajectory_generation/polynomial_optimization_nonlinear.h>
+#include <eth_trajectory_generation/timing.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
-
-/* operator<<(std::ostream& stream,
- *                                 const OptimizationInfo& val)//{ */
 
 inline std::ostream& operator<<(std::ostream& stream, const OptimizationInfo& val) {
   stream << "--- optimization info ---" << std::endl;
@@ -46,18 +43,10 @@ inline std::ostream& operator<<(std::ostream& stream, const OptimizationInfo& va
   return stream;
 }
 
-//}
-
-/* PolynomialOptimizationNonLinear() //{ */
-
 template <int _N>
 PolynomialOptimizationNonLinear<_N>::PolynomialOptimizationNonLinear(size_t dimension, const NonlinearOptimizationParameters& parameters)
     : poly_opt_(dimension), optimization_parameters_(parameters) {
 }
-
-//}
-
-/* setupFromVertices() //{ */
 
 template <int _N>
 bool PolynomialOptimizationNonLinear<_N>::setupFromVertices(const Vertex::Vector& vertices, const std::vector<double>& segment_times,
@@ -91,18 +80,10 @@ bool PolynomialOptimizationNonLinear<_N>::setupFromVertices(const Vertex::Vector
   return ret;
 }
 
-//}
-
-/* solveLinear() //{ */
-
 template <int _N>
 bool PolynomialOptimizationNonLinear<_N>::solveLinear() {
   return poly_opt_.solveLinear();
 }
-
-//}
-
-/* optimize() //{ */
 
 template <int _N>
 int PolynomialOptimizationNonLinear<_N>::optimize() {
@@ -134,10 +115,6 @@ int PolynomialOptimizationNonLinear<_N>::optimize() {
 
   return result;
 }
-
-//}
-
-/* optimizeTime() //{ */
 
 template <int _N>
 int PolynomialOptimizationNonLinear<_N>::optimizeTime() {
@@ -177,10 +154,6 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTime() {
 
   return result;
 }
-
-//}
-
-/* optimizeTimeMellingerOuterLoop() //{ */
 
 template <int _N>
 int PolynomialOptimizationNonLinear<_N>::optimizeTimeMellingerOuterLoop() {
@@ -259,18 +232,10 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTimeMellingerOuterLoop() {
   return result;
 }
 
-//}
-
-/* getCost() //{ */
-
 template <int _N>
 double PolynomialOptimizationNonLinear<_N>::getCost() const {
   return poly_opt_.computeCost();
 }
-
-//}
-
-/* getTotalCostWithSoftConstraints() //{ */
 
 template <int _N>
 double PolynomialOptimizationNonLinear<_N>::getTotalCostWithSoftConstraints() const {
@@ -286,10 +251,6 @@ double PolynomialOptimizationNonLinear<_N>::getTotalCostWithSoftConstraints() co
 
   return cost_trajectory + cost_time + cost_constraints;
 }
-
-//}
-
-/* getCostAndGradientMellinger() //{ */
 
 template <int _N>
 double PolynomialOptimizationNonLinear<_N>::getCostAndGradientMellinger(std::vector<double>* gradients) {
@@ -370,10 +331,6 @@ double PolynomialOptimizationNonLinear<_N>::getCostAndGradientMellinger(std::vec
   return J_d;
 }
 
-//}
-
-/* scaleSegmentTimesWithViolation() //{ */
-
 template <int _N>
 void PolynomialOptimizationNonLinear<_N>::scaleSegmentTimesWithViolation() {
   // Get trajectory
@@ -411,10 +368,6 @@ void PolynomialOptimizationNonLinear<_N>::scaleSegmentTimesWithViolation() {
     std::cout << "[Time Scaling] End: v: max: " << v_max_actual << " / " << v_max << " a: max: " << a_max_actual << " / " << a_max << std::endl;
   }
 }
-
-//}
-
-/* optimizeTimeAndFreeConstraints() //{ */
 
 template <int _N>
 int PolynomialOptimizationNonLinear<_N>::optimizeTimeAndFreeConstraints() {
@@ -525,10 +478,6 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTimeAndFreeConstraints() {
   return result;
 }
 
-//}
-
-/* addMaximumMagnitudeConstraint() //{ */
-
 template <int _N>
 bool PolynomialOptimizationNonLinear<_N>::addMaximumMagnitudeConstraint(int derivative, double maximum_value) {
   CHECK_GE(derivative, 0);
@@ -554,10 +503,6 @@ bool PolynomialOptimizationNonLinear<_N>::addMaximumMagnitudeConstraint(int deri
   }
   return true;
 }
-
-//}
-
-/* objectiveFunctionTime() //{ */
 
 template <int _N>
 double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTime(const std::vector<double>& segment_times, std::vector<double>& gradient, void* data) {
@@ -608,10 +553,6 @@ double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTime(const std::vec
   return cost_trajectory + cost_time + cost_constraints;
 }
 
-//}
-
-/* objectiveFunctionTimeMellingerOuterLoop() //{ */
-
 template <int _N>
 double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeMellingerOuterLoop(const std::vector<double>& segment_times, std::vector<double>& gradient,
                                                                                     void* data) {
@@ -646,10 +587,6 @@ double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeMellingerOuterL
 
   return cost_trajectory;
 }
-
-//}
-
-/* objectiveFunctionTimeAndConstraints() //{ */
 
 template <int _N>
 double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeAndConstraints(const std::vector<double>& x, std::vector<double>& gradient, void* data) {
@@ -724,10 +661,6 @@ double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeAndConstraints(
   return cost_trajectory + cost_time + cost_constraints;
 }
 
-//}
-
-/* evaluateMaximumMagnitudeConstraint() //{ */
-
 template <int _N>
 double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeConstraint(const std::vector<double>& segment_times, std::vector<double>& gradient,
                                                                                void* data) {
@@ -742,10 +675,6 @@ double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeConstraint(c
 
   return max.value - constraint_data->value;
 }
-
-//}
-
-/* evaluateMaximumMagnitudeAsSoftConstraint() //{ */
 
 template <int _N>
 double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeAsSoftConstraint(const std::vector<std::shared_ptr<ConstraintData>>& inequality_constraints,
@@ -771,10 +700,6 @@ double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeAsSoftConstr
   }
   return cost;
 }
-
-//}
-
-/* setFreeEndpointDerivativeHardConstraints() //{ */
 
 template <int _N>
 void PolynomialOptimizationNonLinear<_N>::setFreeEndpointDerivativeHardConstraints(const Vertex::Vector& vertices, std::vector<double>* lower_bounds,
@@ -819,10 +744,6 @@ void PolynomialOptimizationNonLinear<_N>::setFreeEndpointDerivativeHardConstrain
   }
 }
 
-//}
-
-/* computeTotalTrajectoryTime() //{ */
-
 template <int _N>
 double PolynomialOptimizationNonLinear<_N>::computeTotalTrajectoryTime(const std::vector<double>& segment_times) {
   double total_time = 0;
@@ -831,14 +752,10 @@ double PolynomialOptimizationNonLinear<_N>::computeTotalTrajectoryTime(const std
   return total_time;
 }
 
-//}
-
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
 namespace nlopt
 {
-
-/* returnValueToString() //{ */
 
 inline std::string returnValueToString(int return_value) {
   switch (return_value) {
@@ -868,9 +785,6 @@ inline std::string returnValueToString(int return_value) {
       return std::string("ERROR CODE UNKNOWN");
   }
 }
-
-//}
-
 }  // namespace nlopt
 
-#endif  // MAV_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_NONLINEAR_IMPL_H_
+#endif  // ETH_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_NONLINEAR_IMPL_H_

@@ -18,9 +18,9 @@
  * limitations under the License.
  */
 
-#include "mav_trajectory_generation/trajectory_sampling.h"
+#include <eth_trajectory_generation/trajectory_sampling.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 const double kNumNanosecondsPerSecond = 1.e9;
@@ -184,4 +184,4 @@ bool sampleFlatStateAtTime(const T& type, double sample_time, mav_msgs::EigenTra
 
 //}
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation

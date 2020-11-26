@@ -18,21 +18,21 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_LINEAR_H_
-#define MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_LINEAR_H_
+#ifndef ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_LINEAR_H_
+#define ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_LINEAR_H_
 
-#include <mav_trajectory_generation/misc.h>
 #include <Eigen/Sparse>
 #include <tuple>
 
-#include "mav_trajectory_generation/extremum.h"
-#include "mav_trajectory_generation/motion_defines.h"
-#include "mav_trajectory_generation/polynomial.h"
-#include "mav_trajectory_generation/segment.h"
-#include "mav_trajectory_generation/trajectory.h"
-#include "mav_trajectory_generation/vertex.h"
+#include <eth_trajectory_generation/misc.h>
+#include <eth_trajectory_generation/extremum.h>
+#include <eth_trajectory_generation/motion_defines.h>
+#include <eth_trajectory_generation/polynomial.h>
+#include <eth_trajectory_generation/segment.h>
+#include <eth_trajectory_generation/trajectory.h>
+#include <eth_trajectory_generation/vertex.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 // Implements the unconstrained optimization of paths consisting of
@@ -310,8 +310,8 @@ struct Constraint
   Vertex::ConstraintValue value;
 };
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#include "mav_trajectory_generation/impl/polynomial_optimization_linear_impl.h"
+#include "eth_trajectory_generation/impl/polynomial_optimization_linear_impl.h"
 
-#endif  // MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_LINEAR_H_
+#endif  // ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_LINEAR_H_

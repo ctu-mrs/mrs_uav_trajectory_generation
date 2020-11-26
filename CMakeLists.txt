@@ -5,11 +5,10 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   nodelet
   dynamic_reconfigure
-  geometry_msgs
-  nav_msgs
+  std_msgs
   mrs_msgs
-  mrs_lib
   mav_msgs
+  mrs_lib
   nlopt
   )
 
@@ -23,20 +22,24 @@ set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES TrajectoryGeneration TrajectoryGenerationNodelet
-  CATKIN_DEPENDS roscpp mrs_lib mrs_msgs geometry_msgs nav_msgs mav_msgs dynamic_reconfigure nlopt
+  LIBRARIES EthTrajectoryGeneration MrsTrajectoryGeneration
+  CATKIN_DEPENDS roscpp mrs_lib mrs_msgs mav_msgs dynamic_reconfigure nlopt
   DEPENDS Eigen
   )
 
-add_library(TrajectoryGeneration
-  src/motion_defines.cpp
-  src/polynomial.cpp
-  src/segment.cpp
-  src/timing.cpp
-  src/trajectory.cpp
-  src/trajectory_sampling.cpp
-  src/vertex.cpp
-  src/rpoly/rpoly_ak1.cpp
+add_library(EthTrajectoryGeneration
+  src/eth_trajectory_generation/motion_defines.cpp
+  src/eth_trajectory_generation/polynomial.cpp
+  src/eth_trajectory_generation/segment.cpp
+  src/eth_trajectory_generation/timing.cpp
+  src/eth_trajectory_generation/trajectory.cpp
+  src/eth_trajectory_generation/trajectory_sampling.cpp
+  src/eth_trajectory_generation/vertex.cpp
+  src/eth_trajectory_generation/rpoly/rpoly_ak1.cpp
+  )
+
+add_library(MrsTrajectoryGeneration
+  src/mrs_trajectory_generation.cpp
   )
 
 include_directories(
@@ -46,10 +49,8 @@ include_directories(
   ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
   )
 
-add_library(TrajectoryGenerationNodelet src/trajectory_generation.cpp)
-
-target_link_libraries(TrajectoryGenerationNodelet
-  TrajectoryGeneration
+target_link_libraries(MrsTrajectoryGeneration
+  EthTrajectoryGeneration
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )

@@ -18,13 +18,13 @@
  * permissions and limitations under the License.
  */
 
-#include "mav_trajectory_generation/polynomial.h"
-#include "mav_trajectory_generation/rpoly/rpoly_ak1.h"
+#include <eth_trajectory_generation/polynomial.h>
+#include <eth_trajectory_generation/rpoly/rpoly_ak1.h>
 
 #include <algorithm>
 #include <limits>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 bool Polynomial::getRoots(int derivative, Eigen::VectorXcd* roots) const {
@@ -238,4 +238,4 @@ void Polynomial::offsetPolynomial(const double offset) {
 
 Eigen::MatrixXd Polynomial::base_coefficients_ = computeBaseCoefficients(Polynomial::kMaxConvolutionSize);
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation

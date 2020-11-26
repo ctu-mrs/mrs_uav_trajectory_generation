@@ -9,16 +9,14 @@
 
 #include <std_srvs/Trigger.h>
 
-#include <stdlib.h>
-
 #include <mrs_msgs/DynamicsConstraints.h>
 #include <mrs_msgs/Path.h>
 #include <mrs_msgs/PathSrv.h>
 #include <mrs_msgs/PositionCommand.h>
 
-#include <mav_trajectory_generation/polynomial_optimization_nonlinear.h>
-#include <mav_trajectory_generation/trajectory.h>
-#include <mav_trajectory_generation/trajectory_sampling.h>
+#include <eth_trajectory_generation/impl/polynomial_optimization_nonlinear_impl.h>
+#include <eth_trajectory_generation/trajectory.h>
+#include <eth_trajectory_generation/trajectory_sampling.h>
 
 #include <mav_msgs/eigen_mav_msgs.h>
 
@@ -28,8 +26,6 @@
 #include <mrs_lib/mutex.h>
 #include <mrs_lib/batch_visualizer.h>
 #include <mrs_lib/scope_timer.h>
-
-#include <mutex>
 
 #include <dynamic_reconfigure/server.h>
 #include <mrs_uav_trajectory_generation/drsConfig.h>
@@ -347,14 +343,14 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
 
   // optimizer
 
-  mav_trajectory_generation::NonlinearOptimizationParameters parameters;
+  eth_trajectory_generation::NonlinearOptimizationParameters parameters;
 
   parameters.f_rel                  = 0.05;
   parameters.x_rel                  = 0.1;
   parameters.time_penalty           = params.time_penalty;
   parameters.use_soft_constraints   = params.soft_constraints_enabled;
   parameters.soft_constraint_weight = params.soft_constraints_weight;
-  parameters.time_alloc_method      = static_cast<mav_trajectory_generation::NonlinearOptimizationParameters::TimeAllocMethod>(params.time_allocation);
+  parameters.time_alloc_method      = static_cast<eth_trajectory_generation::NonlinearOptimizationParameters::TimeAllocMethod>(params.time_allocation);
   if (params.time_allocation == 2) {
     parameters.algorithm = nlopt::LD_LBFGS;
   }
@@ -363,21 +359,21 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
   parameters.equality_constraint_tolerance   = params.equality_constraint_tolerance;
   parameters.max_iterations                  = params.max_iterations;
 
-  mav_trajectory_generation::Vertex::Vector vertices;
+  eth_trajectory_generation::Vertex::Vector vertices;
   const int                                 dimension = 4;
 
   int derivative_to_optimize;
   switch (params.derivative_to_optimize) {
     case 0: {
-      derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
+      derivative_to_optimize = eth_trajectory_generation::derivative_order::ACCELERATION;
       break;
     }
     case 1: {
-      derivative_to_optimize = mav_trajectory_generation::derivative_order::JERK;
+      derivative_to_optimize = eth_trajectory_generation::derivative_order::JERK;
       break;
     }
     case 2: {
-      derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
+      derivative_to_optimize = eth_trajectory_generation::derivative_order::SNAP;
       break;
     }
   }
@@ -394,28 +390,28 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
     double heading = sradians::unwrap(waypoints.at(i).coords[3], last_heading);
     last_heading   = heading;
 
-    mav_trajectory_generation::Vertex vertex(dimension);
+    eth_trajectory_generation::Vertex vertex(dimension);
 
     if (i == 0) {
       vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
 
-      vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+      vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
 
-      vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+      vertex.addConstraint(eth_trajectory_generation::derivative_order::VELOCITY,
                            Eigen::Vector4d(initial_state.velocity.x, initial_state.velocity.y, initial_state.velocity.z, initial_state.heading_rate));
 
       vertex.addConstraint(
-          mav_trajectory_generation::derivative_order::ACCELERATION,
+          eth_trajectory_generation::derivative_order::ACCELERATION,
           Eigen::Vector4d(initial_state.acceleration.x, initial_state.acceleration.y, initial_state.acceleration.z, initial_state.heading_acceleration));
 
-      vertex.addConstraint(mav_trajectory_generation::derivative_order::JERK,
+      vertex.addConstraint(eth_trajectory_generation::derivative_order::JERK,
                            Eigen::Vector4d(initial_state.jerk.x, initial_state.jerk.y, initial_state.jerk.z, initial_state.heading_jerk));
     } else if (i == (waypoints.size() - 1)) {  // the last point
       vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
     } else {  // mid points
-      vertex.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+      vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
       if (waypoints.at(i).stop_at) {
-        vertex.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector4d(0, 0, 0, 0));
+        vertex.addConstraint(eth_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector4d(0, 0, 0, 0));
       }
     }
 
@@ -456,25 +452,25 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
   // | --------- create an optimizer object and solve it -------- |
 
   const int                                                     N = 10;
-  mav_trajectory_generation::PolynomialOptimizationNonLinear<N> opt(dimension, parameters);
+  eth_trajectory_generation::PolynomialOptimizationNonLinear<N> opt(dimension, parameters);
   opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
-  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::VELOCITY, v_max);
-  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, a_max);
-  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::JERK, j_max);
+  opt.addMaximumMagnitudeConstraint(eth_trajectory_generation::derivative_order::VELOCITY, v_max);
+  opt.addMaximumMagnitudeConstraint(eth_trajectory_generation::derivative_order::ACCELERATION, a_max);
+  opt.addMaximumMagnitudeConstraint(eth_trajectory_generation::derivative_order::JERK, j_max);
   opt.optimize();
 
   // | ------------- obtain the polynomial segments ------------- |
 
-  mav_trajectory_generation::Segment::Vector segments;
+  eth_trajectory_generation::Segment::Vector segments;
   opt.getPolynomialOptimizationRef().getSegments(&segments);
 
   // | --------------- create the trajectory class -------------- |
 
-  mav_trajectory_generation::Trajectory trajectory;
+  eth_trajectory_generation::Trajectory trajectory;
   opt.getTrajectory(&trajectory);
 
   mav_msgs::EigenTrajectoryPoint::Vector states;
-  bool                                   success = mav_trajectory_generation::sampleWholeTrajectory(trajectory, _sampling_dt_, &states);
+  bool                                   success = eth_trajectory_generation::sampleWholeTrajectory(trajectory, _sampling_dt_, &states);
 
   if (success) {
     return std::optional(states);

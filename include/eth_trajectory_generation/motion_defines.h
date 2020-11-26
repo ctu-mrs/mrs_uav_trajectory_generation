@@ -23,7 +23,7 @@
 
 #include <string>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 namespace derivative_order
@@ -47,6 +47,6 @@ int         positionDerivativeToInt(const std::string& string);
 std::string orintationDerivativeToString(int derivative);
 int         orientationDerivativeToInt(const std::string& string);
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
 #endif

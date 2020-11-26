@@ -18,16 +18,16 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_POLYNOMIAL_H_
-#define MAV_TRAJECTORY_GENERATION_POLYNOMIAL_H_
+#ifndef ETH_TRAJECTORY_GENERATION_POLYNOMIAL_H_
+#define ETH_TRAJECTORY_GENERATION_POLYNOMIAL_H_
 
-#include <mav_trajectory_generation/misc.h>
+#include <eth_trajectory_generation/misc.h>
 #include <Eigen/Eigen>
 #include <Eigen/SVD>
 #include <utility>
 #include <vector>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 // Implementation of polynomials of order N-1. Order must be known at
@@ -264,6 +264,6 @@ private:
 // up to order N.
 Eigen::MatrixXd computeBaseCoefficients(int N);
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_POLYNOMIAL_H_
+#endif  // ETH_TRAJECTORY_GENERATION_POLYNOMIAL_H_

@@ -18,19 +18,18 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_VERTEX_H_
-#define MAV_TRAJECTORY_GENERATION_VERTEX_H_
+#ifndef ETH_TRAJECTORY_GENERATION_VERTEX_H_
+#define ETH_TRAJECTORY_GENERATION_VERTEX_H_
 
-#include <mav_trajectory_generation/misc.h>
 #include <Eigen/Core>
 #include <chrono>
 #include <map>
 #include <vector>
+#include <eth_trajectory_generation/misc.h>
+#include <eth_trajectory_generation/motion_defines.h>
+#include <eth_trajectory_generation/polynomial.h>
 
-#include "mav_trajectory_generation/motion_defines.h"
-#include "mav_trajectory_generation/polynomial.h"
-
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 // A vertex describes the properties of a support point of a path.
@@ -162,6 +161,6 @@ Vertex::Vector createSquareVertices(int maximum_derivative, const Eigen::Vector3
 
 // Conveninence function to create 1D vertices.
 Vertex::Vector createRandomVertices1D(int maximum_derivative, size_t n_segments, double minimum_position, double maximum_position, size_t seed = 0);
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_VERTEX_H_
+#endif  // ETH_TRAJECTORY_GENERATION_VERTEX_H_

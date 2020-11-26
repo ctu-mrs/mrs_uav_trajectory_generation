@@ -1,1 +1,1 @@
-log4j.logger.ros.trajectory_generation=DEBUG
+log4j.logger.ros.mrs_uav_trajectory_generation=DEBUG

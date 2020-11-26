@@ -18,14 +18,14 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_TRAJECTORY_H_
-#define MAV_TRAJECTORY_GENERATION_TRAJECTORY_H_
+#ifndef ETH_TRAJECTORY_GENERATION_TRAJECTORY_H_
+#define ETH_TRAJECTORY_GENERATION_TRAJECTORY_H_
 
-#include "mav_trajectory_generation/extremum.h"
-#include "mav_trajectory_generation/segment.h"
-#include "mav_trajectory_generation/vertex.h"
+#include <eth_trajectory_generation/extremum.h>
+#include <eth_trajectory_generation/segment.h>
+#include <eth_trajectory_generation/vertex.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 // Holder class for trajectories of D dimensions, of K segments, and
@@ -164,6 +164,6 @@ private:
   Segment::Vector segments_;
 };
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_TRAJECTORY_H_
+#endif  // ETH_TRAJECTORY_GENERATION_TRAJECTORY_H_

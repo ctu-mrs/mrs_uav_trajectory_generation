@@ -18,15 +18,15 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
-#define MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
+#ifndef ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
+#define ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
 
 #include <memory>
 #include <nlopt.hpp>
 
-#include "mav_trajectory_generation/polynomial_optimization_linear.h"
+#include <eth_trajectory_generation/polynomial_optimization_linear.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 constexpr double kOptimizationTimeLowerBound = 0.01;
@@ -297,7 +297,7 @@ private:
   OptimizationInfo optimization_info_;
 };
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
 namespace nlopt
 {
@@ -306,6 +306,6 @@ namespace nlopt
 std::string returnValueToString(int return_value);
 }  // namespace nlopt
 
-#endif  // MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
+#endif  // ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
 
-#include "mav_trajectory_generation/impl/polynomial_optimization_nonlinear_impl.h"
+#include "eth_trajectory_generation/impl/polynomial_optimization_nonlinear_impl.h"

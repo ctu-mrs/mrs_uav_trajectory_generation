@@ -18,9 +18,9 @@
  * limitations under the License.
  */
 
-#include "mav_trajectory_generation/motion_defines.h"
+#include <eth_trajectory_generation/motion_defines.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 /* positionDerivativeToString //{ */
@@ -87,4 +87,4 @@ int orientationDerivativeToInt(const std::string& string) {
 
 //}
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation

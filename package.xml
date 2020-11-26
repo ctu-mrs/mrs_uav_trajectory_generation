@@ -14,12 +14,11 @@
 
   <depend>roscpp</depend>
   <depend>nodelet</depend>
-  <depend>geometry_msgs</depend>
-  <depend>nav_msgs</depend>
-  <depend>mrs_msgs</depend>
-  <depend>mrs_lib</depend>
   <depend>dynamic_reconfigure</depend>
+  <depend>mrs_msgs</depend>
+  <depend>std_msgs</depend>
   <depend>mav_msgs</depend>
+  <depend>mrs_lib</depend>
   <depend>nlopt</depend>
 
   <export>

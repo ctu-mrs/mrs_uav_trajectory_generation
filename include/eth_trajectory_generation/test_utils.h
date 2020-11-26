@@ -18,15 +18,14 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_TEST_UTILS_H_
-#define MAV_TRAJECTORY_GENERATION_TEST_UTILS_H_
+#ifndef ETH_TRAJECTORY_GENERATION_TEST_UTILS_H_
+#define ETH_TRAJECTORY_GENERATION_TEST_UTILS_H_
 
 #include <random>
 #include <Eigen/Eigen>
+#include <eth_trajectory_generation/trajectory.h>
 
-#include "mav_trajectory_generation/trajectory.h"
-
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 inline double createRandomDouble(double min, double max) {
@@ -59,6 +58,6 @@ double computeCostNumeric(const Trajectory& trajectory, size_t derivative, doubl
   return cost;
 }
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_TEST_UTILS_H_
+#endif  // ETH_TRAJECTORY_GENERATION_TEST_UTILS_H_

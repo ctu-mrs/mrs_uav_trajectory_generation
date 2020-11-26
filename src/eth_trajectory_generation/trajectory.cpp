@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-#include "mav_trajectory_generation/trajectory.h"
+#include <eth_trajectory_generation/trajectory.h>
 #include <limits>
 
 // fixes error due to std::iota (has been introduced in c++ standard lately
@@ -29,7 +29,7 @@
 #include <numeric>
 #endif
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 /* operator==(const Trajectory& rhs) //{ */
@@ -420,8 +420,8 @@ bool Trajectory::computeMaxVelocityAndAcceleration(double* v_max, double* a_max,
 
   Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj;
 
-  bool success = computeMinMaxMagnitude(mav_trajectory_generation::derivative_order::VELOCITY, dimensions, &v_min_traj, &v_max_traj, seg);
-  success &= computeMinMaxMagnitude(mav_trajectory_generation::derivative_order::ACCELERATION, dimensions, &a_min_traj, &a_max_traj, seg);
+  bool success = computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::VELOCITY, dimensions, &v_min_traj, &v_max_traj, seg);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::ACCELERATION, dimensions, &a_min_traj, &a_max_traj, seg);
 
   *v_max = v_max_traj.value;
   *a_max = a_max_traj.value;
@@ -439,8 +439,8 @@ bool Trajectory::computeMaxVelocityAndAcceleration(double* v_max, double* a_max)
 
   Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj;
 
-  bool success = computeMinMaxMagnitude(mav_trajectory_generation::derivative_order::VELOCITY, dimensions, &v_min_traj, &v_max_traj);
-  success &= computeMinMaxMagnitude(mav_trajectory_generation::derivative_order::ACCELERATION, dimensions, &a_min_traj, &a_max_traj);
+  bool success = computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::VELOCITY, dimensions, &v_min_traj, &v_max_traj);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::ACCELERATION, dimensions, &a_min_traj, &a_max_traj);
 
   *v_max = v_max_traj.value;
   *a_max = a_max_traj.value;
@@ -534,4 +534,4 @@ bool Trajectory::scaleSegmentTimesToMeetConstraints(double v_max, double a_max) 
 
 //}
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation

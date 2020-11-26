@@ -44,9 +44,9 @@
 #include <cmath>
 #include <cfloat>
 
-#include "mav_trajectory_generation/rpoly/rpoly_ak1.h"
+#include <eth_trajectory_generation/rpoly/rpoly_ak1.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 constexpr int kRpolyMaxDegree = 100;
@@ -940,4 +940,4 @@ void rpolyWrapper(double* coefficients_decreasing, int* degree, double* roots_re
   rpoly_impl::rpoly_ak1(coefficients_decreasing, degree, roots_real, roots_imag);
 }
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation

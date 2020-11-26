@@ -18,12 +18,12 @@
  * limitations under the License.
  */
 
-#include "mav_trajectory_generation/segment.h"
+#include <eth_trajectory_generation/segment.h>
 
 #include <cmath>
 #include <limits>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 /* operator==(const Segment& rhs)() //{ */
@@ -311,4 +311,4 @@ bool Segment::offsetSegment(const Eigen::VectorXd& A_r_B) {
 
 //}
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation

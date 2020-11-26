@@ -20,8 +20,8 @@
 
 /* Adapted from Paul Furgale Schweizer Messer sm_timing */
 
-#ifndef MAV_TRAJECTORY_GENERATION_TIMING_H_
-#define MAV_TRAJECTORY_GENERATION_TIMING_H_
+#ifndef ETH_TRAJECTORY_GENERATION_TIMING_H_
+#define ETH_TRAJECTORY_GENERATION_TIMING_H_
 
 #include <algorithm>
 #include <chrono>
@@ -30,7 +30,7 @@
 #include <string>
 #include <vector>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 namespace timing
 {
@@ -233,6 +233,6 @@ private:
 };
 
 }  // namespace timing
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_TIMING_H_
+#endif  // ETH_TRAJECTORY_GENERATION_TIMING_H_

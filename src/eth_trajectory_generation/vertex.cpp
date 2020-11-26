@@ -21,9 +21,9 @@
 #include <random>
 #include <iostream>
 
-#include "mav_trajectory_generation/vertex.h"
+#include <eth_trajectory_generation/vertex.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 /* createRandomVertices() //{ */
@@ -465,4 +465,4 @@ double computeTimeVelocityRamp(const Eigen::VectorXd& start, const Eigen::Vector
 
 //}
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation

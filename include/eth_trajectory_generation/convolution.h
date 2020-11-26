@@ -18,10 +18,10 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_CONVOLUTION_H_
-#define MAV_TRAJECTORY_GENERATION_CONVOLUTION_H_
+#ifndef ETH_TRAJECTORY_GENERATION_CONVOLUTION_H_
+#define ETH_TRAJECTORY_GENERATION_CONVOLUTION_H_
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 template <int D, int K>
@@ -64,6 +64,6 @@ int sgn(T val) {
   return (T(0) < val) - (val < T(0));
 }
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_CONVOLUTION_H_
+#endif  // ETH_TRAJECTORY_GENERATION_CONVOLUTION_H_

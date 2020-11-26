@@ -18,20 +18,20 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_SEGMENT_H_
-#define MAV_TRAJECTORY_GENERATION_SEGMENT_H_
+#ifndef ETH_TRAJECTORY_GENERATION_SEGMENT_H_
+#define ETH_TRAJECTORY_GENERATION_SEGMENT_H_
 
-#include <mav_trajectory_generation/misc.h>
 #include <Eigen/Core>
 #include <chrono>
 #include <map>
 #include <vector>
 
-#include "mav_trajectory_generation/extremum.h"
-#include "mav_trajectory_generation/motion_defines.h"
-#include "mav_trajectory_generation/polynomial.h"
+#include <eth_trajectory_generation/misc.h>
+#include <eth_trajectory_generation/extremum.h>
+#include <eth_trajectory_generation/motion_defines.h>
+#include <eth_trajectory_generation/polynomial.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 constexpr double kNumNSecPerSec = 1.0e9;
@@ -142,6 +142,6 @@ std::ostream& operator<<(std::ostream& stream, const Segment& s);
 
 std::ostream& operator<<(std::ostream& stream, const std::vector<Segment>& segments);
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_SEGMENT_H_
+#endif  // ETH_TRAJECTORY_GENERATION_SEGMENT_H_

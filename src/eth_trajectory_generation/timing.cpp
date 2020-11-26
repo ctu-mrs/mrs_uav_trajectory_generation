@@ -27,9 +27,9 @@
 #include <sstream>
 #include <string>
 
-#include "mav_trajectory_generation/timing.h"
+#include <eth_trajectory_generation/timing.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 namespace timing
 {
@@ -328,4 +328,4 @@ void Timing::Reset() {
 //}
 
 }  // namespace timing
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation

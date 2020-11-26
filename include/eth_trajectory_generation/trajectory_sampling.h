@@ -18,13 +18,13 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_TRAJECTORY_SAMPLING_H_
-#define MAV_TRAJECTORY_GENERATION_TRAJECTORY_SAMPLING_H_
+#ifndef eth_trajectory_generation_TRAJECTORY_SAMPLING_H_
+#define eth_trajectory_generation_TRAJECTORY_SAMPLING_H_
 
 #include <mav_msgs/eigen_mav_msgs.h>
-#include "mav_trajectory_generation/trajectory.h"
+#include <eth_trajectory_generation/trajectory.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 // All of these functions sample a trajectory at a time, or a range of times,
@@ -48,6 +48,6 @@ bool sampleSegmentAtTime(const Segment& segment, double sample_time, mav_msgs::E
 template <class T>
 bool sampleFlatStateAtTime(const T& type, double sample_time, mav_msgs::EigenTrajectoryPoint* state);
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_TRAJECTORY_SAMPLING_H_
+#endif  // eth_trajectory_generation_TRAJECTORY_SAMPLING_H_

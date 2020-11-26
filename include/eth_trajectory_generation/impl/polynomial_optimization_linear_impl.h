@@ -18,10 +18,10 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_LINEAR_IMPL_H_
-#define MAV_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_LINEAR_IMPL_H_
+#ifndef eth_trajectory_generation_IMPL_POLYNOMIAL_OPTIMIZATION_LINEAR_IMPL_H_
+#define eth_trajectory_generation_IMPL_POLYNOMIAL_OPTIMIZATION_LINEAR_IMPL_H_
 
-#include <mav_trajectory_generation/misc.h>
+#include <eth_trajectory_generation/misc.h>
 #include <Eigen/Sparse>
 #include <set>
 #include <tuple>
@@ -34,9 +34,9 @@
 #include <numeric>
 #endif
 
-#include <mav_trajectory_generation/convolution.h>
+#include <eth_trajectory_generation/convolution.h>
 
-namespace mav_trajectory_generation
+namespace eth_trajectory_generation
 {
 
 /* PolynomialOptimization() //{ */
@@ -605,6 +605,6 @@ void PolynomialOptimization<_N>::computeQuadraticCostJacobian(int derivative, do
 
 //}
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_LINEAR_IMPL_H_
+#endif  // eth_trajectory_generation_IMPL_POLYNOMIAL_OPTIMIZATION_LINEAR_IMPL_H_
