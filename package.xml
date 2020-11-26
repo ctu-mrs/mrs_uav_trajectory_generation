@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <package format="2">
 
-  <name>trajectory_generation</name>
+  <name>mrs_uav_trajectory_generation</name>
   <version>1.0.0</version>
-  <description>trajectory_generation</description>
+  <description>UAV trajectory generation</description>
 
   <author email="tomas.baca@fel.cvut.cz">Tomas Baca</author>
   <maintainer email="tomas.baca@fel.cvut.cz">Tomas Baca</maintainer>

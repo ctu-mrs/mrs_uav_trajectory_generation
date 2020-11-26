@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(trajectory_generation)
+project(mrs_uav_trajectory_generation)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp

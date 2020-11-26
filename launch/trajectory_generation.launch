@@ -17,17 +17,17 @@
   <arg unless="$(arg standalone)" name="nodelet_manager" value="$(arg manager)"/>
   <arg     if="$(arg standalone)" name="nodelet_manager" value=""/>
 
-  <env name="ROSCONSOLE_CONFIG_FILE" if="$(eval arg('LOGGER_DEBUG'))" value="$(find trajectory_generation)/config/debug_verbosity.yaml" />
+  <env name="ROSCONSOLE_CONFIG_FILE" if="$(eval arg('LOGGER_DEBUG'))" value="$(find mrs_uav_trajectory_generation)/config/debug_verbosity.yaml" />
 
     <!-- Namespace -->
   <group ns="$(arg UAV_NAME)">
 
     <!-- WaypointFlier nodelet -->
-    <node pkg="nodelet" type="nodelet" name="trajectory_generation" args="$(arg nodelet) trajectory_generation/TrajectoryGeneration $(arg nodelet_manager)" launch-prefix="$(arg launch_prefix_debug)" output="screen">
+    <node pkg="nodelet" type="nodelet" name="trajectory_generation" args="$(arg nodelet) mrs_uav_trajectory_generation/TrajectoryGeneration $(arg nodelet_manager)" launch-prefix="$(arg launch_prefix_debug)" output="screen">
 
       <!-- ROS parameters config file -->
-      <rosparam file="$(find trajectory_generation)/config/default.yaml" />
-      <rosparam file="$(find trajectory_generation)/paths/example.yaml" />
+      <rosparam file="$(find mrs_uav_trajectory_generation)/config/default.yaml" />
+      <rosparam file="$(find mrs_uav_trajectory_generation)/paths/example.yaml" />
 
       <param name="uav_name" value="$(arg UAV_NAME)" />
 

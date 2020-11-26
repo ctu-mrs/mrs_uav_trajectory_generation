@@ -57,7 +57,7 @@ typedef struct
 
 //}
 
-namespace trajectory_generation
+namespace mrs_uav_trajectory_generation
 {
 
 /* class TrajectoryGeneration //{ */
@@ -1043,4 +1043,4 @@ void TrajectoryGeneration::callbackDrs(trajectory_generation::drsConfig& params,
 
 /* every nodelet must export its class as nodelet plugin */
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(trajectory_generation::TrajectoryGeneration, nodelet::Nodelet);
+PLUGINLIB_EXPORT_CLASS(mrs_uav_trajectory_generation::TrajectoryGeneration, nodelet::Nodelet);
