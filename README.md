@@ -62,6 +62,20 @@ check_trajectory_deviation:
 | 4 iterations                  | 5 iterations                  |
 | ![](.fig/subsectioning_4.jpg) | ![](.fig/subsectioning_5.jpg) |
 
+### Initial condition \& First segment subsectioning
+
+Subsectioning of the first segment is optional.
+The choice revolves around the initial conditions.
+When the UAV is in motion, the subsectioning of the first segment can create constraints that might be difficult to satisfy.
+On the other hand, when the UAV is stationary, the first segment might need to be subsectioned to minimize the deviation from the first waypoint, especially if the first waypoint is relatively far away.
+
+The following images show the two situations with a dynamic initial condition.
+
+|                                   |                                   |
+|-----------------------------------|-----------------------------------|
+| the 1st segment unconstrained     | the 1st segment subsectioned      |
+| ![](.fig/initial_condition_1.jpg) | ![](.fig/initial_condition_2.jpg) |
+
 ### Dynamics constraints
 
 The dynamics constrints are automatically obtained from the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers) (`/uav*/control_manager/current_constraints`).
