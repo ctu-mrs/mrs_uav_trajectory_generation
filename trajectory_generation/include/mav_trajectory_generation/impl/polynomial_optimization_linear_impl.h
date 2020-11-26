@@ -21,7 +21,7 @@
 #ifndef MAV_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_LINEAR_IMPL_H_
 #define MAV_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_LINEAR_IMPL_H_
 
-#include <glog/logging.h>
+#include <mav_trajectory_generation/misc.h>
 #include <Eigen/Sparse>
 #include <set>
 #include <tuple>

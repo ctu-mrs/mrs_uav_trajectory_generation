@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0.2)
 project(trajectory_generation)
 
 ## Find catkin macros and libraries
@@ -15,7 +15,6 @@ find_package(catkin REQUIRED COMPONENTS
   mav_msgs
   nlopt
   catkin_simple
-  glog_catkin
   )
 
 generate_dynamic_reconfigure_options(
@@ -30,21 +29,9 @@ set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES TrajectoryGeneration TrajectoryGenerationNodelet
-  CATKIN_DEPENDS roscpp mrs_lib mrs_msgs geometry_msgs nav_msgs mav_msgs nlopt catkin_simple glog_catkin dynamic_reconfigure
+  CATKIN_DEPENDS roscpp mrs_lib mrs_msgs geometry_msgs nav_msgs mav_msgs nlopt catkin_simple dynamic_reconfigure
   DEPENDS Eigen
   )
-
-# Link against system catkin yaml-cpp if installed.
-find_package(PkgConfig)
-find_package(yaml_cpp_catkin QUIET)
-if(${yaml_cpp_catkin_FOUND})
-    message(STATUS "Found yaml_cpp_catkin, using instead of system library.")
-    set(YamlCpp_LIBRARIES ${yaml_cpp_catkin_LIBRARIES})
-    set(YamlCpp_INCLUDE_DIRS ${yaml_cpp_catkin_INCLUDE_DIRS})
-else()
-    message(STATUS "No yaml_cpp_catkin, using yaml-cpp system library instead.")
-    pkg_check_modules(YamlCpp REQUIRED yaml-cpp>=0.5)
-endif()
 
 ###########
 ## Build ##
@@ -59,11 +46,6 @@ add_library(TrajectoryGeneration
   src/trajectory_sampling.cpp
   src/vertex.cpp
   src/rpoly/rpoly_ak1.cpp
-)
-
-# Link against yaml-cpp.
-target_link_libraries(TrajectoryGeneration
-  ${YamlCpp_LIBRARIES}
 )
 
 ## Specify additional locations of header files

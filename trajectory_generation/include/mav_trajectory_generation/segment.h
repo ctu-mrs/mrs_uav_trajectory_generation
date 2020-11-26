@@ -21,7 +21,7 @@
 #ifndef MAV_TRAJECTORY_GENERATION_SEGMENT_H_
 #define MAV_TRAJECTORY_GENERATION_SEGMENT_H_
 
-#include <glog/logging.h>
+#include <mav_trajectory_generation/misc.h>
 #include <Eigen/Core>
 #include <chrono>
 #include <map>

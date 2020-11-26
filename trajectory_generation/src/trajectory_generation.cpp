@@ -33,6 +33,7 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <trajectory_generation/trajectory_generationConfig.h>
+#include <mav_trajectory_generation/misc.h>
 
 //}
 
