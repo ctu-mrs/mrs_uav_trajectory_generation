@@ -2,7 +2,7 @@
 <package format="2">
 
   <name>trajectory_generation</name>
-  <version>0.0.1</version>
+  <version>1.0.0</version>
   <description>trajectory_generation</description>
 
   <author email="tomas.baca@fel.cvut.cz">Tomas Baca</author>
@@ -23,10 +23,7 @@
   <depend>nlopt</depend>
 
   <export>
-
-    <!-- The plugins.xml file defines nodelet as a plugin -->
-    <nodelet plugin="${prefix}/plugins.xml" />
-
+    <nodelet plugin="${prefix}/nodelets.xml" />
   </export>
 
 </package>

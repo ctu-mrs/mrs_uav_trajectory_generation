@@ -11,9 +11,11 @@ check_trajectory_deviation:
 # sampling dt of the output trajectory
 sampling_dt: 0.01 # [s]
 
+# add noise to the user-defined waypoints
+# only for debugging
 add_noise:
   enabled: false
-  max: 0.30 # [m] # even distribution
+  max: 0.30 # [m] # +max, -max of flat distribution
 
 time_penalty: 100
 soft_constraints_enabled: true
