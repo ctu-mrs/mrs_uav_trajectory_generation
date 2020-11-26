@@ -424,9 +424,20 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> TrajectoryGeneration::find
 
   // | ---------------- compute the segment times --------------- |
 
-  const double v_max = override_constraints_ ? override_max_velocity_ : constraints.horizontal_speed;
-  const double a_max = override_constraints_ ? override_max_acceleration_ : constraints.horizontal_acceleration;
-  const double j_max = constraints.horizontal_jerk;
+  double v_max, a_max, j_max;
+
+  if (override_constraints_) {
+    v_max = override_max_velocity_ < constraints.horizontal_speed ? override_max_velocity_ : constraints.horizontal_speed;
+    a_max = override_max_acceleration_ < constraints.horizontal_acceleration ? override_max_acceleration_ : constraints.horizontal_acceleration;
+    ROS_DEBUG("[TrajectoryGeneration]: overriding constraints by a user");
+  } else {
+    v_max = constraints.horizontal_speed;
+    a_max = constraints.horizontal_acceleration;
+  }
+
+  ROS_INFO("[TrajectoryGeneration]: constraints: max speed=%.2f m/s, max_acceleration=%.2f m/s^2", v_max, a_max);
+
+  j_max = constraints.horizontal_jerk;
 
   std::vector<double> segment_times, segment_times_baca;
   segment_times      = estimateSegmentTimes(vertices, v_max, a_max, j_max);
@@ -489,7 +500,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneratio
   // empty path is invalid
   if (waypoints_in.size() == 0) {
     std::stringstream ss;
-    ss << "the path is empty";
+    ss << "the path is empty (before postprocessing)";
     ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
   }
@@ -513,7 +524,8 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneratio
 
     Eigen::Vector4d last = waypoints.back().coords;
 
-    double distance_from_last = mrs_lib::geometry::dist(vec3_t(_yaml_path_(i, 0), _yaml_path_(i, 1), _yaml_path_(i, 2)), vec3_t(last[0], last[1], last[2]));
+    double distance_from_last = mrs_lib::geometry::dist(vec3_t(waypoints_in.at(i).coords[0], waypoints_in.at(i).coords[1], waypoints_in.at(i).coords[2]),
+                                                        vec3_t(last[0], last[1], last[2]));
 
     if (distance_from_last < _path_min_waypoint_distance_) {
       ROS_DEBUG("[TrajectoryGeneration]: skipping vertex, too close to the previous one");
@@ -534,6 +546,13 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> TrajectoryGeneratio
   }
 
   //}
+
+  if (waypoints.size() <= 1) {
+    std::stringstream ss;
+    ss << "the path is empty (after postprocessing)";
+    ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
+    return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
+  }
 
   bool              safe = false;
   int               traj_idx;
