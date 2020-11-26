@@ -8,6 +8,8 @@ This **Trajectory Generation** package provides a method for generation a time-p
 The resulting trajectory satisfies the current dynamic constraints of the UAV **and** completes the path in **minimum possible time**.
 The **maximum deviation** of the resulting trajecotory from the supplied path is a user-configurable parameter.
 
+![](.fig/animation.gif)
+
 We built upon of the work of [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation).
 The main differences are:
 
@@ -51,6 +53,15 @@ check_trajectory_deviation:
   first_segment: true
 ```
 
+|                               |                               |
+|-------------------------------|-------------------------------|
+| without subsectioning         | 1 iteration                   |
+| ![](.fig/subsectioning_0.jpg) | ![](.fig/subsectioning_1.jpg) |
+| 2 iterations                  | 3 iteration                   |
+| ![](.fig/subsectioning_2.jpg) | ![](.fig/subsectioning_3.jpg) |
+| 4 iterations                  | 5 iterations                  |
+| ![](.fig/subsectioning_4.jpg) | ![](.fig/subsectioning_5.jpg) |
+
 ### Dynamic constraints
 
 The dynamic constrints are automatically obtained from the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers) (`/uav*/control_manager/current_constraints`).
@@ -63,9 +74,9 @@ If overriden, the smaller values (between the user-overriden and the supplied by
 
 ## Dependencies
 
-```bash
-sudo apt install ros-melodic-mav-msgs ros-melodic-nlopt
-```
+* `sudo apt install ros-melodic-mav-msgs ros-melodic-nlopt`
+* [mrs_lib](https://github.com/ctu-mrs/mrs_lib)
+* [mrs_msgs](https://github.com/ctu-mrs/mrs_msgs)
 
 ## Ackwnoledgments
 
