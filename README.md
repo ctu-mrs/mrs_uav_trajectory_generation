@@ -5,7 +5,7 @@
 ## General description
 
 This package provides a method for generation a time-parametrized [trajectory](https://ctu-mrs.github.io/mrs_msgs/msg/TrajectoryReference.html) out of a [path](https://ctu-mrs.github.io/mrs_msgs/msg/Path.html) (a sequence of waypoints).
-The resulting trajectory satisfies the current dynamic constraints of the UAV **and** completes the path in **minimum possible time**.
+The resulting trajectory satisfies the current dynamics constraints of the UAV **and** completes the path in **minimum possible time**.
 The **maximum deviation** of the resulting trajectory from the supplied path is a user-configurable parameter.
 
 ![](.fig/animation.gif)
@@ -14,7 +14,7 @@ We built upon of the work of [ethz-asl/mav_trajectory_generation](https://github
 The main differences are:
 
 * This package provides ROS node that is meant to be used within the [MRS UAV System](https://github.com/ctu-mrs/mrs_uav_system). However, it can be easily modified for other purposes. 
-* This ROS node subscribes to the current control reference of the UAV and current allowed dynamic constraints. The resulting trajectory satisfies the constraints and starts from the current reference state.
+* This ROS node subscribes to the current control reference of the UAV and current allowed dynamics constraints. The resulting trajectory satisfies the constraints and starts from the current reference state.
 * Improved _Mellinger's_ time allocation: only the polynomial segments that violate constraints are _stretched_, instead of the whole trajectory.
 * Purely Euclidean `max_speed` time estimate is used for initializing segment times. It provides lower bound, which is good since the constraints are met by prolonging the segment times (not shortening them).
 * Iterrative segment subsectioning is added to satisfy maximum distance from the original segmented waypoint path.
@@ -38,13 +38,12 @@ Output: by default, the node calls [/uav*/control_manager/trajectory_reference](
 
 ### Segment subsectioning
 
-The node allows to check and correct for the maxium allowed deviation from a segmented path supplied by the user.
+The node allows to check and correct for the maximum allowed deviation from a segmented path supplied by the user.
 If enabled, the user-supplied segments will be subdivided to satisfy the maximum distance constraint.
-The [config]() file provides the options to enable/disable this feature, to set the maximum allowed deviations, and the number of iterations.
-Each iteration allows the algorithm to subdivide any segments if the resulting trajecotry violats the distance constraint within the segment.
+The [config](https://github.com/ctu-mrs/mrs_uav_trajectory_generation/blob/master/config/default.yaml) file provides the options to enable/disable this feature, to set the maximum allowed deviations, and the number of iterations.
+Each iteration allows the algorithm to subdivide any segments if the resulting trajectory violates the distance constraint within the segment.
 6 iterations is enough to fall within 0.1 m tolerance.
-The first segment can be optionally exluded from this constraint.
-If the UAV is in motion, the initial condition taken from the current UAV reference might be hard to satisfy.
+The first segment can be optionally excluded from this constraint.
 
 ```yaml
 check_trajectory_deviation:
@@ -63,14 +62,14 @@ check_trajectory_deviation:
 | 4 iterations                  | 5 iterations                  |
 | ![](.fig/subsectioning_4.jpg) | ![](.fig/subsectioning_5.jpg) |
 
-### Dynamic constraints
+### Dynamics constraints
 
-The dynamic constrints are automatically obtained from the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers) (`/uav*/control_manager/current_constraints`).
+The dynamics constrints are automatically obtained from the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers) (`/uav*/control_manager/current_constraints`).
 Beware, this method does not distinguish between horizontal and vertical constraints, as it is with the rest of the MRS UAV system.
 Therefore, only the **horizontal** constraints values are pull out of [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers).
-For arbitrarily structured paths set the horizontal and vertical constraints equal in the [ConstraintManager](https://github.com/ctu-mrs/mrs_uav_managers).
+For arbitrarilly structured paths set the horizontal and vertical constraints equal in the [ConstraintManager](https://github.com/ctu-mrs/mrs_uav_managers).
 
-The input service/topic allows to override the maximu velocity and acceleration constraint.
+The input service/topic allows to override the maximum velocity and acceleration constraint.
 If overriden, the smaller values (between the user-overriden and the supplied by the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers).) will be used.
 
 ## Dependencies
@@ -82,7 +81,7 @@ If overriden, the smaller values (between the user-overriden and the supplied by
 ## Ackwnoledgments
 
 This package based upon [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation).
-Please cite the original publications:
+Please, cite the original publications:
 
 C. Richter, A. Bry, and N. Roy, “**Polynomial trajectory planning for aggressive quadrotor flight in dense indoor environments,**” in *International Journal of Robotics Research*, Springer, 2016.
 ```
