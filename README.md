@@ -58,7 +58,7 @@ check_trajectory_deviation:
 |-------------------------------|-------------------------------|
 | without subsectioning         | 1 iteration                   |
 | ![](.fig/subsectioning_0.jpg) | ![](.fig/subsectioning_1.jpg) |
-| 2 iterations                  | 3 iteration                   |
+| 2 iterations                  | 3 iterations                  |
 | ![](.fig/subsectioning_2.jpg) | ![](.fig/subsectioning_3.jpg) |
 | 4 iterations                  | 5 iterations                  |
 | ![](.fig/subsectioning_4.jpg) | ![](.fig/subsectioning_5.jpg) |
