@@ -66,7 +66,7 @@ check_trajectory_deviation:
 ### Dynamic constraints
 
 The dynamic constrints are automatically obtained from the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers) (`/uav*/control_manager/current_constraints`).
-Beware, this method does not distinguish between horizontal and vertical constraints, as it is with the rest of the MRS UAV system.j
+Beware, this method does not distinguish between horizontal and vertical constraints, as it is with the rest of the MRS UAV system.
 Therefore, only the **horizontal** constraints values are pull out of [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers).
 For arbitrarily structured paths set the horizontal and vertical constraints equal in the [ConstraintManager](https://github.com/ctu-mrs/mrs_uav_managers).
 
