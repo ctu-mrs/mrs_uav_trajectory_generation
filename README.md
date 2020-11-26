@@ -2,7 +2,7 @@
 
 ![](.fig/thumbnail.jpg)
 
-## General desctiption
+## General description
 
 This package provides a method for generation a time-parametrized [trajectory](https://ctu-mrs.github.io/mrs_msgs/srv/TrajectoryReferenceSrv.html) out of a [path](https://ctu-mrs.github.io/mrs_msgs/msg/Path.html) (a sequence of waypoints).
 The resulting trajectory satisfies the current dynamic constraints of the UAV **and** completes the path in **minimum possible time**.
@@ -35,7 +35,7 @@ Input: [service](https://ctu-mrs.github.io/mrs_msgs/srv/PathSrv.html) and [topic
 
 Output: by default, the node calls [/uav*/control_manager/trajectory_reference](https://ctu-mrs.github.io/mrs_msgs/srv/TrajectoryReferenceSrv.html) service to the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers).
 
-### Segments subsectioning
+### Segment subsectioning
 
 The node allows to check and correct for the maxium allowed deviation from a segmented path supplied by the user.
 If enabled, the user-supplied segments will be subdivided to satisfy the maximum distance constraint.
