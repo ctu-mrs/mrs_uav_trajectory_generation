@@ -32,7 +32,7 @@
 #include <mutex>
 
 #include <dynamic_reconfigure/server.h>
-#include <trajectory_generation/drsConfig.h>
+#include <mrs_uav_trajectory_generation/drsConfig.h>
 
 //}
 
@@ -161,10 +161,10 @@ private:
   // | --------------- dynamic reconfigure server --------------- |
 
   boost::recursive_mutex                           mutex_drs_;
-  typedef trajectory_generation::drsConfig         DrsParams_t;
+  typedef mrs_uav_trajectory_generation::drsConfig DrsParams_t;
   typedef dynamic_reconfigure::Server<DrsParams_t> Drs_t;
   boost::shared_ptr<Drs_t>                         drs_;
-  void                                             callbackDrs(trajectory_generation::drsConfig& params, uint32_t level);
+  void                                             callbackDrs(mrs_uav_trajectory_generation::drsConfig& params, uint32_t level);
   DrsParams_t                                      params_;
   std::mutex                                       mutex_params_;
 };
@@ -228,7 +228,7 @@ void TrajectoryGeneration::onInit() {
   param_loader.loadParam("derivative_to_optimize", params_.derivative_to_optimize);
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[ControlManager]: could not load all parameters!");
+    ROS_ERROR("[TrajectoryGeneration]: could not load all parameters!");
     ros::shutdown();
   }
 
@@ -1019,7 +1019,7 @@ void TrajectoryGeneration::callbackPositionCmd(const mrs_msgs::PositionCommandCo
 
 /* //{ callbackDrs() */
 
-void TrajectoryGeneration::callbackDrs(trajectory_generation::drsConfig& params, [[maybe_unused]] uint32_t level) {
+void TrajectoryGeneration::callbackDrs(mrs_uav_trajectory_generation::drsConfig& params, [[maybe_unused]] uint32_t level) {
 
   mrs_lib::set_mutexed(mutex_params_, params, params_);
 
@@ -1039,7 +1039,7 @@ void TrajectoryGeneration::callbackDrs(trajectory_generation::drsConfig& params,
 
 //}
 
-}  // namespace trajectory_generation
+}  // namespace mrs_uav_trajectory_generation
 
 /* every nodelet must export its class as nodelet plugin */
 #include <pluginlib/class_list_macros.h>
