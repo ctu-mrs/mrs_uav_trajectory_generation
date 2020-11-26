@@ -20,7 +20,6 @@
   <depend>mrs_lib</depend>
   <depend>dynamic_reconfigure</depend>
   <depend>mav_msgs</depend>
-  <depend>catkin_simple</depend>
   <depend>nlopt</depend>
 
   <export>
