@@ -9,15 +9,6 @@ sources:
   link: dependencies/catkin_simple
   scripts:
   - git submodule update --init --recursive
-- name: glog_catkin
-  type: git
-  repo: https://github.com/ethz-asl/glog_catkin.git
-  sparse_paths:
-  -
-  rev: master
-  link: dependencies/glog_catkin
-  scripts:
-  - git submodule update --init --recursive
 - name: nlopt
   type: git
   repo: https://github.com/ctu-mrs/nlopt.git
