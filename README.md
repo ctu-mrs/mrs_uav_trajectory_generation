@@ -6,7 +6,7 @@
 
 This package provides a method for generation a time-parametrized [trajectory](https://ctu-mrs.github.io/mrs_msgs/srv/TrajectoryReferenceSrv.html) out of a [path](https://ctu-mrs.github.io/mrs_msgs/msg/Path.html) (a sequence of waypoints).
 The resulting trajectory satisfies the current dynamic constraints of the UAV **and** completes the path in **minimum possible time**.
-The **maximum deviation** of the resulting trajecotory from the supplied path is a user-configurable parameter.
+The **maximum deviation** of the resulting trajectory from the supplied path is a user-configurable parameter.
 
 ![](.fig/animation.gif)
 
