@@ -11,6 +11,9 @@ echo "Starting install preparation"
 # get the current commit SHA
 SHA=`git rev-parse HEAD`
 
+# get the current package name
+PACKAGE_NAME=${PWD##*/}
+
 # openssl aes-256-cbc -K $encrypted_f0fd3ee254e8_key -iv $encrypted_f0fd3ee254e8_iv -in ./.ci/deploy_key_github.enc -out ./.ci/deploy_key_github -d
 # eval "$(ssh-agent -s)"
 # chmod 600 ./.ci/deploy_key_github
@@ -37,9 +40,6 @@ echo "running the main install.sh"
 ./installation/install.sh
 
 gitman update
-
-# get the current package name
-PACKAGE_NAME=${PWD##*/}
 
 # checkout the SHA
 cd ~/uav_core/.gitman/$PACKAGE_NAME
