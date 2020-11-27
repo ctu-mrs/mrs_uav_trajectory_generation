@@ -13,8 +13,9 @@ The **maximum deviation** of the resulting trajectory from the supplied path is 
 We built upon of the work of [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation).
 The main differences are:
 
-* This package provides ROS node that is meant to be used within the [MRS UAV System](https://github.com/ctu-mrs/mrs_uav_system). However, it can be easily modified for other purposes. 
+* This package provides ROS node that is meant to be used within the [MRS UAV System](https://github.com/ctu-mrs/mrs_uav_system). However, it can be easily modified for other purposes.
 * This ROS node subscribes to the current control reference of the UAV and current allowed dynamics constraints. The resulting trajectory satisfies the constraints and starts from the current reference state.
+* The utilized variant minimizes acceleration and uses the _Mellinger's_ time allocation method.
 * Improved _Mellinger's_ time allocation: only the polynomial segments that violate constraints are _stretched_, instead of the whole trajectory.
 * Purely Euclidean `max_speed` time estimate is used for initializing segment times. It provides lower bound, which is good since the constraints are met by prolonging the segment times (not shortening them).
 * Iterrative segment subsectioning is added to satisfy maximum distance from the original segmented waypoint path.
@@ -36,6 +37,11 @@ Input: [service](https://ctu-mrs.github.io/mrs_msgs/srv/PathSrv.html) and [topic
 
 Output: by default, the node calls [/uav*/control_manager/trajectory_reference](https://ctu-mrs.github.io/mrs_msgs/srv/TrajectoryReferenceSrv.html) service to the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers).
 
+### Minimum waypoint distance
+
+The minimum distance between the waypoints is set to 0.1 m.
+A waypoint that violates the condition relative to its predecesor will be removed.
+
 ### Segment subsectioning
 
 The node allows to check and correct for the maximum allowed deviation from a segmented path supplied by the user.
@@ -53,7 +59,6 @@ check_trajectory_deviation:
   first_segment: true
 ```
 
-|                               |                               |
 |-------------------------------|-------------------------------|
 | without subsectioning         | 1 iteration                   |
 | ![](.fig/subsectioning_0.jpg) | ![](.fig/subsectioning_1.jpg) |
@@ -71,7 +76,6 @@ On the other hand, when the UAV is stationary, the first segment might need to b
 
 The following images show the two situations with a dynamic initial condition.
 
-|                                   |                                   |
 |-----------------------------------|-----------------------------------|
 | the 1st segment unconstrained     | the 1st segment subsectioned      |
 | ![](.fig/initial_condition_1.jpg) | ![](.fig/initial_condition_2.jpg) |
