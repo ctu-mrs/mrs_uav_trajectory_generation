@@ -59,6 +59,7 @@ check_trajectory_deviation:
   first_segment: true
 ```
 
+|                               |                               |
 |-------------------------------|-------------------------------|
 | without subsectioning         | 1 iteration                   |
 | ![](.fig/subsectioning_0.jpg) | ![](.fig/subsectioning_1.jpg) |
@@ -76,6 +77,7 @@ On the other hand, when the UAV is stationary, the first segment might need to b
 
 The following images show the two situations with a dynamic initial condition.
 
+|                                   |                                   |
 |-----------------------------------|-----------------------------------|
 | the 1st segment unconstrained     | the 1st segment subsectioned      |
 | ![](.fig/initial_condition_1.jpg) | ![](.fig/initial_condition_2.jpg) |
