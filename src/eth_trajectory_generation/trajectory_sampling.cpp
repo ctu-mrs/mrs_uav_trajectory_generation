@@ -27,7 +27,7 @@ const double kNumNanosecondsPerSecond = 1.e9;
 
 /* sampleTrajectoryAtTime() //{ */
 
-bool sampleTrajectoryAtTime(const Trajectory& trajectory, double sample_time, mav_msgs::EigenTrajectoryPoint* state) {
+bool sampleTrajectoryAtTime(const Trajectory& trajectory, double sample_time, eth_mav_msgs::EigenTrajectoryPoint* state) {
   CHECK_NOTNULL(state);
   if (sample_time < trajectory.getMinTime() || sample_time > trajectory.getMaxTime()) {
     LOG(ERROR) << "Sample time should be within [" << trajectory.getMinTime() << " " << trajectory.getMaxTime() << "] but is " << sample_time;
@@ -47,7 +47,7 @@ bool sampleTrajectoryAtTime(const Trajectory& trajectory, double sample_time, ma
 /* sampleTrajectoryInRange() //{ */
 
 bool sampleTrajectoryInRange(const Trajectory& trajectory, double min_time, double max_time, double sampling_interval,
-                             mav_msgs::EigenTrajectoryPointVector* states) {
+                             eth_mav_msgs::EigenTrajectoryPointVector* states) {
   CHECK_NOTNULL(states);
   if (min_time < trajectory.getMinTime() || max_time > trajectory.getMaxTime()) {
     LOG(ERROR) << "Sample time should be within [" << trajectory.getMinTime() << " " << trajectory.getMaxTime() << "] but is [" << min_time << " " << max_time
@@ -72,9 +72,9 @@ bool sampleTrajectoryInRange(const Trajectory& trajectory, double min_time, doub
 
   states->resize(n_samples);
   for (size_t i = 0; i < n_samples; ++i) {
-    mav_msgs::EigenTrajectoryPoint& state = (*states)[i];
+    eth_mav_msgs::EigenTrajectoryPoint& state = (*states)[i];
 
-    /* state.degrees_of_freedom = mav_msgs::MavActuation::DOF4; */
+    /* state.degrees_of_freedom = eth_mav_msgs::MavActuation::DOF4; */
     state.position_W         = position[i].head<3>();
     state.velocity_W         = velocity[i].head<3>();
     state.acceleration_W     = acceleration[i].head<3>();
@@ -93,11 +93,11 @@ bool sampleTrajectoryInRange(const Trajectory& trajectory, double min_time, doub
     /*   rot_vec_vel  = velocity[i].tail<3>(); */
     /*   rot_vec_acc  = acceleration[i].tail<3>(); */
     /*   Eigen::Matrix3d rot_matrix; */
-    /*   mav_msgs::matrixFromRotationVector(rot_vec, &rot_matrix); */
+    /*   eth_mav_msgs::matrixFromRotationVector(rot_vec, &rot_matrix); */
     /*   state.orientation_W_B = Eigen::Quaterniond(rot_matrix); */
-    /*   state.angular_velocity_W = mav_msgs::omegaFromRotationVector(rot_vec, rot_vec_vel); */
-    /*   state.angular_acceleration_W = mav_msgs::omegaDotFromRotationVector(rot_vec, rot_vec_vel, rot_vec_acc); */
-    /*   state.degrees_of_freedom = mav_msgs::MavActuation::DOF6; */
+    /*   state.angular_velocity_W = eth_mav_msgs::omegaFromRotationVector(rot_vec, rot_vec_vel); */
+    /*   state.angular_acceleration_W = eth_mav_msgs::omegaDotFromRotationVector(rot_vec, rot_vec_vel, rot_vec_acc); */
+    /*   state.degrees_of_freedom = eth_mav_msgs::MavActuation::DOF6; */
     /* } */
   }
   return true;
@@ -108,7 +108,7 @@ bool sampleTrajectoryInRange(const Trajectory& trajectory, double min_time, doub
 /* sampleTrajectoryStartDuration() //{ */
 
 bool sampleTrajectoryStartDuration(const Trajectory& trajectory, double start_time, double duration, double sampling_interval,
-                                   mav_msgs::EigenTrajectoryPointVector* states) {
+                                   eth_mav_msgs::EigenTrajectoryPointVector* states) {
   return sampleTrajectoryInRange(trajectory, start_time, start_time + duration, sampling_interval, states);
 }
 
@@ -116,7 +116,7 @@ bool sampleTrajectoryStartDuration(const Trajectory& trajectory, double start_ti
 
 /* sampleWholeTrajectory() //{ */
 
-bool sampleWholeTrajectory(const Trajectory& trajectory, double sampling_interval, mav_msgs::EigenTrajectoryPoint::Vector* states) {
+bool sampleWholeTrajectory(const Trajectory& trajectory, double sampling_interval, eth_mav_msgs::EigenTrajectoryPoint::Vector* states) {
   const double min_time = trajectory.getMinTime();
   const double max_time = trajectory.getMaxTime();
 
@@ -127,7 +127,7 @@ bool sampleWholeTrajectory(const Trajectory& trajectory, double sampling_interva
 
 /* sampleSegmentAtTime() //{ */
 
-bool sampleSegmentAtTime(const Segment& segment, double sample_time, mav_msgs::EigenTrajectoryPoint* state) {
+bool sampleSegmentAtTime(const Segment& segment, double sample_time, eth_mav_msgs::EigenTrajectoryPoint* state) {
   CHECK_NOTNULL(state);
   if (sample_time < 0.0 || sample_time > segment.getTime()) {
     LOG(ERROR) << "Sample time should be within [" << 0.0 << " " << segment.getTime() << "] but is " << sample_time;
@@ -142,7 +142,7 @@ bool sampleSegmentAtTime(const Segment& segment, double sample_time, mav_msgs::E
 /* sampleFlatStateAtTime() //{ */
 
 template <class T>
-bool sampleFlatStateAtTime(const T& type, double sample_time, mav_msgs::EigenTrajectoryPoint* state) {
+bool sampleFlatStateAtTime(const T& type, double sample_time, eth_mav_msgs::EigenTrajectoryPoint* state) {
   if (type.D() < 3) {
     LOG(ERROR) << "Dimension has to be 3, 4, or 6 but is " << type.D();
     return false;
@@ -152,7 +152,7 @@ bool sampleFlatStateAtTime(const T& type, double sample_time, mav_msgs::EigenTra
   Eigen::VectorXd velocity     = type.evaluate(sample_time, derivative_order::VELOCITY);
   Eigen::VectorXd acceleration = type.evaluate(sample_time, derivative_order::ACCELERATION);
 
-  /* state->degrees_of_freedom = mav_msgs::MavActuation::DOF4; */
+  /* state->degrees_of_freedom = eth_mav_msgs::MavActuation::DOF4; */
   state->position_W     = position.head(3);
   state->velocity_W     = velocity.head(3);
   state->acceleration_W = acceleration.head(3);
@@ -171,11 +171,11 @@ bool sampleFlatStateAtTime(const T& type, double sample_time, mav_msgs::EigenTra
   /*   rot_vec_vel = velocity.tail(3); */
   /*   rot_vec_acc = acceleration.tail(3); */
   /*   Eigen::Matrix3d rot_matrix; */
-  /*   mav_msgs::matrixFromRotationVector(rot_vec, &rot_matrix); */
+  /*   eth_mav_msgs::matrixFromRotationVector(rot_vec, &rot_matrix); */
   /*   state->orientation_W_B = Eigen::Quaterniond(rot_matrix); */
-  /*   state->angular_velocity_W = mav_msgs::omegaFromRotationVector(rot_vec, rot_vec_vel); */
-  /*   state->angular_acceleration_W = mav_msgs::omegaDotFromRotationVector(rot_vec, rot_vec_vel, rot_vec_acc); */
-  /*   state->degrees_of_freedom = mav_msgs::MavActuation::DOF6; */
+  /*   state->angular_velocity_W = eth_mav_msgs::omegaFromRotationVector(rot_vec, rot_vec_vel); */
+  /*   state->angular_acceleration_W = eth_mav_msgs::omegaDotFromRotationVector(rot_vec, rot_vec_vel, rot_vec_acc); */
+  /*   state->degrees_of_freedom = eth_mav_msgs::MavActuation::DOF6; */
   /* } */
 
   state->time_from_start_ns = static_cast<int64_t>(sample_time * kNumNanosecondsPerSecond);

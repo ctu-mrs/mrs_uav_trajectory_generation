@@ -7,7 +7,6 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
   std_msgs
   mrs_msgs
-  mav_msgs
   mrs_lib
   nlopt
   )
@@ -23,7 +22,7 @@ set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES EthTrajectoryGeneration MrsTrajectoryGeneration
-  CATKIN_DEPENDS roscpp mrs_lib mrs_msgs mav_msgs dynamic_reconfigure nlopt
+  CATKIN_DEPENDS roscpp std_msgs mrs_lib mrs_msgs dynamic_reconfigure nlopt
   DEPENDS Eigen
   )
 

@@ -21,8 +21,8 @@
 #ifndef eth_trajectory_generation_TRAJECTORY_SAMPLING_H_
 #define eth_trajectory_generation_TRAJECTORY_SAMPLING_H_
 
-#include <mav_msgs/eigen_mav_msgs.h>
 #include <eth_trajectory_generation/trajectory.h>
+#include <eth_mav_msgs/eigen_mav_msgs.h>
 
 namespace eth_trajectory_generation
 {
@@ -33,20 +33,20 @@ namespace eth_trajectory_generation
 // be yaw.
 // If no yaw is set, then it is simply left at its current value (0 by default).
 
-bool sampleTrajectoryAtTime(const Trajectory& trajectory, double sample_time, mav_msgs::EigenTrajectoryPoint* state);
+bool sampleTrajectoryAtTime(const Trajectory& trajectory, double sample_time, eth_mav_msgs::EigenTrajectoryPoint* state);
 
 bool sampleTrajectoryInRange(const Trajectory& trajectory, double min_time, double max_time, double sampling_interval,
-                             mav_msgs::EigenTrajectoryPointVector* states);
+                             eth_mav_msgs::EigenTrajectoryPointVector* states);
 
 bool sampleTrajectoryStartDuration(const Trajectory& trajectory, double start_time, double duration, double sampling_interval,
-                                   mav_msgs::EigenTrajectoryPointVector* states);
+                                   eth_mav_msgs::EigenTrajectoryPointVector* states);
 
-bool sampleWholeTrajectory(const Trajectory& trajectory, double sampling_interval, mav_msgs::EigenTrajectoryPoint::Vector* states);
+bool sampleWholeTrajectory(const Trajectory& trajectory, double sampling_interval, eth_mav_msgs::EigenTrajectoryPoint::Vector* states);
 
-bool sampleSegmentAtTime(const Segment& segment, double sample_time, mav_msgs::EigenTrajectoryPoint* state);
+bool sampleSegmentAtTime(const Segment& segment, double sample_time, eth_mav_msgs::EigenTrajectoryPoint* state);
 
 template <class T>
-bool sampleFlatStateAtTime(const T& type, double sample_time, mav_msgs::EigenTrajectoryPoint* state);
+bool sampleFlatStateAtTime(const T& type, double sample_time, eth_mav_msgs::EigenTrajectoryPoint* state);
 
 }  // namespace eth_trajectory_generation
 

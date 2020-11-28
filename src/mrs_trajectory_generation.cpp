@@ -18,8 +18,6 @@
 #include <eth_trajectory_generation/trajectory.h>
 #include <eth_trajectory_generation/trajectory_sampling.h>
 
-#include <mav_msgs/eigen_mav_msgs.h>
-
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/geometry/cyclic.h>
 #include <mrs_lib/geometry/misc.h>
@@ -138,13 +136,13 @@ private:
    *
    * @return <success, traj_fail_idx, path_fail_segment>
    */
-  std::tuple<bool, int, std::vector<bool>, double> validateTrajectory(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
-                                                                      const std::vector<Waypoint_t>&                waypoints);
+  std::tuple<bool, int, std::vector<bool>, double> validateTrajectory(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
+                                                                      const std::vector<Waypoint_t>&                    waypoints);
 
-  std::optional<mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&   waypoints,
-                                                                       const mrs_msgs::PositionCommand& initial_state);
+  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&   waypoints,
+                                                                           const mrs_msgs::PositionCommand& initial_state);
 
-  mrs_msgs::TrajectoryReference getTrajectoryReference(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const ros::Time& stamp);
+  mrs_msgs::TrajectoryReference getTrajectoryReference(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const ros::Time& stamp);
 
   Waypoint_t interpolatePoint(const Waypoint_t& a, const Waypoint_t& b, const double& coeff);
 
@@ -260,8 +258,8 @@ void MrsTrajectoryGeneration::onInit() {
 
 /* validateTrajectory() //{ */
 
-std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::validateTrajectory(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
-                                                                                             const std::vector<Waypoint_t>&                waypoints) {
+std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::validateTrajectory(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
+                                                                                             const std::vector<Waypoint_t>&                    waypoints) {
 
   // prepare the output
 
@@ -329,8 +327,8 @@ std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::valida
 
 /* findTrajectory() //{ */
 
-std::optional<mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectory(const std::vector<Waypoint_t>&   waypoints,
-                                                                                              const mrs_msgs::PositionCommand& initial_state) {
+std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectory(const std::vector<Waypoint_t>&   waypoints,
+                                                                                                  const mrs_msgs::PositionCommand& initial_state) {
 
   mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("findTrajectory()");
 
@@ -467,8 +465,8 @@ std::optional<mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::f
   eth_trajectory_generation::Trajectory trajectory;
   opt.getTrajectory(&trajectory);
 
-  mav_msgs::EigenTrajectoryPoint::Vector states;
-  bool                                   success = eth_trajectory_generation::sampleWholeTrajectory(trajectory, _sampling_dt_, &states);
+  eth_mav_msgs::EigenTrajectoryPoint::Vector states;
+  bool                                       success = eth_trajectory_generation::sampleWholeTrajectory(trajectory, _sampling_dt_, &states);
 
   if (success) {
     return std::optional(states);
@@ -556,7 +554,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   std::vector<bool> segment_safeness;
   double            max_deviation;
 
-  mav_msgs::EigenTrajectoryPoint::Vector trajectory;
+  eth_mav_msgs::EigenTrajectoryPoint::Vector trajectory;
 
   auto result = findTrajectory(waypoints, position_cmd);
 
@@ -682,8 +680,8 @@ double MrsTrajectoryGeneration::distFromSegment(const vec3_t& point, const vec3_
 
 /* getTrajectoryReference() //{ */
 
-mrs_msgs::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReference(const mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
-                                                                              const ros::Time&                              stamp) {
+mrs_msgs::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReference(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
+                                                                              const ros::Time&                                  stamp) {
 
   mrs_msgs::TrajectoryReference msg;
 
