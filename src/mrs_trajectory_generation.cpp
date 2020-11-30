@@ -23,7 +23,6 @@
 #include <mrs_lib/geometry/misc.h>
 #include <mrs_lib/mutex.h>
 #include <mrs_lib/batch_visualizer.h>
-#include <mrs_lib/scope_timer.h>
 
 #include <dynamic_reconfigure/server.h>
 #include <mrs_uav_trajectory_generation/drsConfig.h>
@@ -329,8 +328,6 @@ std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::valida
 
 std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectory(const std::vector<Waypoint_t>&   waypoints,
                                                                                                   const mrs_msgs::PositionCommand& initial_state) {
-
-  mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("findTrajectory()");
 
   ROS_DEBUG("[MrsTrajectoryGeneration]: planning");
 
@@ -765,8 +762,6 @@ bool MrsTrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::R
   if (!is_initialized_) {
     return false;
   }
-
-  mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("callbackTest()");
 
   /* preconditions //{ */
 
