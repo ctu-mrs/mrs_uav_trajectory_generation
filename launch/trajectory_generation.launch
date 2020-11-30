@@ -1,5 +1,7 @@
 <launch>
 
+  <arg name="custom_config" default="" />
+
   <arg name="UAV_NAME" default="$(env UAV_NAME)" />
   <arg name="LOGGER_DEBUG" default="$(optenv LOGGER_DEBUG false)" />
 
@@ -7,22 +9,18 @@
   <arg unless="$(arg DEBUG)" name="launch_prefix_debug" value=""/>
   <arg     if="$(arg DEBUG)" name="launch_prefix_debug" value="debug_roslaunch"/>
 
-  <arg name="standalone" default="true" />
-  <arg name="manager" default="$(arg UAV_NAME)_nodelet_manager" />
-  <arg unless="$(arg standalone)" name="nodelet" value="load"/>
-  <arg     if="$(arg standalone)" name="nodelet" value="standalone"/>
-  <arg unless="$(arg standalone)" name="nodelet_manager" value="$(arg manager)"/>
-  <arg     if="$(arg standalone)" name="nodelet_manager" value=""/>
-
   <env name="ROSCONSOLE_CONFIG_FILE" if="$(eval arg('LOGGER_DEBUG'))" value="$(find mrs_uav_trajectory_generation)/config/debug_verbosity.yaml" />
 
   <group ns="$(arg UAV_NAME)">
 
-    <node pkg="nodelet" type="nodelet" name="trajectory_generation" args="$(arg nodelet) mrs_uav_trajectory_generation/MrsTrajectoryGeneration $(arg nodelet_manager)" launch-prefix="$(arg launch_prefix_debug)" output="screen">
+    <node pkg="nodelet" type="nodelet" name="trajectory_generation" args="standalone mrs_uav_trajectory_generation/MrsTrajectoryGeneration" launch-prefix="$(arg launch_prefix_debug)" respawn="true" respawn_delay="1" output="screen">
 
       <!-- ROS parameters config file -->
       <rosparam file="$(find mrs_uav_trajectory_generation)/config/default.yaml" />
       <rosparam file="$(find mrs_uav_trajectory_generation)/paths/example.yaml" />
+
+      <!-- Load a user param file -->
+      <rosparam if="$(eval not arg('custom_config') == '')" file="$(arg custom_config)" />
 
         <!-- Subscribers -->
       <remap from="~constraints_in" to="control_manager/current_constraints" />
