@@ -23,7 +23,7 @@ The main differences are:
 * Removed dependency on [catkin_simple](https://github.com/catkin/catkin_simple).
 * Removed dependency on the _yaml_cpp_ library.
 * Removed dependency on the _mav_msgs_ library.
-* Removed dependency on the custom-built [nlopt](https://nlopt.readthedocs.io/en/latest/) ETH [wrapper](https://github.com/ethz-asl/nlopt) and substituded it with the available ROS variant (`sudo apt install ros-melodic-nlopt`).
+* Changed dependency from [nlopt](https://nlopt.readthedocs.io/en/latest/) ETH [wrapper](https://github.com/ethz-asl/nlopt) to MRS [nlopt_ros](https://github.com/ctu-mrs/nlopt_wrapper) wrapper.
 * Added dependency on [mrs_lib](https://github.com/ctu-mrs/mrs_lib) (just for convenience).
 * Added dependency on [mrs_msgs](https://github.com/ctu-mrs/mrs_msgs) (for compatibility with the [MRS UAV System](https://github.com/ctu-mrs/mrs_uav_system)).
 
