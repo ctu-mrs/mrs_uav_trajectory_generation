@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.1.2)
 project(mrs_uav_trajectory_generation)
 
 find_package(catkin REQUIRED COMPONENTS
