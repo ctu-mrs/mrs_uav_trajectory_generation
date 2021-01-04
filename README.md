@@ -122,7 +122,7 @@ Michael Burri, Helen Oleynikova, Markus Achtelik, and Roland Siegwart, “**Real
 ```
 @inproceedings{burri2015real-time,
   author={Burri, Michael and Oleynikova, Helen and  and Achtelik, Markus W. and Siegwart, Roland},
-  booktitle={Intelligent Robots and Systems (IROS 2015), 2015 IEEE/RSJ International Conference on},
+  booktitle={2015 IEEE/RSJ International Conference on Intelligent Robots and Systems},
   title={Real-Time Visual-Inertial Mapping, Re-localization and Planning Onboard MAVs in Unknown Environments},
   year={2015},
   month={Sept}
