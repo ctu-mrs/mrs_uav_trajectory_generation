@@ -856,7 +856,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
   //}
 
-  ROS_INFO("[MrsTrajectoryGeneration]: got path");
+  ROS_INFO("[MrsTrajectoryGeneration]: got path from message");
 
   std::vector<Waypoint_t> waypoints;
 
@@ -882,6 +882,24 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   override_max_acceleration_ = msg->override_max_acceleration;
 
   auto [success, message, trajectory] = optimize(waypoints);
+
+  if (success) {
+
+    bool published = trajectorySrv(trajectory);
+
+    if (published) {
+
+      ROS_INFO("[MrsTrajectoryGeneration]: trajectory successfully published");
+
+    } else {
+
+      ROS_INFO("[MrsTrajectoryGeneration]: could not publish the trajectory");
+    }
+
+  } else {
+
+    ROS_INFO("[MrsTrajectoryGeneration]: trajectory optimization was unsuccessful");
+  }
 }
 
 //}
@@ -918,7 +936,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
 
   //}
 
-  ROS_INFO("[MrsTrajectoryGeneration]: got path");
+  ROS_INFO("[MrsTrajectoryGeneration]: got path from service");
 
   std::vector<Waypoint_t> waypoints;
 
