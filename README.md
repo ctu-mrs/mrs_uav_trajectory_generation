@@ -1,7 +1,7 @@
 # MRS UAV Trajectory Generation
 
 | Build status | [![Build Status](https://github.com/ctu-mrs/mrs_uav_trajectory_generation/workflows/Melodic/badge.svg)](https://github.com/ctu-mrs/mrs_uav_trajectory_generation/actions) | [![Build Status](https://github.com/ctu-mrs/mrs_uav_trajectory_generation/workflows/Noetic/badge.svg)](https://github.com/ctu-mrs/mrs_uav_trajectory_generation/actions) |
-|--------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+|--------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 
 ![](.fig/thumbnail.jpg)
 
@@ -98,7 +98,7 @@ If overriden, the smaller values (between the user-overriden and the supplied by
 
 ## Dependencies
 
-* `sudo apt install ros-melodic-mav-msgs ros-melodic-nlopt`
+* [nlopt_ros](https://github.com/ctu-mrs/nlopt_ros)
 * [mrs_lib](https://github.com/ctu-mrs/mrs_lib)
 * [mrs_msgs](https://github.com/ctu-mrs/mrs_msgs)
 
