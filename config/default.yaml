@@ -1,12 +1,13 @@
-# minimal distance between waypoints in the path
-path_min_waypoint_distance: 0.1 # [m]
-
 # check and fix the max deviation between the input path and the output trajectory
 check_trajectory_deviation:
   enabled: true
   max_deviation: 0.1 # [m]
   max_iterations: 6 # [-]
   first_segment: true
+
+path_straightener:
+  enabled: true
+  max_deviation: 0.2 # [m]
 
 # sampling dt of the output trajectory
 sampling_dt: 0.01 # [s]

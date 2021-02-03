@@ -67,7 +67,6 @@ private:
   // path for debuggins
   Eigen::MatrixXd _yaml_path_;
 
-  double _path_min_waypoint_distance_;
   double _sampling_dt_;
 
   bool   _noise_enabled_;
@@ -77,6 +76,9 @@ private:
   double _trajectory_max_segment_deviation_;
   int    _trajectory_max_segment_deviation_max_iterations_;
   bool   _max_deviation_first_segment_;
+
+  bool   _path_straightener_enabled_;
+  double _path_straightener_max_deviation_;
 
   // | -------- variable parameters (come with the path) -------- |
 
@@ -141,6 +143,8 @@ private:
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&   waypoints,
                                                                            const mrs_msgs::PositionCommand& initial_state);
 
+  std::vector<Waypoint_t> preprocessTrajectory(const std::vector<Waypoint_t>& waypoints_in);
+
   mrs_msgs::TrajectoryReference getTrajectoryReference(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const ros::Time& stamp);
 
   Waypoint_t interpolatePoint(const Waypoint_t& a, const Waypoint_t& b, const double& coeff);
@@ -198,14 +202,15 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam("add_noise/enabled", _noise_enabled_);
   param_loader.loadParam("add_noise/max", _noise_max_);
 
-  param_loader.loadParam("path_min_waypoint_distance", _path_min_waypoint_distance_);
-
   param_loader.loadParam("sampling_dt", _sampling_dt_);
 
   param_loader.loadParam("check_trajectory_deviation/enabled", _trajectory_max_segment_deviation_enabled_);
   param_loader.loadParam("check_trajectory_deviation/max_deviation", _trajectory_max_segment_deviation_);
   param_loader.loadParam("check_trajectory_deviation/first_segment", _max_deviation_first_segment_);
   param_loader.loadParam("check_trajectory_deviation/max_iterations", _trajectory_max_segment_deviation_max_iterations_);
+
+  param_loader.loadParam("path_straightener/enabled", _path_straightener_enabled_);
+  param_loader.loadParam("path_straightener/max_deviation", _path_straightener_max_deviation_);
 
   // | --------------------- service clients -------------------- |
 
@@ -474,6 +479,71 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
 //}
 
+/* preprocessTrajectory() //{ */
+
+std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessTrajectory(const std::vector<Waypoint_t>& waypoints_in) {
+
+  auto position_cmd = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
+
+  std::vector<Waypoint_t> waypoints;
+
+  // add current position to the beginning
+  Waypoint_t waypoint;
+  waypoint.coords  = Eigen::Vector4d(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z, position_cmd.heading);
+  waypoint.stop_at = false;
+  waypoints.push_back(waypoint);
+
+  bw_original_.addPoint(vec3_t(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z), 1.0, 0.0, 0.0, 1.0);
+
+  size_t last_added_idx = 0;  // in "waypoints_in"
+
+  for (size_t i = 0; i < waypoints_in.size(); i++) {
+
+    double x       = waypoints_in.at(i).coords[0];
+    double y       = waypoints_in.at(i).coords[1];
+    double z       = waypoints_in.at(i).coords[2];
+    double heading = waypoints_in.at(i).coords[3];
+
+    bw_original_.addPoint(vec3_t(x, y, z), 1.0, 0.0, 0.0, 1.0);
+
+    if (_path_straightener_enabled_ && waypoints_in.size() >= 3 && i > 0 && i < (waypoints_in.size() - 1)) {
+
+      vec3_t first(waypoints_in.at(last_added_idx).coords[0], waypoints_in.at(last_added_idx).coords[1], waypoints_in.at(last_added_idx).coords[2]);
+      vec3_t last(waypoints_in.at(i + 1).coords[0], waypoints_in.at(i + 1).coords[1], waypoints_in.at(i + 1).coords[2]);
+
+      size_t next_point = last_added_idx + 1;
+
+      bool segment_is_ok = true;
+
+      for (size_t j = next_point; j < i + 1; j++) {
+
+        vec3_t mid(waypoints_in.at(j).coords[0], waypoints_in.at(j).coords[1], waypoints_in.at(j).coords[2]);
+        double dist_from_segment = distFromSegment(mid, first, last);
+
+        if (dist_from_segment > _path_straightener_max_deviation_) {
+          segment_is_ok = false;
+          break;
+        }
+      }
+
+      if (segment_is_ok) {
+        continue;
+      }
+    }
+
+    Waypoint_t wp;
+    wp.coords  = Eigen::Vector4d(x, y, z, heading);
+    wp.stop_at = waypoints_in.at(i).stop_at;
+    waypoints.push_back(wp);
+
+    last_added_idx = i;
+  }
+
+  return waypoints;
+}
+
+//}
+
 /* optimize() //{ */
 
 std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGeneration::optimize(const std::vector<Waypoint_t>& waypoints_in) {
@@ -489,6 +559,9 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   bw_original_.setParentFrame(frame_id_);
   bw_final_.setParentFrame(frame_id_);
 
+  bw_original_.setPointsScale(0.8);
+  bw_final_.setPointsScale(0.5);
+
   // empty path is invalid
   if (waypoints_in.size() == 0) {
     std::stringstream ss;
@@ -497,47 +570,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
   }
 
-  /* copy the waypoints //{ */
-
-  std::vector<Waypoint_t> waypoints;
-
-  // add current position to the beginning
-  Waypoint_t waypoint;
-  waypoint.coords  = Eigen::Vector4d(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z, position_cmd.heading);
-  waypoint.stop_at = false;
-  waypoints.push_back(waypoint);
-
-  bw_original_.setPointsScale(0.8);
-  bw_final_.setPointsScale(0.5);
-
-  bw_original_.addPoint(vec3_t(position_cmd.position.x, position_cmd.position.y, position_cmd.position.z), 1.0, 0.0, 0.0, 1.0);
-
-  for (int i = 0; i < int(waypoints_in.size()); i++) {
-
-    Eigen::Vector4d last = waypoints.back().coords;
-
-    double distance_from_last = mrs_lib::geometry::dist(vec3_t(waypoints_in.at(i).coords[0], waypoints_in.at(i).coords[1], waypoints_in.at(i).coords[2]),
-                                                        vec3_t(last[0], last[1], last[2]));
-
-    if (distance_from_last < _path_min_waypoint_distance_) {
-      ROS_DEBUG("[MrsTrajectoryGeneration]: skipping vertex, too close to the previous one");
-      continue;
-    }
-
-    double x       = waypoints_in.at(i).coords[0] + randd(-_noise_max_, _noise_max_);
-    double y       = waypoints_in.at(i).coords[1] + randd(-_noise_max_, _noise_max_);
-    double z       = waypoints_in.at(i).coords[2] + randd(-_noise_max_, _noise_max_);
-    double heading = waypoints_in.at(i).coords[3];
-
-    bw_original_.addPoint(vec3_t(x, y, z), 1.0, 0.0, 0.0, 1.0);
-
-    Waypoint_t wp;
-    wp.coords  = Eigen::Vector4d(x, y, z, heading);
-    wp.stop_at = waypoints_in.at(i).stop_at;
-    waypoints.push_back(wp);
-  }
-
-  //}
+  std::vector<Waypoint_t> waypoints = preprocessTrajectory(waypoints_in);
 
   if (waypoints.size() <= 1) {
     std::stringstream ss;
