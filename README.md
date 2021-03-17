@@ -102,7 +102,7 @@ If overriden, the smaller values (between the user-overriden and the supplied by
 * [mrs_lib](https://github.com/ctu-mrs/mrs_lib)
 * [mrs_msgs](https://github.com/ctu-mrs/mrs_msgs)
 
-## Acknwoledgments
+## Acknowledgments
 
 This package based upon [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation).
 Please, cite the original publications:
