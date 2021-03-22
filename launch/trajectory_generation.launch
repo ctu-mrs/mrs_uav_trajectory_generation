@@ -15,6 +15,8 @@
 
     <node pkg="nodelet" type="nodelet" name="trajectory_generation" args="standalone mrs_uav_trajectory_generation/MrsTrajectoryGeneration" launch-prefix="$(arg launch_prefix_debug)" respawn="true" respawn_delay="1" output="screen">
 
+      <param name="uav_name" type="string" value="$(arg UAV_NAME)" />
+
       <!-- ROS parameters config file -->
       <rosparam file="$(find mrs_uav_trajectory_generation)/config/default.yaml" />
       <rosparam file="$(find mrs_uav_trajectory_generation)/paths/example.yaml" />
@@ -25,6 +27,7 @@
         <!-- Subscribers -->
       <remap from="~constraints_in" to="control_manager/current_constraints" />
       <remap from="~position_cmd_in" to="control_manager/position_cmd" />
+      <remap from="~prediction_full_state_in" to="control_manager/mpc_tracker/prediction_full_state" />
 
         <!-- Service servers -->
       <remap from="~test_in" to="~test" />
