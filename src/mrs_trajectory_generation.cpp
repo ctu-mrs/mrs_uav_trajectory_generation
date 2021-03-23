@@ -658,8 +658,8 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   bw_original_.setParentFrame(frame_id_);
   bw_final_.setParentFrame(frame_id_);
 
-  bw_original_.setPointsScale(0.8);
-  bw_final_.setPointsScale(0.5);
+  bw_original_.setPointsScale(0.4);
+  bw_final_.setPointsScale(0.35);
 
   // empty path is invalid
   if (waypoints_in.size() == 0) {
@@ -767,7 +767,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
     // calculate the starting idx that we will use from the current_prediction
     double path_time_offset_2   = (ros::Time::now() - current_prediction.header.stamp).toSec();  // = how long did it take to optimize
-    int    path_sample_offset_2 = int(ceil((path_time_offset_2 - 0.01) / 0.2)) + 1;
+    int    path_sample_offset_2 = int(floor((path_time_offset_2 - 0.01) / 0.2)) + 1;
 
     // if there is anything to insert
     if (path_sample_offset > path_sample_offset_2) {
