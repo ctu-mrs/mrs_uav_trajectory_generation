@@ -157,8 +157,8 @@ private:
    *
    * @return <success, traj_fail_idx, path_fail_segment>
    */
-  std::tuple<bool, int, std::vector<bool>, double> validateTrajectory(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
-                                                                      const std::vector<Waypoint_t>&                    waypoints);
+  std::tuple<bool, int, std::vector<bool>, double> validateTrajectorySpatial(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
+                                                                             const std::vector<Waypoint_t>&                    waypoints);
 
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&   waypoints,
                                                                            const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt);
@@ -288,10 +288,10 @@ void MrsTrajectoryGeneration::onInit() {
 
 // | ---------------------- main routines --------------------- |
 
-/* validateTrajectory() //{ */
+/* validateTrajectorySpatial() //{ */
 
-std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::validateTrajectory(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
-                                                                                             const std::vector<Waypoint_t>&                    waypoints) {
+std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::validateTrajectorySpatial(
+    const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const std::vector<Waypoint_t>& waypoints) {
 
   // prepare the output
 
@@ -504,6 +504,21 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   bool success = eth_trajectory_generation::sampleWholeTrajectory(trajectory, sampling_dt, &states);
 
+  // validate the temporal sampling of the trajectory
+
+  if ((states.size() * sampling_dt) > (2 * initial_total_time_baca)) {
+
+    ROS_ERROR("[MrsTrajectoryGeneration]: the final trajectory sampling is too long (initial 'baca' estimate = %.2f), aborting", initial_total_time_baca);
+
+    std::stringstream ss;
+    ss << "trajectory sampling failed";
+    ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+    return {};
+  } else {
+    ROS_INFO("[MrsTrajectoryGeneration]: esimated/final trajectory length ratio (final/estimated) %.2f",
+             (states.size() * sampling_dt) / initial_total_time_baca);
+  }
+
   if (success) {
     ROS_DEBUG("[MrsTrajectoryGeneration]: eth sampling success");
     return std::optional(states);
@@ -709,7 +724,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
     ROS_DEBUG("[MrsTrajectoryGeneration]: revalidation cycle #%d", k);
 
-    std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectory(trajectory, waypoints);
+    std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectorySpatial(trajectory, waypoints);
 
     if (_trajectory_max_segment_deviation_enabled_ && !safe) {
 
@@ -749,10 +764,13 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     }
   }
 
-  std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectory(trajectory, waypoints);
+  std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectorySpatial(trajectory, waypoints);
 
-  ROS_INFO("[MrsTrajectoryGeneration]: final max deviation %.2f m, total time: %.2f", max_deviation, trajectory.size() * sampling_dt);
+  double final_trajectory_time = trajectory.size() * sampling_dt;
 
+  ROS_INFO("[MrsTrajectoryGeneration]: final max deviation %.2f m, total time: %.2f", max_deviation, final_trajectory_time);
+
+  // prepare rviz markers
   for (int i = 0; i < int(waypoints.size()); i++) {
     bw_final_.addPoint(vec3_t(waypoints.at(i).coords[0], waypoints.at(i).coords[1], waypoints.at(i).coords[2]), 0.0, 1.0, 0.0, 1.0);
   }
@@ -1208,7 +1226,25 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
   auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
 
-  auto [success, message, trajectory] = optimize(waypoints, msg->header, position_cmd, prediction_full_state_);
+  bool                          success;
+  std::string                   message;
+  mrs_msgs::TrajectoryReference trajectory;
+
+  for (int i = 0; i < 3; i++) {
+
+    auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
+    auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
+
+    std::tie(success, message, trajectory) = optimize(waypoints, msg->header, position_cmd, prediction_full_state_);
+
+    if (success) {
+      break;
+    } else {
+      if (i < 3) {
+        ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+      }
+    }
+  }
 
   if (success) {
 
@@ -1298,10 +1334,25 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   override_max_velocity_     = req.path.override_max_velocity;
   override_max_acceleration_ = req.path.override_max_acceleration;
 
-  auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
-  auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
+  bool                          success;
+  std::string                   message;
+  mrs_msgs::TrajectoryReference trajectory;
 
-  auto [success, message, trajectory] = optimize(waypoints, req.path.header, position_cmd, prediction_full_state_);
+  for (int i = 0; i < 3; i++) {
+
+    auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
+    auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
+
+    std::tie(success, message, trajectory) = optimize(waypoints, req.path.header, position_cmd, prediction_full_state_);
+
+    if (success) {
+      break;
+    } else {
+      if (i < 3) {
+        ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+      }
+    }
+  }
 
   if (success) {
 
