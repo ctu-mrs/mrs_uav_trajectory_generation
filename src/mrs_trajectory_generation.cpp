@@ -73,6 +73,9 @@ private:
 
   double _sampling_dt_;
 
+  double _max_trajectory_len_factor_;
+  double _min_trajectory_len_factor_;
+
   bool        _noise_enabled_;
   double      _noise_max_;
   std::string _uav_name_;
@@ -227,6 +230,9 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam("add_noise/max", _noise_max_);
 
   param_loader.loadParam("sampling_dt", _sampling_dt_);
+
+  param_loader.loadParam("max_trajectory_len_factor", _max_trajectory_len_factor_);
+  param_loader.loadParam("min_trajectory_len_factor", _min_trajectory_len_factor_);
 
   param_loader.loadParam("check_trajectory_deviation/enabled", _trajectory_max_segment_deviation_enabled_);
   param_loader.loadParam("check_trajectory_deviation/max_deviation", _trajectory_max_segment_deviation_);
@@ -506,17 +512,27 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   // validate the temporal sampling of the trajectory
 
-  if ((states.size() * sampling_dt) > (2 * initial_total_time_baca)) {
+  if ((states.size() * sampling_dt) > (_max_trajectory_len_factor_ * initial_total_time_baca)) {
 
-    ROS_ERROR("[MrsTrajectoryGeneration]: the final trajectory sampling is too long (initial 'baca' estimate = %.2f), aborting", initial_total_time_baca);
+    ROS_ERROR("[MrsTrajectoryGeneration]: the final trajectory sampling is too long = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
+              (states.size() * sampling_dt), initial_total_time_baca, _max_trajectory_len_factor_);
+
+    std::stringstream ss;
+    ss << "trajectory sampling failed";
+    ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+    return {};
+  } else if ((states.size() * sampling_dt) < (_min_trajectory_len_factor_ * initial_total_time_baca)) {
+
+    ROS_ERROR("[MrsTrajectoryGeneration]: the final trajectory sampling is too short = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
+              (states.size() * sampling_dt), initial_total_time_baca, _min_trajectory_len_factor_);
 
     std::stringstream ss;
     ss << "trajectory sampling failed";
     ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
     return {};
   } else {
-    ROS_INFO("[MrsTrajectoryGeneration]: esimated/final trajectory length ratio (final/estimated) %.2f",
-             (states.size() * sampling_dt) / initial_total_time_baca);
+    ROS_DEBUG("[MrsTrajectoryGeneration]: estimated/final trajectory length ratio (final/estimated) %.2f",
+              (states.size() * sampling_dt) / initial_total_time_baca);
   }
 
   if (success) {
@@ -1242,6 +1258,8 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     } else {
       if (i < 3) {
         ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+      } else {
+        ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
       }
     }
   }
@@ -1261,7 +1279,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
   } else {
 
-    ROS_INFO("[MrsTrajectoryGeneration]: trajectory optimization was unsuccessful");
+    ROS_INFO("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, no publishing a result");
   }
 }
 
@@ -1350,6 +1368,8 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     } else {
       if (i < 3) {
         ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+      } else {
+        ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
       }
     }
   }
@@ -1373,6 +1393,8 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     }
 
   } else {
+
+    ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, not publishing a result");
 
     res.success = success;
     res.message = message;

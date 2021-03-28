@@ -18,6 +18,12 @@ add_noise:
   enabled: false
   max: 0.30 # [m] # +max, -max of flat distribution
 
+# while checking the final trajectory, don't allow
+# returning results which are n-times longer / shorter that
+# the initial 'baca' prediction of the length
+max_trajectory_len_factor: 3.0
+min_trajectory_len_factor: 0.33
+
 time_penalty: 100
 soft_constraints_enabled: true
 soft_constraints_weight: 1.5
