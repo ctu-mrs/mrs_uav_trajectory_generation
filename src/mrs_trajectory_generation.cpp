@@ -643,13 +643,21 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     int    n_samples;
     double interp_step;
 
-    ROS_DEBUG("[MrsTrajectoryGeneration]: interpolating segment %d [%.2f %.2f %.2f %.2f] -> [%.2f %.2f %.2f %.2f]", int(i), waypoints[i].coords[0],
-              waypoints[i].coords[1], waypoints[i].coords[2], waypoints[i].coords[3], waypoints[i + 1].coords[0], waypoints[i + 1].coords[1],
-              waypoints[i + 1].coords[2], waypoints[i + 1].coords[3]);
+    ROS_DEBUG("[MrsTrajectoryGeneration]: interpolating segment %d [%.2f %.2f %.2f %.2f] -> [%.2f %.2f %.2f %.2f], baca time %.2f s", int(i),
+              waypoints[i].coords[0], waypoints[i].coords[1], waypoints[i].coords[2], waypoints[i].coords[3], waypoints[i + 1].coords[0],
+              waypoints[i + 1].coords[1], waypoints[i + 1].coords[2], waypoints[i + 1].coords[3], segment_time);
 
-    if (segment_time > 1e-2) {
-      n_samples   = segment_time / sampling_dt;
-      interp_step = 1.0 / double(n_samples);
+    if (segment_time > 1e-1) {
+
+      n_samples = floor(segment_time / sampling_dt);
+
+      // important
+      if (n_samples > 0) {
+        interp_step = 1.0 / double(n_samples);
+      } else {
+        interp_step = 0.5;
+      }
+
     } else {
       n_samples   = 0;
       interp_step = 0;
@@ -694,12 +702,6 @@ std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessTrajectory(const std:
                                                                       const mrs_msgs::PositionCommand& initial_condition) {
 
   std::vector<Waypoint_t> waypoints;
-
-  // add current position to the beginning
-  Waypoint_t waypoint;
-  waypoint.coords  = Eigen::Vector4d(initial_condition.position.x, initial_condition.position.y, initial_condition.position.z, initial_condition.heading);
-  waypoint.stop_at = false;
-  waypoints.push_back(waypoint);
 
   bw_original_.addPoint(vec3_t(initial_condition.position.x, initial_condition.position.y, initial_condition.position.z), 1.0, 0.0, 0.0, 1.0);
 
@@ -843,7 +845,16 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
   }
 
-  std::vector<Waypoint_t> waypoints = preprocessTrajectory(waypoints_in, initial_condition);
+  std::vector<Waypoint_t> waypoints_in_with_init = waypoints_in;
+
+  // prepend the initial condition
+  Waypoint_t initial_waypoint;
+  initial_waypoint.coords =
+      Eigen::Vector4d(initial_condition.position.x, initial_condition.position.y, initial_condition.position.z, initial_condition.heading);
+  initial_waypoint.stop_at = false;
+  waypoints_in_with_init.insert(waypoints_in_with_init.begin(), initial_waypoint);
+
+  std::vector<Waypoint_t> waypoints = preprocessTrajectory(waypoints_in_with_init, initial_condition);
 
   if (waypoints.size() <= 1) {
     std::stringstream ss;
