@@ -387,6 +387,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   ROS_DEBUG("[MrsTrajectoryGeneration]: planning");
 
+  ros::Time time_start = ros::Time::now();
+
   auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
   auto constraints = mrs_lib::get_mutexed(mutex_constraints_, constraints_);
 
@@ -552,7 +554,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   }
 
   if (success) {
-    ROS_DEBUG("[MrsTrajectoryGeneration]: eth sampling success");
+    ROS_DEBUG("[MrsTrajectoryGeneration]: eth sampling finished, took %.2f s", (ros::Time::now() - time_start).toSec());
     return std::optional(states);
   } else {
     ROS_ERROR("[MrsTrajectoryGeneration]: eth could not sample the trajectory");
@@ -761,6 +763,8 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
                                                                                                const mrs_msgs::PositionCommand&        position_cmd,
                                                                                                const mrs_msgs::MpcPredictionFullState& current_prediction,
                                                                                                const bool                              fallback_sampling) {
+
+  ros::Time time_start = ros::Time::now();
 
   // | ------------- prepare the initial conditions ------------- |
 
@@ -991,6 +995,8 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
   std::stringstream ss;
   ss << "trajectory generated";
+
+  ROS_DEBUG("[MrsTrajectoryGeneration]: trajectory generated, took %.2f s", (ros::Time::now() - time_start).toSec());
 
   return std::tuple(true, ss.str(), mrs_trajectory);
 }
