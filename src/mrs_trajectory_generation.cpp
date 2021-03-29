@@ -76,6 +76,12 @@ private:
   double _max_trajectory_len_factor_;
   double _min_trajectory_len_factor_;
 
+  int _n_attempts_;
+
+  bool   _fallback_sampling_enabled_;
+  double _fallback_sampling_speed_factor_;
+  double _fallback_sampling_accel_factor_;
+
   bool        _noise_enabled_;
   double      _noise_max_;
   std::string _uav_name_;
@@ -141,7 +147,7 @@ private:
   // solve the whole problem
   std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> optimize(const std::vector<Waypoint_t>& waypoints_in, const std_msgs::Header& waypoints_stamp,
                                                                         const mrs_msgs::PositionCommand&        initial_condition,
-                                                                        const mrs_msgs::MpcPredictionFullState& current_prediction);
+                                                                        const mrs_msgs::MpcPredictionFullState& current_prediction, bool fallback_sampling);
 
   // batch vizualizer
   mrs_lib::BatchVisualizer bw_original_;
@@ -165,6 +171,9 @@ private:
 
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&   waypoints,
                                                                            const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt);
+
+  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectoryFallback(const std::vector<Waypoint_t>&   waypoints,
+                                                                                   const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt);
 
   std::vector<Waypoint_t> preprocessTrajectory(const std::vector<Waypoint_t>& waypoints_in, const mrs_msgs::PositionCommand& initial_condition);
 
@@ -233,6 +242,11 @@ void MrsTrajectoryGeneration::onInit() {
 
   param_loader.loadParam("max_trajectory_len_factor", _max_trajectory_len_factor_);
   param_loader.loadParam("min_trajectory_len_factor", _min_trajectory_len_factor_);
+
+  param_loader.loadParam("n_attempts", _n_attempts_);
+  param_loader.loadParam("fallback_sampling/enabled", _fallback_sampling_enabled_);
+  param_loader.loadParam("fallback_sampling/speed_factor", _fallback_sampling_speed_factor_);
+  param_loader.loadParam("fallback_sampling/accel_factor", _fallback_sampling_accel_factor_);
 
   param_loader.loadParam("check_trajectory_deviation/enabled", _trajectory_max_segment_deviation_enabled_);
   param_loader.loadParam("check_trajectory_deviation/max_deviation", _trajectory_max_segment_deviation_);
@@ -546,6 +560,130 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
 //}
 
+/* findTrajectoryFallback() //{ */
+
+std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectoryFallback(const std::vector<Waypoint_t>&   waypoints,
+                                                                                                          const mrs_msgs::PositionCommand& initial_state,
+                                                                                                          const double&                    sampling_dt) {
+
+  ROS_WARN("[MrsTrajectoryGeneration]: Fallback: planning");
+
+  auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
+  auto constraints = mrs_lib::get_mutexed(mutex_constraints_, constraints_);
+
+  eth_trajectory_generation::Vertex::Vector vertices;
+  const int                                 dimension = 4;
+
+  // | --------------- add constraints to vertices -------------- |
+
+  double last_heading = initial_state.heading;
+
+  for (size_t i = 0; i < waypoints.size(); i++) {
+
+    double x       = waypoints.at(i).coords[0];
+    double y       = waypoints.at(i).coords[1];
+    double z       = waypoints.at(i).coords[2];
+    double heading = sradians::unwrap(waypoints.at(i).coords[3], last_heading);
+    last_heading   = heading;
+
+    eth_trajectory_generation::Vertex vertex(dimension);
+
+    vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+
+    vertices.push_back(vertex);
+  }
+
+  // | ---------------- compute the segment times --------------- |
+
+  double v_max, a_max, j_max;
+
+  if (override_constraints_) {
+    v_max = override_max_velocity_ < constraints.horizontal_speed ? override_max_velocity_ : constraints.horizontal_speed;
+    a_max = override_max_acceleration_ < constraints.horizontal_acceleration ? override_max_acceleration_ : constraints.horizontal_acceleration;
+    ROS_WARN("[MrsTrajectoryGeneration]: Fallback: overriding constraints by a user");
+  } else {
+    v_max = constraints.horizontal_speed;
+    a_max = constraints.horizontal_acceleration;
+  }
+
+  v_max *= _fallback_sampling_speed_factor_;
+  a_max *= _fallback_sampling_accel_factor_;
+
+  ROS_WARN("[MrsTrajectoryGeneration]: Fallback: constraints: max speed=%.2f m/s, max_acceleration=%.2f m/s^2", v_max, a_max);
+
+  j_max = constraints.horizontal_jerk;
+
+  std::vector<double> segment_times, segment_times_baca;
+  segment_times      = estimateSegmentTimes(vertices, v_max, a_max, j_max);
+  segment_times_baca = estimateSegmentTimesBaca(vertices, v_max, a_max, j_max);
+
+  double initial_total_time      = 0;
+  double initial_total_time_baca = 0;
+  for (int i = 0; i < int(segment_times_baca.size()); i++) {
+    initial_total_time += segment_times[i];
+    initial_total_time_baca += segment_times_baca[i];
+  }
+
+  ROS_WARN("[MrsTrajectoryGeneration]: Fallback: initial total time (Euclidean): %.2f", initial_total_time);
+  ROS_WARN("[MrsTrajectoryGeneration]: Fallback: initial total time (Baca): %.2f", initial_total_time_baca);
+
+  // | --------- create an optimizer object and solve it -------- |
+
+  eth_mav_msgs::EigenTrajectoryPoint::Vector states;
+
+  // interpolate each segment
+  for (size_t i = 0; i < waypoints.size() - 1; i++) {
+
+    Eigen::VectorXd start, end;
+
+    const double segment_time = segment_times_baca[i];
+
+    int    n_samples;
+    double interp_step;
+
+    ROS_DEBUG("[MrsTrajectoryGeneration]: interpolating segment %d", int(i));
+
+    if (segment_time > 1e-2) {
+      n_samples   = segment_time / sampling_dt;
+      interp_step = 1.0 / double(n_samples);
+    } else {
+      n_samples   = 0;
+      interp_step = 0;
+      ROS_WARN_THROTTLE(1.0, "[MrsTrajectoryGeneration]: Fallback: special case, segment too short");
+    }
+
+    for (int j = 0; j <= n_samples; j++) {
+
+      Waypoint_t point = interpolatePoint(waypoints[i], waypoints[i + 1], j * interp_step);
+
+      ROS_DEBUG_STREAM("[MrsTrajectoryGeneration]: sample " << j << " " << point.coords.transpose());
+
+      eth_mav_msgs::EigenTrajectoryPoint eth_point;
+      eth_point.position_W[0] = point.coords[0];
+      eth_point.position_W[1] = point.coords[1];
+      eth_point.position_W[2] = point.coords[2];
+      eth_point.setFromYaw(point.coords[3]);
+
+      states.push_back(eth_point);
+    }
+  }
+
+  bool success = true;
+
+  ROS_WARN("[MrsTrajectoryGeneration]: Fallback: sampling finished");
+
+  // | --------------- create the trajectory class -------------- |
+
+  if (success) {
+    return std::optional(states);
+  } else {
+    ROS_ERROR("[MrsTrajectoryGeneration]: Fallback: sampling failed");
+    return {};
+  }
+}
+
+//}
+
 /* preprocessTrajectory() //{ */
 
 std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessTrajectory(const std::vector<Waypoint_t>&   waypoints_in,
@@ -615,7 +753,8 @@ std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessTrajectory(const std:
 std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGeneration::optimize(const std::vector<Waypoint_t>&          waypoints_in,
                                                                                                const std_msgs::Header&                 waypoints_header,
                                                                                                const mrs_msgs::PositionCommand&        position_cmd,
-                                                                                               const mrs_msgs::MpcPredictionFullState& current_prediction) {
+                                                                                               const mrs_msgs::MpcPredictionFullState& current_prediction,
+                                                                                               const bool                              fallback_sampling) {
 
   // | ------------- prepare the initial conditions ------------- |
 
@@ -725,7 +864,13 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     sampling_dt = _sampling_dt_;
   }
 
-  auto result = findTrajectory(waypoints, initial_condition, sampling_dt);
+  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> result;
+
+  if (!fallback_sampling) {
+    result = findTrajectory(waypoints, initial_condition, sampling_dt);
+  } else {
+    result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt);
+  }
 
   if (result) {
     trajectory = result.value();
@@ -762,7 +907,11 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
         safeness++;
       }
 
-      auto result = findTrajectory(waypoints, initial_condition, sampling_dt);
+      if (!fallback_sampling) {
+        result = findTrajectory(waypoints, initial_condition, sampling_dt);
+      } else {
+        result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt);
+      }
 
       if (result) {
         trajectory = result.value();
@@ -1146,11 +1295,34 @@ bool MrsTrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::R
   auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
 
   std_msgs::Header waypoints_header;
-  /* waypoints_header.stamp    = ros::Time::now() + ros::Duration(2.0); */
-  waypoints_header.stamp    = ros::Time::now();
+  waypoints_header.stamp = ros::Time::now() + ros::Duration(2.0);
+  /* waypoints_header.stamp    = ros::Time::now(); */
   waypoints_header.frame_id = frame_id_;
 
-  auto [success, message, trajectory] = optimize(waypoints, waypoints_header, position_cmd, current_prediction);
+  bool                          success;
+  std::string                   message;
+  mrs_msgs::TrajectoryReference trajectory;
+
+  for (int i = 0; i < _n_attempts_; i++) {
+
+    auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
+    auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
+
+    // the last iteration and the fallback sampling is enabled
+    bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
+
+    std::tie(success, message, trajectory) = optimize(waypoints, waypoints_header, position_cmd, prediction_full_state_, fallback_sampling);
+
+    if (success) {
+      break;
+    } else {
+      if (i < _n_attempts_) {
+        ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+      } else {
+        ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
+      }
+    }
+  }
 
   if (success) {
 
@@ -1246,17 +1418,20 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   std::string                   message;
   mrs_msgs::TrajectoryReference trajectory;
 
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < _n_attempts_; i++) {
 
     auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
     auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
 
-    std::tie(success, message, trajectory) = optimize(waypoints, msg->header, position_cmd, prediction_full_state_);
+    // the last iteration and the fallback sampling is enabled
+    bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
+
+    std::tie(success, message, trajectory) = optimize(waypoints, msg->header, position_cmd, prediction_full_state_, fallback_sampling);
 
     if (success) {
       break;
     } else {
-      if (i < 3) {
+      if (i < _n_attempts_) {
         ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
       } else {
         ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
@@ -1356,17 +1531,20 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   std::string                   message;
   mrs_msgs::TrajectoryReference trajectory;
 
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < _n_attempts_; i++) {
 
     auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
     auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
 
-    std::tie(success, message, trajectory) = optimize(waypoints, req.path.header, position_cmd, prediction_full_state_);
+    // the last iteration and the fallback sampling is enabled
+    bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
+
+    std::tie(success, message, trajectory) = optimize(waypoints, req.path.header, position_cmd, prediction_full_state_, fallback_sampling);
 
     if (success) {
       break;
     } else {
-      if (i < 3) {
+      if (i < _n_attempts_) {
         ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
       } else {
         ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
