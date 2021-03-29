@@ -182,6 +182,8 @@ private:
 
   Waypoint_t interpolatePoint(const Waypoint_t& a, const Waypoint_t& b, const double& coeff);
 
+  bool checkNaN(const Waypoint_t& a);
+
   double distFromSegment(const vec3_t& point, const vec3_t& seg1, const vec3_t& seg2);
 
   bool trajectorySrv(const mrs_msgs::TrajectoryReference& msg);
@@ -641,7 +643,9 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     int    n_samples;
     double interp_step;
 
-    ROS_DEBUG("[MrsTrajectoryGeneration]: interpolating segment %d", int(i));
+    ROS_DEBUG("[MrsTrajectoryGeneration]: interpolating segment %d [%.2f %.2f %.2f %.2f] -> [%.2f %.2f %.2f %.2f]", int(i), waypoints[i].coords[0],
+              waypoints[i].coords[1], waypoints[i].coords[2], waypoints[i].coords[3], waypoints[i + 1].coords[0], waypoints[i + 1].coords[1],
+              waypoints[i + 1].coords[2], waypoints[i + 1].coords[3]);
 
     if (segment_time > 1e-2) {
       n_samples   = segment_time / sampling_dt;
@@ -1075,6 +1079,35 @@ Waypoint_t MrsTrajectoryGeneration::interpolatePoint(const Waypoint_t& a, const 
 
 //}
 
+/* interpolatePoint() //{ */
+
+bool MrsTrajectoryGeneration::checkNaN(const Waypoint_t& a) {
+
+  if (!std::isfinite(a.coords[0])) {
+    ROS_ERROR("NaN detected in variable \"a.coords[0]\"!!!");
+    return false;
+  }
+
+  if (!std::isfinite(a.coords[1])) {
+    ROS_ERROR("NaN detected in variable \"a.coords[1]\"!!!");
+    return false;
+  }
+
+  if (!std::isfinite(a.coords[2])) {
+    ROS_ERROR("NaN detected in variable \"a.coords[2]\"!!!");
+    return false;
+  }
+
+  if (!std::isfinite(a.coords[3])) {
+    ROS_ERROR("NaN detected in variable \"a.coords[3]\"!!!");
+    return false;
+  }
+
+  return true;
+}
+
+//}
+
 /* trajectorySrv() //{ */
 
 bool MrsTrajectoryGeneration::trajectorySrv(const mrs_msgs::TrajectoryReference& msg) {
@@ -1401,6 +1434,11 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     wp.coords  = Eigen::Vector4d(x, y, z, heading);
     wp.stop_at = stop_at_waypoints_;
 
+    if (!checkNaN(wp)) {
+      ROS_ERROR("[MrsTrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
+      return;
+    }
+
     waypoints.push_back(wp);
   }
 
@@ -1516,6 +1554,13 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     Waypoint_t wp;
     wp.coords  = Eigen::Vector4d(x, y, z, heading);
     wp.stop_at = stop_at_waypoints_;
+
+    if (!checkNaN(wp)) {
+      ROS_ERROR("[MrsTrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
+      res.success = false;
+      res.message = "invalid path";
+      return true;
+    }
 
     waypoints.push_back(wp);
   }
