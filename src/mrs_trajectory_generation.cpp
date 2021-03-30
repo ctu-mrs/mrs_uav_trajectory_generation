@@ -175,7 +175,7 @@ private:
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectoryFallback(const std::vector<Waypoint_t>&   waypoints,
                                                                                    const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt);
 
-  std::vector<Waypoint_t> preprocessTrajectory(const std::vector<Waypoint_t>& waypoints_in, const mrs_msgs::PositionCommand& initial_condition);
+  std::vector<Waypoint_t> preprocessTrajectory(const std::vector<Waypoint_t>& waypoints_in);
 
   mrs_msgs::TrajectoryReference getTrajectoryReference(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const ros::Time& stamp,
                                                        const double& sampling_dt);
@@ -700,12 +700,9 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
 /* preprocessTrajectory() //{ */
 
-std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessTrajectory(const std::vector<Waypoint_t>&   waypoints_in,
-                                                                      const mrs_msgs::PositionCommand& initial_condition) {
+std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessTrajectory(const std::vector<Waypoint_t>& waypoints_in) {
 
   std::vector<Waypoint_t> waypoints;
-
-  bw_original_.addPoint(vec3_t(initial_condition.position.x, initial_condition.position.y, initial_condition.position.z), 1.0, 0.0, 0.0, 1.0);
 
   size_t last_added_idx = 0;  // in "waypoints_in"
 
@@ -858,7 +855,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   initial_waypoint.stop_at = false;
   waypoints_in_with_init.insert(waypoints_in_with_init.begin(), initial_waypoint);
 
-  std::vector<Waypoint_t> waypoints = preprocessTrajectory(waypoints_in_with_init, initial_condition);
+  std::vector<Waypoint_t> waypoints = preprocessTrajectory(waypoints_in_with_init);
 
   if (waypoints.size() <= 1) {
     std::stringstream ss;
