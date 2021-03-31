@@ -1206,14 +1206,10 @@ std::optional<mrs_msgs::PositionCommand> MrsTrajectoryGeneration::transformPosit
     geometry_msgs::Vector3Stamped vec;
     vec.header = position_cmd.header;
 
-    vec.vector.x = position_cmd.velocity.x;
-    vec.vector.y = position_cmd.velocity.y;
-    vec.vector.z = position_cmd.velocity.z;
+    vec.vector = position_cmd.velocity;
 
     if (auto ret = transformer_->transform(tf.value(), vec)) {
-      cmd_out.velocity.x = ret.value().vector.x;
-      cmd_out.velocity.y = ret.value().vector.y;
-      cmd_out.velocity.z = ret.value().vector.z;
+      cmd_out.velocity = ret.value().vector;
     } else {
       return {};
     }
@@ -1227,14 +1223,10 @@ std::optional<mrs_msgs::PositionCommand> MrsTrajectoryGeneration::transformPosit
     geometry_msgs::Vector3Stamped vec;
     vec.header = position_cmd.header;
 
-    vec.vector.x = position_cmd.acceleration.x;
-    vec.vector.y = position_cmd.acceleration.y;
-    vec.vector.z = position_cmd.acceleration.z;
+    vec.vector = position_cmd.acceleration;
 
     if (auto ret = transformer_->transform(tf.value(), vec)) {
-      cmd_out.acceleration.x = ret.value().vector.x;
-      cmd_out.acceleration.y = ret.value().vector.y;
-      cmd_out.acceleration.z = ret.value().vector.z;
+      cmd_out.acceleration = ret.value().vector;
     } else {
       return {};
     }
@@ -1248,14 +1240,10 @@ std::optional<mrs_msgs::PositionCommand> MrsTrajectoryGeneration::transformPosit
     geometry_msgs::Vector3Stamped vec;
     vec.header = position_cmd.header;
 
-    vec.vector.x = position_cmd.jerk.x;
-    vec.vector.y = position_cmd.jerk.y;
-    vec.vector.z = position_cmd.jerk.z;
+    vec.vector = position_cmd.jerk;
 
     if (auto ret = transformer_->transform(tf.value(), vec)) {
-      cmd_out.jerk.x = ret.value().vector.x;
-      cmd_out.jerk.y = ret.value().vector.y;
-      cmd_out.jerk.z = ret.value().vector.z;
+      cmd_out.jerk = ret.value().vector;
     } else {
       return {};
     }
