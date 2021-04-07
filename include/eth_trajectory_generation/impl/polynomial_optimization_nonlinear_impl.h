@@ -662,8 +662,8 @@ double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeAndConstraints(
 }
 
 template <int _N>
-double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeConstraint(const std::vector<double>& segment_times, std::vector<double>& gradient,
-                                                                               void* data) {
+double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeConstraint([[maybe_unused]] const std::vector<double>& segment_times,
+                                                                               std::vector<double>& gradient, void* data) {
   CHECK(gradient.empty()) << "computing gradient not possible, choose a gradient-free method";
   ConstraintData*                     constraint_data   = static_cast<ConstraintData*>(data);  // wheee ...
   PolynomialOptimizationNonLinear<N>* optimization_data = constraint_data->this_object;
@@ -677,8 +677,8 @@ double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeConstraint(c
 }
 
 template <int _N>
-double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeAsSoftConstraint(const std::vector<std::shared_ptr<ConstraintData>>& inequality_constraints,
-                                                                                     double weight, double maximum_cost) const {
+double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeAsSoftConstraint(
+    [[maybe_unused]] const std::vector<std::shared_ptr<ConstraintData>>& inequality_constraints, double weight, double maximum_cost) const {
   std::vector<double> dummy;
   double              cost = 0;
 

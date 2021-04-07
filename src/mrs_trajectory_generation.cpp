@@ -413,7 +413,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   eth_trajectory_generation::Vertex::Vector vertices;
   const int                                 dimension = 4;
 
-  int derivative_to_optimize;
+  int derivative_to_optimize = eth_trajectory_generation::derivative_order::ACCELERATION;
+
   switch (params.derivative_to_optimize) {
     case 0: {
       derivative_to_optimize = eth_trajectory_generation::derivative_order::ACCELERATION;
