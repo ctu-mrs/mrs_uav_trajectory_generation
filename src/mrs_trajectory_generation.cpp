@@ -770,8 +770,8 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   bool path_from_future = false;
 
   // positive = in the future
-  double path_time_offset = (waypoints_header.stamp - ros::Time::now()).toSec() / 2.0;
-  int    path_sample_offset;
+  double path_time_offset   = (waypoints_header.stamp - ros::Time::now()).toSec() / 2.0;
+  int    path_sample_offset = 0;
 
   // if the desired path starts in the future, more than one MPC step ahead
   if (path_time_offset > 0.2) {
@@ -783,7 +783,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     // +1 is added due to the first sample, which was subtarcted
     path_sample_offset = int(ceil((path_time_offset - 0.01) / 0.2)) + 1;
 
-    if (path_sample_offset > (current_prediction.position.size() - 1)) {
+    if (path_sample_offset > (int(current_prediction.position.size()) - 1)) {
 
       ROS_ERROR("[MrsTrajectoryGeneration]: can not extrapolate into the waypoints, using position_cmd instead");
       initial_condition = position_cmd;
@@ -1334,7 +1334,7 @@ bool MrsTrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::R
   /* waypoints_header.stamp    = ros::Time::now(); */
   waypoints_header.frame_id = frame_id_;
 
-  bool                          success;
+  bool                          success = false;
   std::string                   message;
   mrs_msgs::TrajectoryReference trajectory;
 
@@ -1454,7 +1454,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
   auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
 
-  bool                          success;
+  bool                          success = false;
   std::string                   message;
   mrs_msgs::TrajectoryReference trajectory;
 
@@ -1574,7 +1574,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   override_max_velocity_     = req.path.override_max_velocity;
   override_max_acceleration_ = req.path.override_max_acceleration;
 
-  bool                          success;
+  bool                          success = false;
   std::string                   message;
   mrs_msgs::TrajectoryReference trajectory;
 
