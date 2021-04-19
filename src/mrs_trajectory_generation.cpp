@@ -833,8 +833,8 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   bw_final_.clearBuffers();
   bw_final_.clearVisuals();
 
-  bw_original_.setParentFrame(frame_id_);
-  bw_final_.setParentFrame(frame_id_);
+  bw_original_.setParentFrame(transformer_->resolveFrameName(frame_id_));
+  bw_final_.setParentFrame(transformer_->resolveFrameName(frame_id_));
 
   bw_original_.setPointsScale(0.4);
   bw_final_.setPointsScale(0.35);
