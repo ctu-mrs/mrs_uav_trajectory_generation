@@ -280,13 +280,11 @@ void MrsTrajectoryGeneration::onInit() {
 
   // | -------------------- batch visualizer -------------------- |
 
-  // TODO should be visualizer in the same frame as the data come in
   bw_original_ = mrs_lib::BatchVisualizer(nh_, "markers/original", "");
 
   bw_original_.clearBuffers();
   bw_original_.clearVisuals();
 
-  // TODO should be visualizer in the same frame as the data come in
   bw_final_ = mrs_lib::BatchVisualizer(nh_, "markers/final", "");
 
   bw_final_.clearBuffers();
