@@ -29,6 +29,9 @@
       <remap from="~position_cmd_in" to="control_manager/position_cmd" />
       <remap from="~prediction_full_state_in" to="control_manager/mpc_tracker/prediction_full_state" />
 
+      <!-- Publishers -->
+      <remap from="~original_path_out" to="~original_path" />
+
         <!-- Service servers -->
       <remap from="~test_in" to="~test" />
 

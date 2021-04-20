@@ -197,6 +197,10 @@ private:
   void                                             callbackDrs(mrs_uav_trajectory_generation::drsConfig& params, uint32_t level);
   DrsParams_t                                      params_;
   std::mutex                                       mutex_params_;
+
+  // | ------------ Republisher for the desired path ------------ |
+
+  ros::Publisher publisher_original_path_;
 };
 //}
 
@@ -209,6 +213,10 @@ void MrsTrajectoryGeneration::onInit() {
 
   /* waits for the ROS to publish clock */
   ros::Time::waitForValid();
+
+  // | ----------------------- publishers ----------------------- |
+
+  publisher_original_path_ = nh_.advertise<mrs_msgs::Path>("original_path_out", 1);
 
   // | ----------------------- subscribers ---------------------- |
 
@@ -1422,6 +1430,13 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
   ROS_INFO("[MrsTrajectoryGeneration]: got path from message");
 
+  try {
+    publisher_original_path_.publish(msg);
+  }
+  catch (...) {
+    ROS_ERROR("exception caught during publishing topic '%s'", publisher_original_path_.getTopic().c_str());
+  }
+
   std::vector<Waypoint_t> waypoints;
 
   for (size_t i = 0; i < msg->points.size(); i++) {
@@ -1542,6 +1557,13 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   //}
 
   ROS_INFO("[MrsTrajectoryGeneration]: got path from service");
+
+  try {
+    publisher_original_path_.publish(req.path);
+  }
+  catch (...) {
+    ROS_ERROR("exception caught during publishing topic '%s'", publisher_original_path_.getTopic().c_str());
+  }
 
   std::vector<Waypoint_t> waypoints;
 
