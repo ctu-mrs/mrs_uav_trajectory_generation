@@ -5,6 +5,10 @@ check_trajectory_deviation:
   max_iterations: 6 # [-]
   first_segment: true
 
+# Allows to neglect waypoints in the original path if the new path
+# does not violate max distance from the original path.
+# This makes for similar but sparser paths, which are easier for the
+# trajectory generator.
 path_straightener:
   enabled: true
   max_deviation: 0.2 # [m]
