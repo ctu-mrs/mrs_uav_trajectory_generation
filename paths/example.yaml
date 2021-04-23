@@ -12,3 +12,4 @@ path: [
 use_heading: true
 fly_now: false # tracker will fly it immediately after receiving
 stop_at_waypoints: false
+loop: false

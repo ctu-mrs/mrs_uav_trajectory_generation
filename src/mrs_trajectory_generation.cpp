@@ -101,6 +101,7 @@ private:
   bool        use_heading_;
   bool        stop_at_waypoints_;
   bool        override_constraints_ = false;
+  bool        loop_                 = false;
   double      override_max_velocity_;
   double      override_max_acceleration_;
 
@@ -244,6 +245,7 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam("frame_id", frame_id_);
   param_loader.loadParam("use_heading", use_heading_);
   param_loader.loadParam("stop_at_waypoints", stop_at_waypoints_);
+  param_loader.loadParam("loop", loop_);
 
   param_loader.loadParam("add_noise/enabled", _noise_enabled_);
   param_loader.loadParam("add_noise/max", _noise_max_);
@@ -451,22 +453,34 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     eth_trajectory_generation::Vertex vertex(dimension);
 
     if (i == 0) {
+
       vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
 
-      vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+      if (!loop_) {
 
-      vertex.addConstraint(eth_trajectory_generation::derivative_order::VELOCITY,
-                           Eigen::Vector4d(initial_state.velocity.x, initial_state.velocity.y, initial_state.velocity.z, initial_state.heading_rate));
+        vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
 
-      vertex.addConstraint(
-          eth_trajectory_generation::derivative_order::ACCELERATION,
-          Eigen::Vector4d(initial_state.acceleration.x, initial_state.acceleration.y, initial_state.acceleration.z, initial_state.heading_acceleration));
+        vertex.addConstraint(eth_trajectory_generation::derivative_order::VELOCITY,
+                             Eigen::Vector4d(initial_state.velocity.x, initial_state.velocity.y, initial_state.velocity.z, initial_state.heading_rate));
 
-      vertex.addConstraint(eth_trajectory_generation::derivative_order::JERK,
-                           Eigen::Vector4d(initial_state.jerk.x, initial_state.jerk.y, initial_state.jerk.z, initial_state.heading_jerk));
+        vertex.addConstraint(
+            eth_trajectory_generation::derivative_order::ACCELERATION,
+            Eigen::Vector4d(initial_state.acceleration.x, initial_state.acceleration.y, initial_state.acceleration.z, initial_state.heading_acceleration));
+
+        vertex.addConstraint(eth_trajectory_generation::derivative_order::JERK,
+                             Eigen::Vector4d(initial_state.jerk.x, initial_state.jerk.y, initial_state.jerk.z, initial_state.heading_jerk));
+      }
+
     } else if (i == (waypoints.size() - 1)) {  // the last point
-      vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
+
+      if (loop_) {
+        vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
+      } else {
+        vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+      }
+
     } else {  // mid points
+
       vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
       if (waypoints.at(i).stop_at) {
         vertex.addConstraint(eth_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector4d(0, 0, 0, 0));
@@ -1061,6 +1075,7 @@ mrs_msgs::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReference(co
   msg.header.frame_id = frame_id_;
   msg.header.stamp    = stamp;
   msg.fly_now         = fly_now_;
+  msg.loop            = loop_;
   msg.use_heading     = use_heading_;
   msg.dt              = sampling_dt;
 
@@ -1333,12 +1348,16 @@ bool MrsTrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::R
     waypoints.push_back(waypoint);
   }
 
+  if (loop_) {
+    waypoints.push_back(waypoints[0]);
+  }
+
   auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
   auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
 
   std_msgs::Header waypoints_header;
-  waypoints_header.stamp = ros::Time::now() + ros::Duration(2.0);
-  /* waypoints_header.stamp    = ros::Time::now(); */
+  /* waypoints_header.stamp = ros::Time::now() + ros::Duration(2.0); */
+  waypoints_header.stamp    = ros::Time::now();
   waypoints_header.frame_id = frame_id_;
 
   bool                          success = false;
@@ -1437,6 +1456,21 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     ROS_ERROR("exception caught during publishing topic '%s'", publisher_original_path_.getTopic().c_str());
   }
 
+  if (msg->points.empty()) {
+    std::stringstream ss;
+    ss << "received an empty message";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    return;
+  }
+
+  fly_now_                   = msg->fly_now;
+  use_heading_               = msg->use_heading;
+  frame_id_                  = msg->header.frame_id;
+  override_constraints_      = msg->override_constraints;
+  loop_                      = msg->loop;
+  override_max_velocity_     = msg->override_max_velocity;
+  override_max_acceleration_ = msg->override_max_acceleration;
+
   std::vector<Waypoint_t> waypoints;
 
   for (size_t i = 0; i < msg->points.size(); i++) {
@@ -1458,12 +1492,9 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     waypoints.push_back(wp);
   }
 
-  fly_now_                   = msg->fly_now;
-  use_heading_               = msg->use_heading;
-  frame_id_                  = msg->header.frame_id;
-  override_constraints_      = msg->override_constraints;
-  override_max_velocity_     = msg->override_max_velocity;
-  override_max_acceleration_ = msg->override_max_acceleration;
+  if (loop_) {
+    waypoints.push_back(waypoints[0]);
+  }
 
   auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
   auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
@@ -1565,6 +1596,24 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     ROS_ERROR("exception caught during publishing topic '%s'", publisher_original_path_.getTopic().c_str());
   }
 
+  if (req.path.points.empty()) {
+    std::stringstream ss;
+    ss << "received an empty message";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+
+    res.message = ss.str();
+    res.success = false;
+    return true;
+  }
+
+  fly_now_                   = req.path.fly_now;
+  use_heading_               = req.path.use_heading;
+  frame_id_                  = req.path.header.frame_id;
+  override_constraints_      = req.path.override_constraints;
+  loop_                      = req.path.loop;
+  override_max_velocity_     = req.path.override_max_velocity;
+  override_max_acceleration_ = req.path.override_max_acceleration;
+
   std::vector<Waypoint_t> waypoints;
 
   for (size_t i = 0; i < req.path.points.size(); i++) {
@@ -1588,12 +1637,9 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     waypoints.push_back(wp);
   }
 
-  fly_now_                   = req.path.fly_now;
-  use_heading_               = req.path.use_heading;
-  frame_id_                  = req.path.header.frame_id;
-  override_constraints_      = req.path.override_constraints;
-  override_max_velocity_     = req.path.override_max_velocity;
-  override_max_acceleration_ = req.path.override_max_acceleration;
+  if (loop_) {
+    waypoints.push_back(waypoints[0]);
+  }
 
   bool                          success = false;
   std::string                   message;
