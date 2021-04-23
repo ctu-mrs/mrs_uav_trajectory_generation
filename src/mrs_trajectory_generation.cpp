@@ -176,7 +176,7 @@ private:
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectoryFallback(const std::vector<Waypoint_t>&   waypoints,
                                                                                    const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt);
 
-  std::vector<Waypoint_t> preprocessTrajectory(const std::vector<Waypoint_t>& waypoints_in);
+  std::vector<Waypoint_t> preprocessPath(const std::vector<Waypoint_t>& waypoints_in);
 
   mrs_msgs::TrajectoryReference getTrajectoryReference(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const ros::Time& stamp,
                                                        const double& sampling_dt);
@@ -456,6 +456,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
       vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
 
+      vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+
       vertex.addConstraint(eth_trajectory_generation::derivative_order::VELOCITY,
                            Eigen::Vector4d(initial_state.velocity.x, initial_state.velocity.y, initial_state.velocity.z, initial_state.heading_rate));
 
@@ -469,6 +471,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     } else if (i == (waypoints.size() - 1)) {  // the last point
 
       vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
+
+      vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
 
     } else {  // mid points
 
@@ -711,9 +715,9 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
 //}
 
-/* preprocessTrajectory() //{ */
+/* preprocessPath() //{ */
 
-std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessTrajectory(const std::vector<Waypoint_t>& waypoints_in) {
+std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessPath(const std::vector<Waypoint_t>& waypoints_in) {
 
   std::vector<Waypoint_t> waypoints;
 
@@ -749,6 +753,17 @@ std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessTrajectory(const std:
       }
 
       if (segment_is_ok) {
+        continue;
+      }
+    }
+
+    if (i > 0 && i < (waypoints_in.size() - 1)) {
+
+      vec3_t first(waypoints_in.at(last_added_idx).coords[0], waypoints_in.at(last_added_idx).coords[1], waypoints_in.at(last_added_idx).coords[2]);
+      vec3_t last(waypoints_in.at(i).coords[0], waypoints_in.at(i).coords[1], waypoints_in.at(i).coords[2]);
+
+      if (mrs_lib::geometry::dist(first, last) < 0.03) {
+        ROS_INFO("[MrsTrajectoryGeneration]: waypoint %d too close to the last one (%d), throwing it away", int(i), int(last_added_idx));
         continue;
       }
     }
@@ -868,7 +883,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   initial_waypoint.stop_at = false;
   waypoints_in_with_init.insert(waypoints_in_with_init.begin(), initial_waypoint);
 
-  std::vector<Waypoint_t> waypoints = preprocessTrajectory(waypoints_in_with_init);
+  std::vector<Waypoint_t> waypoints = preprocessPath(waypoints_in_with_init);
 
   if (waypoints.size() <= 1) {
     std::stringstream ss;
