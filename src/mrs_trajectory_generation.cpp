@@ -1627,10 +1627,6 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     waypoints.push_back(wp);
   }
 
-  if (loop_) {
-    waypoints.push_back(waypoints[0]);
-  }
-
   bool                          success = false;
   std::string                   message;
   mrs_msgs::TrajectoryReference trajectory;
