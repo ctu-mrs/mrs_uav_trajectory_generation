@@ -456,32 +456,24 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
       vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
 
-      if (!loop_) {
+      vertex.addConstraint(eth_trajectory_generation::derivative_order::VELOCITY,
+                           Eigen::Vector4d(initial_state.velocity.x, initial_state.velocity.y, initial_state.velocity.z, initial_state.heading_rate));
 
-        vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+      vertex.addConstraint(
+          eth_trajectory_generation::derivative_order::ACCELERATION,
+          Eigen::Vector4d(initial_state.acceleration.x, initial_state.acceleration.y, initial_state.acceleration.z, initial_state.heading_acceleration));
 
-        vertex.addConstraint(eth_trajectory_generation::derivative_order::VELOCITY,
-                             Eigen::Vector4d(initial_state.velocity.x, initial_state.velocity.y, initial_state.velocity.z, initial_state.heading_rate));
-
-        vertex.addConstraint(
-            eth_trajectory_generation::derivative_order::ACCELERATION,
-            Eigen::Vector4d(initial_state.acceleration.x, initial_state.acceleration.y, initial_state.acceleration.z, initial_state.heading_acceleration));
-
-        vertex.addConstraint(eth_trajectory_generation::derivative_order::JERK,
-                             Eigen::Vector4d(initial_state.jerk.x, initial_state.jerk.y, initial_state.jerk.z, initial_state.heading_jerk));
-      }
+      vertex.addConstraint(eth_trajectory_generation::derivative_order::JERK,
+                           Eigen::Vector4d(initial_state.jerk.x, initial_state.jerk.y, initial_state.jerk.z, initial_state.heading_jerk));
 
     } else if (i == (waypoints.size() - 1)) {  // the last point
 
-      if (loop_) {
-        vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
-      } else {
-        vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
-      }
+      vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
 
     } else {  // mid points
 
       vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
+
       if (waypoints.at(i).stop_at) {
         vertex.addConstraint(eth_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector4d(0, 0, 0, 0));
       }
@@ -875,6 +867,10 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
       Eigen::Vector4d(initial_condition.position.x, initial_condition.position.y, initial_condition.position.z, initial_condition.heading);
   initial_waypoint.stop_at = false;
   waypoints_in_with_init.insert(waypoints_in_with_init.begin(), initial_waypoint);
+
+  if (loop_) {
+    waypoints_in_with_init.push_back(initial_waypoint);
+  }
 
   std::vector<Waypoint_t> waypoints = preprocessTrajectory(waypoints_in_with_init);
 
@@ -1348,10 +1344,6 @@ bool MrsTrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::R
     waypoints.push_back(waypoint);
   }
 
-  if (loop_) {
-    waypoints.push_back(waypoints[0]);
-  }
-
   auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
   auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
 
@@ -1470,6 +1462,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   loop_                      = msg->loop;
   override_max_velocity_     = msg->override_max_velocity;
   override_max_acceleration_ = msg->override_max_acceleration;
+  stop_at_waypoints_         = msg->stop_at_waypoints;
 
   std::vector<Waypoint_t> waypoints;
 
@@ -1490,10 +1483,6 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     }
 
     waypoints.push_back(wp);
-  }
-
-  if (loop_) {
-    waypoints.push_back(waypoints[0]);
   }
 
   auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
@@ -1613,6 +1602,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   loop_                      = req.path.loop;
   override_max_velocity_     = req.path.override_max_velocity;
   override_max_acceleration_ = req.path.override_max_acceleration;
+  stop_at_waypoints_         = req.path.stop_at_waypoints;
 
   std::vector<Waypoint_t> waypoints;
 

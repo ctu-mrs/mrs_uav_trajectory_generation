@@ -1,4 +1,5 @@
 frame_id: "uav1/gps_origin"
+stamp: 0
 
 path: [
   # x, y, z, heading
