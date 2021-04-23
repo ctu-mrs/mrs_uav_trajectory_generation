@@ -3,15 +3,15 @@ check_trajectory_deviation:
   enabled: true
   max_deviation: 0.05 # [m]
   max_iterations: 6 # [-]
-  first_segment: false
+  first_segment: true
 
 # Allows to neglect waypoints in the original path if the new path
 # does not violate max distance from the original path.
 # This makes for similar but sparser paths, which are easier for the
 # trajectory generator to work with.
 path_straightener:
-  enabled: false
-  max_deviation: 0.1 # [m]
+  enabled: true
+  max_deviation: 0.01 # [m]
 
 # sampling dt of the output trajectory
 sampling_dt: 0.01 # [s]

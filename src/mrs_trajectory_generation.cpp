@@ -868,10 +868,6 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   initial_waypoint.stop_at = false;
   waypoints_in_with_init.insert(waypoints_in_with_init.begin(), initial_waypoint);
 
-  if (loop_) {
-    waypoints_in_with_init.push_back(initial_waypoint);
-  }
-
   std::vector<Waypoint_t> waypoints = preprocessTrajectory(waypoints_in_with_init);
 
   if (waypoints.size() <= 1) {
@@ -1272,7 +1268,6 @@ std::optional<mrs_msgs::PositionCommand> MrsTrajectoryGeneration::transformPosit
   /* heading derivatives //{ */
 
   // this does not need to be transformed
-  cmd_out.heading              = position_cmd.heading;
   cmd_out.heading_rate         = position_cmd.heading_rate;
   cmd_out.heading_acceleration = position_cmd.heading_acceleration;
   cmd_out.heading_jerk         = position_cmd.heading_jerk;
@@ -1342,6 +1337,10 @@ bool MrsTrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::R
     waypoint.stop_at = stop_at_waypoints_;
 
     waypoints.push_back(waypoint);
+  }
+
+  if (loop_) {
+    waypoints.push_back(waypoints[0]);
   }
 
   auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
@@ -1485,6 +1484,10 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     waypoints.push_back(wp);
   }
 
+  if (loop_) {
+    waypoints.push_back(waypoints[0]);
+  }
+
   auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
   auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
 
@@ -1625,6 +1628,10 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     }
 
     waypoints.push_back(wp);
+  }
+
+  if (loop_) {
+    waypoints.push_back(waypoints[0]);
   }
 
   bool                          success = false;
