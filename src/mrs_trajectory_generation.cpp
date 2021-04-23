@@ -997,7 +997,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
       }
     }
 
-    mrs_trajectory.header.stamp = ros::Time::now();
+    mrs_trajectory.header.stamp = current_prediction.header.stamp;
   }
 
   bw_original_.publish();
