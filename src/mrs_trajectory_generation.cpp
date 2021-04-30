@@ -1,7 +1,5 @@
 /* includes //{ */
 
-#include "geometry_msgs/Vector3Stamped.h"
-#include "mrs_msgs/Reference.h"
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <nodelet/nodelet.h>
@@ -11,11 +9,14 @@
 
 #include <std_srvs/Trigger.h>
 
+#include <geometry_msgs/Vector3Stamped.h>
+
 #include <mrs_msgs/DynamicsConstraints.h>
 #include <mrs_msgs/Path.h>
 #include <mrs_msgs/PathSrv.h>
 #include <mrs_msgs/PositionCommand.h>
 #include <mrs_msgs/MpcPredictionFullState.h>
+#include <mrs_msgs/Reference.h>
 
 #include <eth_trajectory_generation/impl/polynomial_optimization_nonlinear_impl.h>
 #include <eth_trajectory_generation/trajectory.h>
