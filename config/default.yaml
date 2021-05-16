@@ -11,7 +11,7 @@ check_trajectory_deviation:
 # trajectory generator to work with.
 path_straightener:
   enabled: true
-  max_deviation: 0.01 # [m]
+  max_deviation: 0.05 # [m]
 
 # sampling dt of the output trajectory
 sampling_dt: 0.01 # [s]
