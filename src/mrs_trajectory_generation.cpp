@@ -799,7 +799,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   bool path_from_future = false;
 
   // positive = in the future
-  double path_time_offset   = (waypoints_header.stamp - ros::Time::now()).toSec() / 2.0;
+  double path_time_offset   = (waypoints_header.stamp - ros::Time::now()).toSec();
   int    path_sample_offset = 0;
 
   // if the desired path starts in the future, more than one MPC step ahead
@@ -810,7 +810,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     // calculate the offset in samples in the predicted trajectory
     // 0.01 is subtracted for the first sample, which is smaller
     // +1 is added due to the first sample, which was subtarcted
-    path_sample_offset = int(ceil((path_time_offset - 0.01) / 0.2)) + 1;
+    path_sample_offset = int(ceil((path_time_offset/2.0 - 0.01) / 0.2)) + 1;
 
     if (path_sample_offset > (int(current_prediction.position.size()) - 1)) {
 
