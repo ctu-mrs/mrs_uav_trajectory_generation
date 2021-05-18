@@ -1716,9 +1716,9 @@ void MrsTrajectoryGeneration::callbackConstraints(const mrs_msgs::DynamicsConstr
 
   ROS_INFO_ONCE("[MrsTrajectoryGeneration]: got constraints");
 
-  got_constraints_ = true;
-
   mrs_lib::set_mutexed(mutex_constraints_, *msg, constraints_);
+
+  got_constraints_ = true;
 }
 
 //}
