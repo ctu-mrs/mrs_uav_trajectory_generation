@@ -66,6 +66,9 @@ struct NonlinearOptimizationParameters
   // Maximum number of iterations. Disabled if negative.
   int max_iterations = 3000;
 
+  // max execution time in secs
+  double max_time = 1.0;
+
   // Penalty for the segment time.
   double time_penalty = 500.0;
 

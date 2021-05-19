@@ -1,3 +1,9 @@
+# time limiter
+# ideally, the execution time for one path should not exceed this, however, in practice
+# there is some unpredictable overhead in ETH trajectory sampling. Therefore, I recommend
+# to set this to 66% of your desired max execution time.
+max_time: 0.5 # [s]
+
 # check and fix the max deviation between the input path and the output trajectory
 check_trajectory_deviation:
   enabled: true

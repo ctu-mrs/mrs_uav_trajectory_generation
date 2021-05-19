@@ -204,7 +204,15 @@ private:
   // | ------------ Republisher for the desired path ------------ |
 
   ros::Publisher publisher_original_path_;
+
+  // | ------------- measuring the time of execution ------------ |
+
+  ros::Time  start_time_total_;
+  std::mutex mutex_start_time_total_;
+  bool       overtime(void);
+  double     timeLeft(void);
 };
+
 //}
 
 /* onInit() //{ */
@@ -283,6 +291,7 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam("equality_constraint_tolerance", params_.equality_constraint_tolerance);
   param_loader.loadParam("inequality_constraint_tolerance", params_.inequality_constraint_tolerance);
   param_loader.loadParam("max_iterations", params_.max_iterations);
+  param_loader.loadParam("max_time", params_.max_time);
   param_loader.loadParam("derivative_to_optimize", params_.derivative_to_optimize);
 
   if (!param_loader.loadedSuccessfully()) {
@@ -397,7 +406,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   ROS_DEBUG("[MrsTrajectoryGeneration]: planning");
 
-  ros::Time time_start = ros::Time::now();
+  ros::Time find_trajectory_time_start = ros::Time::now();
 
   auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
   auto constraints = mrs_lib::get_mutexed(mutex_constraints_, constraints_);
@@ -419,6 +428,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   parameters.inequality_constraint_tolerance = params.inequality_constraint_tolerance;
   parameters.equality_constraint_tolerance   = params.equality_constraint_tolerance;
   parameters.max_iterations                  = params.max_iterations;
+  parameters.max_time                        = timeLeft();
 
   eth_trajectory_generation::Vertex::Vector vertices;
   const int                                 dimension = 4;
@@ -579,7 +589,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     }
   }
 
-  if (opt.getOptimizationInfo().stopping_reason >= 1) {
+  if (opt.getOptimizationInfo().stopping_reason >= 1 && opt.getOptimizationInfo().stopping_reason != 6) {
 
     ROS_DEBUG("[MrsTrajectoryGeneration]: optimization finished successfully with code %d, '%s'", opt.getOptimizationInfo().stopping_reason,
               result_str.c_str());
@@ -591,7 +601,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   } else {
 
-    ROS_ERROR("[MrsTrajectoryGeneration]: optimization failed with code %d, '%s'", opt.getOptimizationInfo().stopping_reason, result_str.c_str());
+    ROS_ERROR("[MrsTrajectoryGeneration]: optimization failed with code %d, '%s', took %.3f s", opt.getOptimizationInfo().stopping_reason, result_str.c_str(),
+              (ros::Time::now() - find_trajectory_time_start).toSec());
     return {};
   }
 
@@ -637,10 +648,10 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   }
 
   if (success) {
-    ROS_DEBUG("[MrsTrajectoryGeneration]: eth sampling finished, took %.2f s", (ros::Time::now() - time_start).toSec());
+    ROS_DEBUG("[MrsTrajectoryGeneration]: eth sampling finished, took %.3f s", (ros::Time::now() - find_trajectory_time_start).toSec());
     return std::optional(states);
   } else {
-    ROS_ERROR("[MrsTrajectoryGeneration]: eth could not sample the trajectory");
+    ROS_ERROR("[MrsTrajectoryGeneration]: eth could not sample the trajectory, took %.3f s", (ros::Time::now() - find_trajectory_time_start).toSec());
     return {};
   }
 }
@@ -728,9 +739,9 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     int    n_samples;
     double interp_step;
 
-    ROS_DEBUG("[MrsTrajectoryGeneration]: interpolating segment %d [%.2f %.2f %.2f %.2f] -> [%.2f %.2f %.2f %.2f], baca time %.2f s", int(i),
-              waypoints[i].coords[0], waypoints[i].coords[1], waypoints[i].coords[2], waypoints[i].coords[3], waypoints[i + 1].coords[0],
-              waypoints[i + 1].coords[1], waypoints[i + 1].coords[2], waypoints[i + 1].coords[3], segment_time);
+    /* ROS_DEBUG("[MrsTrajectoryGeneration]: interpolating segment %d [%.2f %.2f %.2f %.2f] -> [%.2f %.2f %.2f %.2f], baca time %.2f s", int(i), */
+    /*           waypoints[i].coords[0], waypoints[i].coords[1], waypoints[i].coords[2], waypoints[i].coords[3], waypoints[i + 1].coords[0], */
+    /*           waypoints[i + 1].coords[1], waypoints[i + 1].coords[2], waypoints[i + 1].coords[3], segment_time); */
 
     if (segment_time > 1e-1) {
 
@@ -746,14 +757,14 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     } else {
       n_samples   = 0;
       interp_step = 0;
-      ROS_WARN_THROTTLE(1.0, "[MrsTrajectoryGeneration]: Fallback: special case, segment too short");
+      /* ROS_WARN_THROTTLE(1.0, "[MrsTrajectoryGeneration]: Fallback: special case, segment too short"); */
     }
 
     for (int j = 0; j <= n_samples; j++) {
 
       Waypoint_t point = interpolatePoint(waypoints[i], waypoints[i + 1], j * interp_step);
 
-      ROS_DEBUG_STREAM("[MrsTrajectoryGeneration]: sample " << j << " " << point.coords.transpose());
+      /* ROS_DEBUG_STREAM("[MrsTrajectoryGeneration]: sample " << j << " " << point.coords.transpose()); */
 
       eth_mav_msgs::EigenTrajectoryPoint eth_point;
       eth_point.position_W[0] = point.coords[0];
@@ -762,6 +773,24 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
       eth_point.setFromYaw(point.coords[3]);
 
       states.push_back(eth_point);
+
+      if (i == 0 && j == 0) {
+
+        double time_to_stop = fabs(initial_state.velocity.x) / constraints.horizontal_acceleration +
+                              fabs(initial_state.velocity.y) / constraints.horizontal_acceleration +
+                              fabs(initial_state.velocity.z) / constraints.vertical_descending_acceleration;
+
+        time_to_stop += fabs(initial_state.acceleration.x) / constraints.horizontal_jerk + fabs(initial_state.acceleration.y) / constraints.horizontal_jerk +
+                        fabs(initial_state.acceleration.z) / constraints.vertical_descending_jerk;
+
+        int samples_to_stop = int(round(1.5 * (time_to_stop / sampling_dt)));
+
+        ROS_INFO("[MrsTrajectoryGeneration]: pre-inserting %d samples of the first point", samples_to_stop);
+
+        for (int k = 0; k < samples_to_stop; k++) {
+          states.push_back(eth_point);
+        }
+      }
     }
   }
 
@@ -855,7 +884,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
                                                                                                const mrs_msgs::MpcPredictionFullState& current_prediction,
                                                                                                const bool                              fallback_sampling) {
 
-  ros::Time time_start = ros::Time::now();
+  ros::Time optimize_time_start = ros::Time::now();
 
   // | ------------- prepare the initial conditions ------------- |
 
@@ -884,7 +913,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
     } else {
 
-      ROS_INFO("[MrsTrajectoryGeneration]: getting intiial condition from the %d-th sample of the MPC prediction", path_sample_offset);
+      ROS_INFO("[MrsTrajectoryGeneration]: getting initial condition from the %d-th sample of the MPC prediction", path_sample_offset);
 
       initial_condition.header.stamp    = current_prediction.header.stamp + ros::Duration(0.01 + 0.2 * path_sample_offset);
       initial_condition.header.frame_id = current_prediction.header.frame_id;
@@ -976,7 +1005,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> result;
 
-  if (!fallback_sampling) {
+  if (!fallback_sampling && !overtime()) {
     result = findTrajectory(waypoints, initial_condition, sampling_dt);
   } else {
     result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt);
@@ -1017,7 +1046,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
         safeness++;
       }
 
-      if (!fallback_sampling) {
+      if (!fallback_sampling && !overtime()) {
         result = findTrajectory(waypoints, initial_condition, sampling_dt);
       } else {
         result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt);
@@ -1087,7 +1116,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   std::stringstream ss;
   ss << "trajectory generated";
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: trajectory generated, took %.2f s", (ros::Time::now() - time_start).toSec());
+  ROS_DEBUG("[MrsTrajectoryGeneration]: trajectory generated, took %.3f s", (ros::Time::now() - optimize_time_start).toSec());
 
   return std::tuple(true, ss.str(), mrs_trajectory);
 }
@@ -1360,6 +1389,38 @@ std::optional<mrs_msgs::PositionCommand> MrsTrajectoryGeneration::transformPosit
 
 //}
 
+/* overtime() //{ */
+
+bool MrsTrajectoryGeneration::overtime(void) {
+
+  auto start_time_total = mrs_lib::get_mutexed(mutex_start_time_total_, start_time_total_);
+  auto params           = mrs_lib::get_mutexed(mutex_params_, params_);
+
+  if ((ros::Time::now() - start_time_total).toSec() > params.max_time) {
+    return true;
+  }
+
+  return false;
+}
+
+//}
+
+/* timeLeft() //{ */
+
+double MrsTrajectoryGeneration::timeLeft(void) {
+
+  auto start_time_total = mrs_lib::get_mutexed(mutex_start_time_total_, start_time_total_);
+  auto params           = mrs_lib::get_mutexed(mutex_params_, params_);
+
+  if ((ros::Time::now() - start_time_total).toSec() >= params.max_time) {
+    return 0;
+  } else {
+    return params.max_time - (ros::Time::now() - start_time_total).toSec();
+  }
+}
+
+//}
+
 // | ------------------------ callbacks ----------------------- |
 
 /* callbackTest() //{ */
@@ -1519,6 +1580,12 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
   //}
 
+  {
+    std::scoped_lock lock(mutex_start_time_total_);
+
+    start_time_total_ = ros::Time::now();
+  }
+
   ROS_INFO("[MrsTrajectoryGeneration]: got path from message");
 
   try {
@@ -1614,6 +1681,8 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
     ROS_INFO("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, no publishing a result");
   }
+
+  ROS_INFO("[MrsTrajectoryGeneration]: callback finished, took %.3f s in total", (ros::Time::now() - start_time_total_).toSec());
 }
 
 //}
@@ -1659,6 +1728,12 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   }
 
   //}
+
+  {
+    std::scoped_lock lock(mutex_start_time_total_);
+
+    start_time_total_ = ros::Time::now();
+  }
 
   ROS_INFO("[MrsTrajectoryGeneration]: got path from service");
 
@@ -1765,6 +1840,9 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     res.success = success;
     res.message = message;
   }
+
+
+  ROS_INFO("[MrsTrajectoryGeneration]: callback finished, took %.3f s in total", (ros::Time::now() - start_time_total_).toSec());
 
   return true;
 }

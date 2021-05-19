@@ -71,6 +71,7 @@ bool PolynomialOptimizationNonLinear<_N>::setupFromVertices(const Vertex::Vector
   nlopt_->set_xtol_rel(optimization_parameters_.x_rel);
   nlopt_->set_xtol_abs(optimization_parameters_.x_abs);
   nlopt_->set_maxeval(optimization_parameters_.max_iterations);
+  nlopt_->set_maxtime(optimization_parameters_.max_time);
 
   if (optimization_parameters_.random_seed < 0)
     nlopt_srand_time();
