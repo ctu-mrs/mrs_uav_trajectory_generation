@@ -1,5 +1,6 @@
 /* includes //{ */
 
+#include "nlopt.hpp"
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <nodelet/nodelet.h>
@@ -528,7 +529,71 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   opt.addMaximumMagnitudeConstraint(eth_trajectory_generation::derivative_order::JERK, j_max);
   opt.optimize();
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: eth optimization finished");
+  std::string result_str;
+
+  switch (opt.getOptimizationInfo().stopping_reason) {
+
+    case nlopt::FAILURE: {
+      result_str = "generic failure";
+      break;
+    }
+    case nlopt::INVALID_ARGS: {
+      result_str = "invalid args";
+      break;
+    }
+    case nlopt::OUT_OF_MEMORY: {
+      result_str = "out of memory";
+      break;
+    }
+    case nlopt::ROUNDOFF_LIMITED: {
+      result_str = "roundoff limited";
+      break;
+    }
+    case nlopt::FORCED_STOP: {
+      result_str = "forced stop";
+      break;
+    }
+    case nlopt::STOPVAL_REACHED: {
+      result_str = "stopval reached";
+      break;
+    }
+    case nlopt::FTOL_REACHED: {
+      result_str = "ftol reached";
+      break;
+    }
+    case nlopt::XTOL_REACHED: {
+      result_str = "xtol reached";
+      break;
+    }
+    case nlopt::MAXEVAL_REACHED: {
+      result_str = "maxeval reached";
+      break;
+    }
+    case nlopt::MAXTIME_REACHED: {
+      result_str = "maxtime reached";
+      break;
+    }
+    default: {
+      result_str = "UNKNOWN FAILURE CODE";
+      break;
+    }
+  }
+
+  if (opt.getOptimizationInfo().stopping_reason >= 1) {
+
+    ROS_DEBUG("[MrsTrajectoryGeneration]: optimization finished successfully with code %d, '%s'", opt.getOptimizationInfo().stopping_reason,
+              result_str.c_str());
+
+  } else if (opt.getOptimizationInfo().stopping_reason == -1) {
+
+    ROS_DEBUG("[MrsTrajectoryGeneration]: optimization finished with a generic error code %d, '%s'", opt.getOptimizationInfo().stopping_reason,
+              result_str.c_str());
+
+  } else {
+
+    ROS_ERROR("[MrsTrajectoryGeneration]: optimization failed with code %d, '%s'", opt.getOptimizationInfo().stopping_reason, result_str.c_str());
+    return {};
+  }
 
   // | ------------- obtain the polynomial segments ------------- |
 
@@ -763,7 +828,7 @@ std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessPath(const std::vecto
       vec3_t first(waypoints_in.at(last_added_idx).coords[0], waypoints_in.at(last_added_idx).coords[1], waypoints_in.at(last_added_idx).coords[2]);
       vec3_t last(waypoints_in.at(i).coords[0], waypoints_in.at(i).coords[1], waypoints_in.at(i).coords[2]);
 
-      if (mrs_lib::geometry::dist(first, last) < 0.03) {
+      if (mrs_lib::geometry::dist(first, last) < 0.05) {
         ROS_INFO("[MrsTrajectoryGeneration]: waypoint %d too close to the last one (%d), throwing it away", int(i), int(last_added_idx));
         continue;
       }
@@ -810,7 +875,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     // calculate the offset in samples in the predicted trajectory
     // 0.01 is subtracted for the first sample, which is smaller
     // +1 is added due to the first sample, which was subtarcted
-    path_sample_offset = int(ceil((path_time_offset/2.0 - 0.01) / 0.2)) + 1;
+    path_sample_offset = int(ceil((path_time_offset / 2.0 - 0.01) / 0.2)) + 1;
 
     if (path_sample_offset > (int(current_prediction.position.size()) - 1)) {
 
