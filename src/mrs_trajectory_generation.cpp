@@ -1,6 +1,5 @@
 /* includes //{ */
 
-#include "nlopt.hpp"
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <nodelet/nodelet.h>
@@ -99,21 +98,17 @@ private:
   // | -------- variable parameters (come with the path) -------- |
 
   std::string frame_id_;
-  bool        fly_now_;
-  bool        use_heading_;
-  bool        stop_at_waypoints_;
-  bool        override_constraints_ = false;
-  bool        loop_                 = false;
-  double      override_max_velocity_;
-  double      override_max_acceleration_;
+  bool        fly_now_                   = false;
+  bool        use_heading_               = false;
+  bool        stop_at_waypoints_         = false;
+  bool        override_constraints_      = false;
+  bool        loop_                      = false;
+  double      override_max_velocity_     = false;
+  double      override_max_acceleration_ = false;
 
   // | -------------------- the transformer  -------------------- |
 
   std::shared_ptr<mrs_lib::Transformer> transformer_;
-
-  // service client for testing
-  bool               callbackTest(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
-  ros::ServiceServer service_server_test_;
 
   // service client for input
   bool               callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_msgs::PathSrv::Response& res);
@@ -239,7 +234,6 @@ void MrsTrajectoryGeneration::onInit() {
 
   // | --------------------- service servers -------------------- |
 
-  service_server_test_ = nh_.advertiseService("test_in", &MrsTrajectoryGeneration::callbackTest, this);
   service_server_path_ = nh_.advertiseService("path_in", &MrsTrajectoryGeneration::callbackPathSrv, this);
 
   service_client_trajectory_reference_ = nh_.serviceClient<mrs_msgs::TrajectoryReferenceSrv>("trajectory_reference_out");
@@ -251,11 +245,6 @@ void MrsTrajectoryGeneration::onInit() {
   _yaml_path_ = param_loader.loadMatrixDynamic2("path", -1, 4);
 
   param_loader.loadParam("uav_name", _uav_name_);
-  param_loader.loadParam("fly_now", fly_now_);
-  param_loader.loadParam("frame_id", frame_id_);
-  param_loader.loadParam("use_heading", use_heading_);
-  param_loader.loadParam("stop_at_waypoints", stop_at_waypoints_);
-  param_loader.loadParam("loop", loop_);
 
   param_loader.loadParam("add_noise/enabled", _noise_enabled_);
   param_loader.loadParam("add_noise/max", _noise_max_);
@@ -1423,130 +1412,6 @@ double MrsTrajectoryGeneration::timeLeft(void) {
 
 // | ------------------------ callbacks ----------------------- |
 
-/* callbackTest() //{ */
-
-bool MrsTrajectoryGeneration::callbackTest([[maybe_unused]] std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res) {
-
-  if (!is_initialized_) {
-    return false;
-  }
-
-  /* preconditions //{ */
-
-  if (!got_constraints_) {
-    std::stringstream ss;
-    ss << "missing constraints";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
-    res.success = false;
-    res.message = ss.str();
-
-    return true;
-  }
-
-  if (!got_position_cmd_) {
-    std::stringstream ss;
-    ss << "missing position cmd";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
-    res.success = false;
-    res.message = ss.str();
-
-    return true;
-  }
-
-  if (!got_prediction_full_state_) {
-    std::stringstream ss;
-    ss << "missing full-state prediction";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
-    res.success = false;
-    res.message = ss.str();
-
-    return true;
-  }
-
-  //}
-
-  std::vector<Waypoint_t> waypoints;
-
-  for (int i = 0; i < _yaml_path_.rows(); i++) {
-
-    double x       = _yaml_path_(i, 0) + randd(-_noise_max_, _noise_max_);
-    double y       = _yaml_path_(i, 1) + randd(-_noise_max_, _noise_max_);
-    double z       = _yaml_path_(i, 2) + randd(-_noise_max_, _noise_max_);
-    double heading = _yaml_path_(i, 3);
-
-    Waypoint_t waypoint;
-    waypoint.coords  = Eigen::Vector4d(x, y, z, heading);
-    waypoint.stop_at = stop_at_waypoints_;
-
-    waypoints.push_back(waypoint);
-  }
-
-  if (loop_) {
-    waypoints.push_back(waypoints[0]);
-  }
-
-  auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
-  auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
-
-  std_msgs::Header waypoints_header;
-  /* waypoints_header.stamp = ros::Time::now() + ros::Duration(2.0); */
-  waypoints_header.stamp    = ros::Time::now();
-  waypoints_header.frame_id = frame_id_;
-
-  bool                          success = false;
-  std::string                   message;
-  mrs_msgs::TrajectoryReference trajectory;
-
-  for (int i = 0; i < _n_attempts_; i++) {
-
-    auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
-    auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
-
-    // the last iteration and the fallback sampling is enabled
-    bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
-
-    std::tie(success, message, trajectory) = optimize(waypoints, waypoints_header, position_cmd, prediction_full_state_, fallback_sampling);
-
-    if (success) {
-      break;
-    } else {
-      if (i < _n_attempts_) {
-        ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
-      } else {
-        ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
-      }
-    }
-  }
-
-  if (success) {
-
-    bool published = trajectorySrv(trajectory);
-
-    if (published) {
-
-      res.success = success;
-      res.message = message;
-
-    } else {
-
-      std::stringstream ss;
-      ss << "could not publish the trajectory";
-
-      res.success = false;
-      res.message = ss.str();
-    }
-
-  } else {
-
-    res.success = success;
-    res.message = message;
-  }
-
-  return true;
-}
-
-//}
-
 /* callbackPath() //{ */
 
 void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
@@ -1907,17 +1772,6 @@ void MrsTrajectoryGeneration::callbackPredictionFullState(const mrs_msgs::MpcPre
 void MrsTrajectoryGeneration::callbackDrs(mrs_uav_trajectory_generation::drsConfig& params, [[maybe_unused]] uint32_t level) {
 
   mrs_lib::set_mutexed(mutex_params_, params, params_);
-
-  if (params.test) {
-    params.test = false;
-
-    drs_->updateConfig(params_);
-
-    std_srvs::Trigger::Request  req;
-    std_srvs::Trigger::Response res;
-
-    callbackTest(req, res);
-  }
 
   ROS_INFO("[MrsTrajectoryGeneration]: DRS updated");
 }
