@@ -7,7 +7,6 @@ check_trajectory_deviation:
   enabled: true
   max_deviation: 0.05 # [m]
   max_iterations: 6 # [-]
-  first_segment: true
 
 # allows to neglect waypoints in the original path if the new path
 # does not violate max distance from the original path.
@@ -16,6 +15,7 @@ check_trajectory_deviation:
 path_straightener:
   enabled: true
   max_deviation: 0.05 # [m]
+  max_hdg_deviation: 0.1 # [rad]
 
 # waypoints too close to each other cause issues in the optimization
 # the incoming path is preprocessed, such waypoints are neglected
