@@ -904,7 +904,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     // calculate the offset in samples in the predicted trajectory
     // 0.01 is subtracted for the first sample, which is smaller
     // +1 is added due to the first sample, which was subtarcted
-    path_sample_offset = int(ceil((path_time_offset / 2.0 - 0.01) / 0.2)) + 1;
+    path_sample_offset = int(ceil((path_time_offset * 0.75 - 0.01) / 0.2)) + 1;
 
     if (path_sample_offset > (int(current_prediction.position.size()) - 1)) {
 
