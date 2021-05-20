@@ -1,17 +1,18 @@
-# time limiter
+# execution time limiter
 # ideally, the execution time for one path should not exceed this, however, in practice
 # there is some unpredictable overhead in ETH trajectory sampling. Therefore, I recommend
 # to set this to 66% of your desired max execution time.
 max_time: 0.5 # [s]
 
 # check and fix the max deviation between the input path and the output trajectory
+# by subsampling the original path with more waypoints
 check_trajectory_deviation:
   enabled: true
   max_deviation: 0.05 # [m]
   max_iterations: 6 # [-]
   first_segment: true
 
-# Allows to neglect waypoints in the original path if the new path
+# allows to neglect waypoints in the original path if the new path
 # does not violate max distance from the original path.
 # This makes for similar but sparser paths, which are easier for the
 # trajectory generator to work with.
@@ -19,22 +20,16 @@ path_straightener:
   enabled: true
   max_deviation: 0.05 # [m]
 
-# sampling dt of the output trajectory
+# sampling dt of the output trajectory (when the path's stamp is not frmo future, 0.2 otherwise)
 sampling_dt: 0.01 # [s]
 
-# add noise to the user-defined waypoints
-# only for debugging
-add_noise:
-  enabled: false
-  max: 0.30 # [m] # +max, -max of flat distribution
-
 # while checking the final trajectory, don't allow
-# returning results which are n-times longer / shorter than
+# returning results which are time-wise n-times longer / shorter than
 # the initial 'baca' prediction of the length
 max_trajectory_len_factor: 3.0 # [-]
 min_trajectory_len_factor: 0.33 # [-]
 
-# how many times to try the plannin + sampling if the sampling fails?
+# how many times to try the plannin + sampling
 n_attempts: 3 # [-]
 
 # if the generation and sampling fails completely and the result is infeasible
@@ -45,6 +40,7 @@ fallback_sampling:
   accel_factor: 1.0 # how fast when comparing to constraints
   speed_factor: 1.0 # how fast when comparing to constraints
 
+# optimizer parameters, usually left alone
 time_penalty: 100
 soft_constraints_enabled: true
 soft_constraints_weight: 1.5
