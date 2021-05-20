@@ -79,6 +79,8 @@ private:
 
   int _n_attempts_;
 
+  double _min_waypoint_distance_;
+
   bool   _fallback_sampling_enabled_;
   double _fallback_sampling_speed_factor_;
   double _fallback_sampling_accel_factor_;
@@ -259,6 +261,8 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam("path_straightener/enabled", _path_straightener_enabled_);
   param_loader.loadParam("path_straightener/max_deviation", _path_straightener_max_deviation_);
 
+  param_loader.loadParam("min_waypoint_distance", _min_waypoint_distance_);
+
   // | --------------------- tf transformer --------------------- |
 
   transformer_ = std::make_shared<mrs_lib::Transformer>("TrajectoryGeneration", _uav_name_);
@@ -368,8 +372,9 @@ std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessPath(const std::vecto
       vec3_t first(waypoints_in.at(last_added_idx).coords[0], waypoints_in.at(last_added_idx).coords[1], waypoints_in.at(last_added_idx).coords[2]);
       vec3_t last(waypoints_in.at(i).coords[0], waypoints_in.at(i).coords[1], waypoints_in.at(i).coords[2]);
 
-      if (mrs_lib::geometry::dist(first, last) < 0.05) {
-        ROS_INFO("[MrsTrajectoryGeneration]: waypoint %d too close to the last one (%d), throwing it away", int(i), int(last_added_idx));
+      if (mrs_lib::geometry::dist(first, last) < _min_waypoint_distance_) {
+        ROS_INFO("[MrsTrajectoryGeneration]: waypoint #%d too close (< %.3f m) to the previous one (#%d), throwing it away", int(i), _min_waypoint_distance_,
+                 int(last_added_idx));
         continue;
       }
     }

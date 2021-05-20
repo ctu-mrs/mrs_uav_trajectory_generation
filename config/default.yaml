@@ -20,6 +20,10 @@ path_straightener:
   enabled: true
   max_deviation: 0.05 # [m]
 
+# waypoints too close to each other cause issues in the optimization
+# the incoming path is preprocessed, such waypoints are neglected
+min_waypoint_distance: 0.05
+
 # sampling dt of the output trajectory (when the path's stamp is not frmo future, 0.2 otherwise)
 sampling_dt: 0.01 # [s]
 
