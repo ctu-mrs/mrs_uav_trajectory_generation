@@ -1133,6 +1133,12 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     j_max_heading = constraints.heading_jerk;
   }
 
+  v_max_horizontal *= _fallback_sampling_speed_factor_;
+  v_max_vertical *= _fallback_sampling_speed_factor_;
+
+  a_max_horizontal *= _fallback_sampling_accel_factor_;
+  a_max_vertical *= _fallback_sampling_accel_factor_;
+
   ROS_INFO("[MrsTrajectoryGeneration]: using constraints:");
   ROS_INFO("[MrsTrajectoryGeneration]: horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal, j_max_horizontal);
   ROS_INFO("[MrsTrajectoryGeneration]: vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
