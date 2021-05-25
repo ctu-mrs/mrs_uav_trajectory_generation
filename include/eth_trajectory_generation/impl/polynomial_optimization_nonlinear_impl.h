@@ -334,29 +334,73 @@ double PolynomialOptimizationNonLinear<_N>::getCostAndGradientMellinger(std::vec
 
 template <int _N>
 void PolynomialOptimizationNonLinear<_N>::scaleSegmentTimesWithViolation() {
+
   // Get trajectory
   Trajectory traj;
   poly_opt_.getTrajectory(&traj);
 
-  // Get constraints
-  double v_max = 0.0;
-  double a_max = 0.0;
+  // get constraints
+  double v_max_horizontal = 0.0;
+  double a_max_horizontal = 0.0;
+  double j_max_horizontal = 0.0;
+
+  double v_max_vertical = 0.0;
+  double a_max_vertical = 0.0;
+  double j_max_vertical = 0.0;
+
+  double v_max_heading = 0.0;
+  double a_max_heading = 0.0;
+  double j_max_heading = 0.0;
+
   for (const auto& constraint : inequality_constraints_) {
-    if (constraint->derivative == derivative_order::VELOCITY) {
-      v_max = constraint->value;
-    } else if (constraint->derivative == derivative_order::ACCELERATION) {
-      a_max = constraint->value;
+    if (constraint->dimension <= 1) {
+      if (constraint->derivative == derivative_order::VELOCITY) {
+        v_max_horizontal = constraint->value;
+      } else if (constraint->derivative == derivative_order::ACCELERATION) {
+        a_max_horizontal = constraint->value;
+      } else if (constraint->derivative == derivative_order::JERK) {
+        j_max_horizontal = constraint->value;
+      }
+    } else if (constraint->dimension == 2) {
+      if (constraint->derivative == derivative_order::VELOCITY) {
+        v_max_vertical = constraint->value;
+      } else if (constraint->derivative == derivative_order::ACCELERATION) {
+        a_max_vertical = constraint->value;
+      } else if (constraint->derivative == derivative_order::JERK) {
+        j_max_vertical = constraint->value;
+      }
+    } else if (constraint->dimension == 3) {
+      if (constraint->derivative == derivative_order::VELOCITY) {
+        v_max_heading = constraint->value;
+      } else if (constraint->derivative == derivative_order::ACCELERATION) {
+        a_max_heading = constraint->value;
+      } else if (constraint->derivative == derivative_order::JERK) {
+        j_max_heading = constraint->value;
+      }
     }
   }
 
   if (optimization_parameters_.print_debug_info_time_allocation) {
-    double v_max_actual, a_max_actual;
-    traj.computeMaxVelocityAndAcceleration(&v_max_actual, &a_max_actual);
-    std::cout << "[Time Scaling] Beginning:  v: max: " << v_max_actual << " / " << v_max << " a: max: " << a_max_actual << " / " << a_max << std::endl;
+
+    double v_max_actual_horizontal, a_max_actual_horizontal, j_max_actual_horizontal;
+    traj.computeMaxDerivativesHorizontal(&v_max_actual_horizontal, &a_max_actual_horizontal, &j_max_actual_horizontal);
+    std::cout << "[Time Scaling] Beginning: v: max: " << v_max_actual_horizontal << " / " << v_max_horizontal << " a: max: " << a_max_actual_horizontal << " / "
+              << a_max_horizontal << std::endl;
+
+    double v_max_actual_vertical, a_max_actual_vertical, j_max_actual_vertical;
+    traj.computeMaxDerivativesVertical(&v_max_actual_vertical, &a_max_actual_vertical, &j_max_actual_vertical);
+    std::cout << "[Time Scaling] Beginning: v: max: " << v_max_actual_vertical << " / " << v_max_vertical << " a: max: " << a_max_actual_vertical << " / "
+              << a_max_vertical << std::endl;
+
+    double v_max_actual_heading, a_max_actual_heading, j_max_actual_heading;
+    traj.computeMaxDerivativesHeading(&v_max_actual_heading, &a_max_actual_heading, &j_max_actual_heading);
+    std::cout << "[Time Scaling] Beginning: v: max: " << v_max_actual_heading << " / " << v_max_heading << " a: max: " << a_max_actual_heading << " / "
+              << a_max_heading << std::endl;
   }
 
   // Run the trajectory time scaling.
-  traj.scaleSegmentTimesToMeetConstraints(v_max, a_max);
+  traj.scaleSegmentTimesToMeetConstraints(v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical, v_max_heading,
+                                          a_max_heading, j_max_heading);
 
   std::vector<double> segment_times;
   segment_times = traj.getSegmentTimes();
@@ -364,9 +408,21 @@ void PolynomialOptimizationNonLinear<_N>::scaleSegmentTimesWithViolation() {
   poly_opt_.solveLinear();
 
   if (optimization_parameters_.print_debug_info_time_allocation) {
-    double v_max_actual, a_max_actual;
-    traj.computeMaxVelocityAndAcceleration(&v_max_actual, &a_max_actual);
-    std::cout << "[Time Scaling] End: v: max: " << v_max_actual << " / " << v_max << " a: max: " << a_max_actual << " / " << a_max << std::endl;
+
+    double v_max_actual_horizontal, a_max_actual_horizontal, j_max_actual_horizontal;
+    traj.computeMaxDerivativesHorizontal(&v_max_actual_horizontal, &a_max_actual_horizontal, &j_max_actual_horizontal);
+    std::cout << "[Time Scaling] End: v: max: " << v_max_actual_horizontal << " / " << v_max_horizontal << " a: max: " << a_max_actual_horizontal << " / "
+              << a_max_horizontal << std::endl;
+
+    double v_max_actual_vertical, a_max_actual_vertical, j_max_actual_vertical;
+    traj.computeMaxDerivativesVertical(&v_max_actual_vertical, &a_max_actual_vertical, &j_max_actual_vertical);
+    std::cout << "[Time Scaling] End: v: max: " << v_max_actual_vertical << " / " << v_max_vertical << " a: max: " << a_max_actual_vertical << " / "
+              << a_max_vertical << std::endl;
+
+    double v_max_actual_heading, a_max_actual_heading, j_max_actual_heading;
+    traj.computeMaxDerivativesHeading(&v_max_actual_heading, &a_max_actual_heading, &j_max_actual_heading);
+    std::cout << "[Time Scaling] End: v: max: " << v_max_actual_heading << " / " << v_max_heading << " a: max: " << a_max_actual_heading << " / "
+              << a_max_heading << std::endl;
   }
 }
 
@@ -480,11 +536,13 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTimeAndFreeConstraints() {
 }
 
 template <int _N>
-bool PolynomialOptimizationNonLinear<_N>::addMaximumMagnitudeConstraint(int derivative, double maximum_value) {
+bool PolynomialOptimizationNonLinear<_N>::addMaximumMagnitudeConstraint(int dimension, int derivative, double maximum_value) {
+
   CHECK_GE(derivative, 0);
   CHECK_GE(maximum_value, 0.0);
 
   std::shared_ptr<ConstraintData> constraint_data(new ConstraintData);
+  constraint_data->dimension   = dimension;
   constraint_data->derivative  = derivative;
   constraint_data->value       = maximum_value;
   constraint_data->this_object = this;
@@ -502,6 +560,7 @@ bool PolynomialOptimizationNonLinear<_N>::addMaximumMagnitudeConstraint(int deri
       return false;
     }
   }
+
   return true;
 }
 
@@ -726,17 +785,16 @@ void PolynomialOptimizationNonLinear<_N>::setFreeEndpointDerivativeHardConstrain
   for (const auto& constraint_data : inequality_constraints_) {
     unsigned int free_deriv_counter = 0;
     const int    derivative_hc      = constraint_data->derivative;
+    const int    dimension          = constraint_data->dimension;
     const double value_hc           = constraint_data->value;
 
     for (size_t v = 0; v < vertices.size(); ++v) {
       for (int deriv = 0; deriv <= derivative_to_optimize; ++deriv) {
         if (!vertices[v].hasConstraint(deriv)) {
           if (deriv == derivative_hc) {
-            for (size_t k = 0; k < dim; ++k) {
-              unsigned int start_idx                           = k * n_free_constraints;
-              lower_bounds->at(start_idx + free_deriv_counter) = -std::abs(value_hc);
-              upper_bounds->at(start_idx + free_deriv_counter) = std::abs(value_hc);
-            }
+            unsigned int start_idx                           = dimension * n_free_constraints;
+            lower_bounds->at(start_idx + free_deriv_counter) = -std::abs(value_hc);
+            upper_bounds->at(start_idx + free_deriv_counter) = std::abs(value_hc);
           }
           free_deriv_counter++;
         }

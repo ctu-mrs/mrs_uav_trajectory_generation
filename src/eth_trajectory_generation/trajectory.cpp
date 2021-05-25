@@ -209,8 +209,10 @@ bool Trajectory::getTrajectoryWithAppendedDimension(const Trajectory& trajectory
 /* computeMinMaxMagnitude() //{ */
 
 bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int>& dimensions, Extremum* minimum, Extremum* maximum, int seg) const {
+
   CHECK_NOTNULL(minimum);
   CHECK_NOTNULL(maximum);
+
   minimum->value = std::numeric_limits<double>::max();
   maximum->value = std::numeric_limits<double>::lowest();
 
@@ -243,13 +245,16 @@ bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int>& 
 /* computeMinMaxMagnitude() //{ */
 
 bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int>& dimensions, Extremum* minimum, Extremum* maximum) const {
+
   CHECK_NOTNULL(minimum);
   CHECK_NOTNULL(maximum);
+
   minimum->value = std::numeric_limits<double>::max();
   maximum->value = std::numeric_limits<double>::lowest();
 
   // For all segments in the trajectory:
   for (size_t segment_idx = 0; segment_idx < segments_.size(); segment_idx++) {
+
     // Compute candidates.
     std::vector<Extremum> candidates;
     if (!segments_[segment_idx].computeMinMaxMagnitudeCandidates(derivative, 0.0, segments_[segment_idx].getTime(), dimensions, &candidates)) {
@@ -411,39 +416,151 @@ bool Trajectory::getVertices(int max_derivative_order, Vertex::Vector* vertices)
 
 //}
 
-/* computeMaxVelocityAndAcceleration() //{ */
+/* computeMaxDerivativesHorizontal() //{ */
 
-// Compute max velocity and max acceleration.
-bool Trajectory::computeMaxVelocityAndAcceleration(double* v_max, double* a_max, int seg) const {
-  std::vector<int> dimensions(D_);  // Evaluate in whatever dimensions we have.
-  std::iota(dimensions.begin(), dimensions.end(), 0);
+// compute max velocity, acceleration and jerk
+bool Trajectory::computeMaxDerivativesHorizontal(double* v_max, double* a_max, double* j_max, int seg) const {
 
-  Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj;
+  // not counting the heading dimension, that is going to be solved separately
+  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+
+  dimensions.push_back(0);
+  dimensions.push_back(1);
+
+  Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj, j_min_traj, j_max_traj;
 
   bool success = computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::VELOCITY, dimensions, &v_min_traj, &v_max_traj, seg);
   success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::ACCELERATION, dimensions, &a_min_traj, &a_max_traj, seg);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::JERK, dimensions, &j_min_traj, &j_max_traj, seg);
 
   *v_max = v_max_traj.value;
   *a_max = a_max_traj.value;
+  *j_max = j_max_traj.value;
+
   return success;
 }
 
 //}
 
-/* computeMaxVelocityAndAcceleration() //{ */
+/* computeMaxDerivativesHorizontal() //{ */
 
-// Compute max velocity and max acceleration.
-bool Trajectory::computeMaxVelocityAndAcceleration(double* v_max, double* a_max) const {
-  std::vector<int> dimensions(D_);  // Evaluate in whatever dimensions we have.
-  std::iota(dimensions.begin(), dimensions.end(), 0);
+// compute max velocity, acceleration and jerk
+bool Trajectory::computeMaxDerivativesHorizontal(double* v_max, double* a_max, double* j_max) const {
 
-  Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj;
+  // not counting the heading dimension, that is going to be solved separately
+  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+
+  dimensions.push_back(0);
+  dimensions.push_back(1);
+
+  Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj, j_min_traj, j_max_traj;
 
   bool success = computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::VELOCITY, dimensions, &v_min_traj, &v_max_traj);
   success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::ACCELERATION, dimensions, &a_min_traj, &a_max_traj);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::JERK, dimensions, &j_min_traj, &j_max_traj);
 
   *v_max = v_max_traj.value;
   *a_max = a_max_traj.value;
+  *j_max = j_max_traj.value;
+
+  return success;
+}
+
+//}
+
+/* computeMaxDerivativesVertical() //{ */
+
+// compute max velocity, acceleration and jerk
+bool Trajectory::computeMaxDerivativesVertical(double* v_max, double* a_max, double* j_max, int seg) const {
+
+  // not counting the heading dimension, that is going to be solved separately
+  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+
+  dimensions.push_back(2);
+
+  Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj, j_min_traj, j_max_traj;
+
+  bool success = computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::VELOCITY, dimensions, &v_min_traj, &v_max_traj, seg);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::ACCELERATION, dimensions, &a_min_traj, &a_max_traj, seg);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::JERK, dimensions, &j_min_traj, &j_max_traj, seg);
+
+  *v_max = v_max_traj.value;
+  *a_max = a_max_traj.value;
+  *j_max = j_max_traj.value;
+
+  return success;
+}
+
+//}
+
+/* computeMaxDerivativesVertical() //{ */
+
+// compute max velocity, acceleration and jerk
+bool Trajectory::computeMaxDerivativesVertical(double* v_max, double* a_max, double* j_max) const {
+
+  // not counting the heading dimension, that is going to be solved separately
+  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+
+  dimensions.push_back(2);
+
+  Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj, j_min_traj, j_max_traj;
+
+  bool success = computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::VELOCITY, dimensions, &v_min_traj, &v_max_traj);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::ACCELERATION, dimensions, &a_min_traj, &a_max_traj);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::JERK, dimensions, &j_min_traj, &j_max_traj);
+
+  *v_max = v_max_traj.value;
+  *a_max = a_max_traj.value;
+  *j_max = j_max_traj.value;
+
+  return success;
+}
+
+//}
+
+/* computeMaxDerivativesHeading() //{ */
+
+// compute max velocity, acceleration and jerk
+bool Trajectory::computeMaxDerivativesHeading(double* v_max, double* a_max, double* j_max, int seg) const {
+
+  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+
+  dimensions.push_back(3);  // 3 = heading
+
+  Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj, j_min_traj, j_max_traj;
+
+  bool success = computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::VELOCITY, dimensions, &v_min_traj, &v_max_traj, seg);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::ACCELERATION, dimensions, &a_min_traj, &a_max_traj, seg);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::JERK, dimensions, &j_min_traj, &j_max_traj, seg);
+
+  *v_max = v_max_traj.value;
+  *a_max = a_max_traj.value;
+  *j_max = j_max_traj.value;
+
+  return success;
+}
+
+//}
+
+/* computeMaxDerivativesHeading() //{ */
+
+// compute max velocity, acceleration and jerk
+bool Trajectory::computeMaxDerivativesHeading(double* v_max, double* a_max, double* j_max) const {
+
+  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+
+  dimensions.push_back(3);  // 3 = heading
+
+  Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj, j_min_traj, j_max_traj;
+
+  bool success = computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::VELOCITY, dimensions, &v_min_traj, &v_max_traj);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::ACCELERATION, dimensions, &a_min_traj, &a_max_traj);
+  success &= computeMinMaxMagnitude(eth_trajectory_generation::derivative_order::JERK, dimensions, &j_min_traj, &j_max_traj);
+
+  *v_max = v_max_traj.value;
+  *a_max = a_max_traj.value;
+  *j_max = j_max_traj.value;
+
   return success;
 }
 
@@ -478,7 +595,10 @@ bool Trajectory::scaleSegmentTimes(double scaling) {
 // This method SCALES the segment times evenly to ensure that the trajectory
 // is feasible given the provided v_max and a_max. Does not change the shape
 // of the trajectory, and only *increases* segment times.
-bool Trajectory::scaleSegmentTimesToMeetConstraints(double v_max, double a_max) {
+bool Trajectory::scaleSegmentTimesToMeetConstraints(const double v_max_horizontal, const double v_max_vertical, const double a_max_horizontal,
+                                                    const double a_max_vertical, const double j_max_horizontal, const double j_max_vertical,
+                                                    const double v_max_heading, const double a_max_heading, const double j_max_heading) {
+
   // In vast majority of cases, this will converge within 1 iteration.
   constexpr size_t kMaxCounter = 20;
   constexpr double kTolerance  = 1e-3;
@@ -492,16 +612,34 @@ bool Trajectory::scaleSegmentTimesToMeetConstraints(double v_max, double a_max) 
       // From Liu, Sikang, et al. "Planning Dynamically Feasible Trajectories for
       // Quadrotors Using Safe Flight Corridors in 3-D Complex Environments." IEEE
       // Robotics and Automation Letters 2.3 (2017).
-      double v_max_actual, a_max_actual;
-      computeMaxVelocityAndAcceleration(&v_max_actual, &a_max_actual, seg);
+      double v_max_horizontal_actual, a_max_horizontal_actual, j_max_horizontal_actual;
+      computeMaxDerivativesHorizontal(&v_max_horizontal_actual, &a_max_horizontal_actual, &j_max_horizontal_actual, seg);
+
+      double v_max_vertical_actual, a_max_vertical_actual, j_max_vertical_actual;
+      computeMaxDerivativesVertical(&v_max_vertical_actual, &a_max_vertical_actual, &j_max_vertical_actual, seg);
+
+      double v_max_heading_actual, a_max_heading_actual, j_max_heading_actual;
+      computeMaxDerivativesHeading(&v_max_heading_actual, &a_max_heading_actual, &j_max_heading_actual, seg);
 
       // Reevaluate constraint/bound violation
-      double velocity_violation     = v_max_actual / v_max;
-      double acceleration_violation = a_max_actual / a_max;
+      double velocity_violation_horizontal     = v_max_horizontal_actual / v_max_horizontal;
+      double velocity_violation_vertical       = v_max_vertical_actual / v_max_vertical;
+      double acceleration_violation_horizontal = a_max_horizontal_actual / a_max_horizontal;
+      double acceleration_violation_vertical   = a_max_vertical_actual / a_max_vertical;
+      double jerk_violation_horizontal         = j_max_horizontal_actual / j_max_horizontal;
+      double jerk_violation_vertical           = j_max_vertical_actual / j_max_vertical;
 
-      within_range = velocity_violation <= 1.0 + kTolerance && acceleration_violation <= 1.0 + kTolerance;
+      double velocity_violation_heading     = v_max_heading_actual / v_max_heading;
+      double acceleration_violation_heading = a_max_heading_actual / a_max_heading;
+      double jerk_violation_heading         = j_max_heading_actual / j_max_heading;
 
-      double violation_scaling = std::max(1.0, std::max(velocity_violation, sqrt(acceleration_violation)));
+      double velocity_violation     = std::max(std::max(velocity_violation_horizontal, velocity_violation_vertical), velocity_violation_heading);
+      double acceleration_violation = std::max(std::max(acceleration_violation_horizontal, acceleration_violation_vertical), acceleration_violation_heading);
+      double jerk_violation         = std::max(std::max(jerk_violation_horizontal, jerk_violation_vertical), jerk_violation_heading);
+
+      within_range = velocity_violation <= 1.0 + kTolerance && acceleration_violation <= 1.0 + kTolerance && jerk_violation <= 1.0 + kTolerance;
+
+      double violation_scaling = std::max(1.0, std::max(std::max(velocity_violation, sqrt(acceleration_violation)), cbrt(jerk_violation)));
 
       // First figure out how to stretch the trajectory in time.
       double violation_scaling_inverse = 1.0 / violation_scaling;
@@ -509,22 +647,43 @@ bool Trajectory::scaleSegmentTimesToMeetConstraints(double v_max, double a_max) 
       // Scale the segment times of each segment.
       double new_max_time = 0.0;
       double new_time     = segments_[seg].getTime() * violation_scaling;
+
       for (int d = 0; d < segments_[seg].D(); d++) {
         (segments_[seg])[d].scalePolynomialInTime(violation_scaling_inverse);
       }
+
       segments_[seg].setTime(new_time);
       new_max_time += new_time;
       max_time_ = new_max_time;
     }
 
-    double v_max_actual, a_max_actual;
-    computeMaxVelocityAndAcceleration(&v_max_actual, &a_max_actual);
+    double v_max_horizontal_actual, a_max_horizontal_actual, j_max_horizontal_actual;
+    computeMaxDerivativesHorizontal(&v_max_horizontal_actual, &a_max_horizontal_actual, &j_max_horizontal_actual);
+
+    double v_max_vertical_actual, a_max_vertical_actual, j_max_vertical_actual;
+    computeMaxDerivativesVertical(&v_max_vertical_actual, &a_max_vertical_actual, &j_max_vertical_actual);
+
+    double v_max_heading_actual, a_max_heading_actual, j_max_heading_actual;
+    computeMaxDerivativesHeading(&v_max_heading_actual, &a_max_heading_actual, &j_max_heading_actual);
 
     // Reevaluate constraint/bound violation
-    double velocity_violation     = v_max_actual / v_max;
-    double acceleration_violation = a_max_actual / a_max;
+    double velocity_violation_horizontal     = v_max_horizontal_actual / v_max_horizontal;
+    double velocity_violation_vertical       = v_max_vertical_actual / v_max_vertical;
+    double acceleration_violation_horizontal = a_max_horizontal_actual / a_max_horizontal;
+    double acceleration_violation_vertical   = a_max_vertical_actual / a_max_vertical;
+    double jerk_violation_horizontal         = j_max_horizontal_actual / j_max_horizontal;
+    double jerk_violation_vertical           = j_max_vertical_actual / j_max_vertical;
 
-    within_range = velocity_violation <= 1.0 + kTolerance && acceleration_violation <= 1.0 + kTolerance;
+    double velocity_violation_heading     = v_max_heading_actual / v_max_heading;
+    double acceleration_violation_heading = a_max_heading_actual / a_max_heading;
+    double jerk_violation_heading         = j_max_heading_actual / j_max_heading;
+
+    double velocity_violation     = std::max(std::max(velocity_violation_horizontal, velocity_violation_vertical), velocity_violation_heading);
+    double acceleration_violation = std::max(std::max(acceleration_violation_horizontal, acceleration_violation_vertical), acceleration_violation_heading);
+    double jerk_violation         = std::max(std::max(jerk_violation_horizontal, jerk_violation_vertical), jerk_violation_heading);
+
+    within_range = velocity_violation <= 1.0 + kTolerance && acceleration_violation <= 1.0 + kTolerance && jerk_violation <= 1.0 + kTolerance;
+
     if (within_range) {
       break;
     }

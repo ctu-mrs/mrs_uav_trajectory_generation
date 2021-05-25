@@ -1,6 +1,9 @@
 # execution time limiter
 max_time: 0.2 # [s]
 
+# when true, only the fallback solver will be used by default
+enforce_fallback_solver: false
+
 # check and fix the max deviation between the input path and the output trajectory
 # by subsampling the original path with more waypoints
 check_trajectory_deviation:
@@ -40,6 +43,9 @@ fallback_sampling:
   enabled: true
   accel_factor: 1.0 # how fast when comparing to constraints
   speed_factor: 1.0 # how fast when comparing to constraints
+
+  # when stopping at waypoints, stop for this time
+  stopping_time: 2.0 # [s]
 
 # optimizer parameters, usually left alone
 time_penalty: 100

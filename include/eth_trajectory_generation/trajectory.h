@@ -143,9 +143,14 @@ public:
   bool computeMinMaxMagnitude(int derivative, const std::vector<int>& dimensions, Extremum* minimum, Extremum* maximum) const;
 
   // Compute max velocity and max acceleration. Shorthand for the method above.
-  bool computeMaxVelocityAndAcceleration(double* v_max, double* a_max, int seg) const;
+  bool computeMaxDerivativesHorizontal(double* v_max, double* a_max, double* j_max, int seg) const;
+  bool computeMaxDerivativesHorizontal(double* v_max, double* a_max, double* j_max) const;
 
-  bool computeMaxVelocityAndAcceleration(double* v_max, double* a_max) const;
+  bool computeMaxDerivativesVertical(double* v_max, double* a_max, double* j_max, int seg) const;
+  bool computeMaxDerivativesVertical(double* v_max, double* a_max, double* j_max) const;
+
+  bool computeMaxDerivativesHeading(double* v_max, double* a_max, double* j_max, int seg) const;
+  bool computeMaxDerivativesHeading(double* v_max, double* a_max, double* j_max) const;
 
   // This method SCALES the segment times evenly.
   bool scaleSegmentTimes(double scaling);
@@ -153,7 +158,10 @@ public:
   // This method SCALES the segment times evenly to ensure that the trajectory
   // is feasible given the provided v_max and a_max. Does not change the shape
   // of the trajectory, and only *increases* segment times.
-  bool scaleSegmentTimesToMeetConstraints(double v_max, double a_max);
+  bool scaleSegmentTimesToMeetConstraints(const double v_max_translation_horizontal, const double v_max_translation_vertical,
+                                          const double a_max_translation_horizontal, const double a_max_translation_vertical,
+                                          const double j_max_translation_horizontal, const double j_max_translation_vertical, const double v_max_heading,
+                                          const double a_max_heading, const double j_max_heading);
 
 private:
   int    D_;         // Number of dimensions.

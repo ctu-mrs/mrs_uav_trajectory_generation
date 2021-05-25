@@ -23,6 +23,8 @@
 
 #include <eth_trajectory_generation/vertex.h>
 
+#include <mrs_lib/geometry/cyclic.h>
+
 namespace eth_trajectory_generation
 {
 
@@ -260,8 +262,12 @@ std::ostream& operator<<(std::ostream& stream, const std::vector<Vertex>& vertic
 
 /* estimateSegmentTimes() //{ */
 
-std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, double v_max, double a_max, double j_max) {
-  return estimateSegmentTimesEuclidean(vertices, v_max);
+std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+                                         const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal, const double j_max_vertical,
+                                         const double heading_speed_max, const double heading_acc_max) {
+
+  return estimateSegmentTimesEuclidean(vertices, v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical,
+                                       heading_speed_max, heading_acc_max);
 }
 
 //}
@@ -292,7 +298,9 @@ std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector& verti
 
 /* estimateSegmentTimesBaca() //{ */
 
-std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, double v_max, double a_max, double j_max) {
+std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+                                             const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal,
+                                             const double j_max_vertical, const double heading_speed_max, const double heading_acc_max) {
 
   CHECK_GE(vertices.size(), 2);
   std::vector<double> segment_times;
@@ -301,10 +309,15 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, dou
   // for each vertex in the path
   for (size_t i = 0; i < vertices.size() - 1; ++i) {
 
-    Eigen::VectorXd start, end;
+    Eigen::VectorXd start4d, end4d;
 
-    vertices[i].getConstraint(derivative_order::POSITION, &start);
-    vertices[i + 1].getConstraint(derivative_order::POSITION, &end);
+    vertices[i].getConstraint(derivative_order::POSITION, &start4d);
+    vertices[i + 1].getConstraint(derivative_order::POSITION, &end4d);
+
+    Eigen::Vector3d start     = start4d.head(3);
+    Eigen::Vector3d end       = end4d.head(3);
+    double          start_hdg = start4d(3);
+    double          end_hdg   = end4d(3);
 
     double acceleration_time_1 = 0;
     double acceleration_time_2 = 0;
@@ -317,14 +330,38 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, dou
 
     double distance = (end - start).norm();
 
+    double inclinator = atan2(end(2) - start(2), sqrt(pow(end(0) - start(0), 2) + pow(end(1) - start(1), 2)));
+
+    double v_max, a_max, j_max;
+
+    if (inclinator > atan2(v_max_vertical, v_max_horizontal) || inclinator < -atan2(v_max_vertical, v_max_horizontal)) {
+      v_max = fabs(v_max_vertical / sin(inclinator));
+    } else {
+      v_max = fabs(v_max_horizontal / cos(inclinator));
+    }
+
+    if (inclinator > atan2(a_max_vertical, a_max_horizontal) || inclinator < -atan2(a_max_vertical, a_max_horizontal)) {
+      a_max = fabs(a_max_vertical / sin(inclinator));
+    } else {
+      a_max = fabs(a_max_horizontal / cos(inclinator));
+    }
+
+    if (inclinator > atan2(j_max_vertical, j_max_horizontal) || inclinator < -atan2(j_max_vertical, j_max_horizontal)) {
+      j_max = fabs(j_max_vertical / sin(inclinator));
+    } else {
+      j_max = fabs(j_max_horizontal / cos(inclinator));
+    }
+
     if (i >= 1) {
 
-      Eigen::VectorXd pre;
+      Eigen::VectorXd pre4d;
 
-      vertices[i - 1].getConstraint(derivative_order::POSITION, &pre);
+      vertices[i - 1].getConstraint(derivative_order::POSITION, &pre4d);
 
-      Eigen::VectorXd vec1 = start - pre;
-      Eigen::VectorXd vec2 = end - start;
+      Eigen::Vector3d pre = pre4d.head(3);
+
+      Eigen::Vector3d vec1 = start - pre;
+      Eigen::Vector3d vec2 = end - start;
 
       vec1.normalize();
       vec2.normalize();
@@ -355,12 +392,14 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, dou
     // a vertex
     if (i < vertices.size() - 2) {
 
-      Eigen::VectorXd post;
+      Eigen::VectorXd post4d;
 
-      vertices[i + 2].getConstraint(derivative_order::POSITION, &post);
+      vertices[i + 2].getConstraint(derivative_order::POSITION, &post4d);
 
-      Eigen::VectorXd vec1 = end - start;
-      Eigen::VectorXd vec2 = post - end;
+      Eigen::Vector3d post = post4d.head(3);
+
+      Eigen::Vector3d vec1 = end - start;
+      Eigen::Vector3d vec2 = post - end;
 
       vec1.normalize();
       vec2.normalize();
@@ -405,6 +444,33 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, dou
       t = 0.01;
     }
 
+    // | ------------- check the heading rotation time ------------ |
+
+    double angular_distance = fabs(mrs_lib::geometry::radians::dist(start_hdg, end_hdg));
+
+    double hdg_velocity_time     = 0;
+    double hdg_acceleration_time = 0;
+
+    if (heading_speed_max < std::numeric_limits<float>::max() && heading_acc_max < std::numeric_limits<float>::max()) {
+
+      if (((angular_distance - ((heading_speed_max * heading_speed_max) / heading_acc_max)) / heading_speed_max) < 0) {
+        hdg_velocity_time = ((angular_distance) / heading_speed_max);
+      } else {
+        hdg_velocity_time = ((angular_distance - ((heading_speed_max * heading_speed_max) / heading_acc_max)) / heading_speed_max);
+      }
+
+      if (angular_distance > M_PI / 4) {
+        hdg_acceleration_time = 2 * (heading_speed_max / heading_acc_max);
+      }
+    }
+
+    // what will take longer? to fix the lateral or the heading
+    double heading_fix_time = 1.5 * (hdg_velocity_time + hdg_acceleration_time);
+
+    if (heading_fix_time > t) {
+      t = heading_fix_time;
+    }
+
     segment_times.push_back(t);
   }
   return segment_times;
@@ -414,7 +480,11 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, dou
 
 /* estimateSegmentTimesEuclidean() //{ */
 
-std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices, double v_max) {
+std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+                                                  const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal,
+                                                  const double j_max_vertical, const double heading_speed_max, const double heading_acc_max) {
+
+  double v_max = std::min(v_max_horizontal, v_max_vertical);
 
   CHECK_GE(vertices.size(), 2);
   std::vector<double> segment_times;
@@ -423,10 +493,26 @@ std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices
   // for each vertex in the path
   for (size_t i = 0; i < vertices.size() - 1; ++i) {
 
-    Eigen::VectorXd start, end;
+    Eigen::VectorXd start4d, end4d;
 
-    vertices[i].getConstraint(derivative_order::POSITION, &start);
-    vertices[i + 1].getConstraint(derivative_order::POSITION, &end);
+    vertices[i].getConstraint(derivative_order::POSITION, &start4d);
+    vertices[i + 1].getConstraint(derivative_order::POSITION, &end4d);
+
+    Eigen::Vector3d start = start4d.head(3);
+    Eigen::Vector3d end   = end4d.head(3);
+
+    double inclinator = atan2(end(2) - start(2), sqrt(pow(end(0) - start(0), 2) + pow(end(1) - start(1), 2)));
+
+    double v_max;
+
+    if (inclinator > atan2(v_max_vertical, v_max_horizontal) || inclinator < -atan2(v_max_vertical, v_max_horizontal)) {
+      v_max = fabs(v_max_vertical / sin(inclinator));
+    } else {
+      v_max = fabs(v_max_horizontal / cos(inclinator));
+    }
+
+    double start_hdg = start4d(3);
+    double end_hdg   = end4d(3);
 
     double distance = (end - start).norm();
 
@@ -434,6 +520,34 @@ std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices
 
     if (t < 0.01) {
       t = 0.01;
+    }
+
+    // | ------------- check the heading rotation time ------------ |
+
+
+    double angular_distance = fabs(mrs_lib::geometry::radians::dist(start_hdg, end_hdg));
+
+    double hdg_velocity_time     = 0;
+    double hdg_acceleration_time = 0;
+
+    if (heading_speed_max < std::numeric_limits<float>::max() && heading_acc_max < std::numeric_limits<float>::max()) {
+
+      if (((angular_distance - ((heading_speed_max * heading_speed_max) / heading_acc_max)) / heading_speed_max) < 0) {
+        hdg_velocity_time = ((angular_distance) / heading_speed_max);
+      } else {
+        hdg_velocity_time = ((angular_distance - ((heading_speed_max * heading_speed_max) / heading_acc_max)) / heading_speed_max);
+      }
+
+      if (angular_distance > M_PI / 4) {
+        hdg_acceleration_time = 2 * (heading_speed_max / heading_acc_max);
+      }
+    }
+
+    // what will take longer? to fix the lateral or the heading
+    double heading_fix_time = 1.5 * (hdg_velocity_time + hdg_acceleration_time);
+
+    if (heading_fix_time > t) {
+      t = heading_fix_time;
     }
 
     segment_times.push_back(t);

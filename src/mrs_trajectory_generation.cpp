@@ -17,6 +17,7 @@
 #include <mrs_msgs/PositionCommand.h>
 #include <mrs_msgs/MpcPredictionFullState.h>
 #include <mrs_msgs/Reference.h>
+#include <mrs_msgs/ControlManagerDiagnostics.h>
 
 #include <eth_trajectory_generation/impl/polynomial_optimization_nonlinear_impl.h>
 #include <eth_trajectory_generation/trajectory.h>
@@ -94,6 +95,7 @@ private:
   bool   _fallback_sampling_enabled_;
   double _fallback_sampling_speed_factor_;
   double _fallback_sampling_accel_factor_;
+  double _fallback_sampling_stopping_time_;
 
   std::string _uav_name_;
 
@@ -108,13 +110,15 @@ private:
   // | -------- variable parameters (come with the path) -------- |
 
   std::string frame_id_;
-  bool        fly_now_                   = false;
-  bool        use_heading_               = false;
-  bool        stop_at_waypoints_         = false;
-  bool        override_constraints_      = false;
-  bool        loop_                      = false;
-  double      override_max_velocity_     = false;
-  double      override_max_acceleration_ = false;
+  bool        fly_now_                              = false;
+  bool        use_heading_                          = false;
+  bool        stop_at_waypoints_                    = false;
+  bool        override_constraints_                 = false;
+  bool        loop_                                 = false;
+  double      override_max_velocity_horizontal_     = false;
+  double      override_max_velocity_vertical_       = false;
+  double      override_max_acceleration_horizontal_ = false;
+  double      override_max_acceleration_vertical_   = false;
 
   // | -------------- variable parameters (deduced) ------------- |
 
@@ -153,13 +157,20 @@ private:
   mrs_msgs::MpcPredictionFullState prediction_full_state_;
   std::mutex                       mutex_prediction_full_state_;
 
+  void                                callbackControlManagerDiag(const mrs_msgs::ControlManagerDiagnosticsConstPtr& msg);
+  ros::Subscriber                     subscriber_control_manager_diag_;
+  bool                                got_control_manager_diag_ = false;
+  mrs_msgs::ControlManagerDiagnostics control_manager_diag_;
+  std::mutex                          mutex_control_manager_diag_;
+
   // service client for publishing trajectory out
   ros::ServiceClient service_client_trajectory_reference_;
 
   // solve the whole problem
   std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> optimize(const std::vector<Waypoint_t>& waypoints_in, const std_msgs::Header& waypoints_stamp,
                                                                         const mrs_msgs::PositionCommand&        initial_condition,
-                                                                        const mrs_msgs::MpcPredictionFullState& current_prediction, bool fallback_sampling);
+                                                                        const mrs_msgs::MpcPredictionFullState& current_prediction, bool fallback_sampling,
+                                                                        const bool relax_heading);
 
   // batch vizualizer
   mrs_lib::BatchVisualizer bw_original_;
@@ -181,16 +192,21 @@ private:
   std::tuple<bool, int, std::vector<bool>, double> validateTrajectorySpatial(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
                                                                              const std::vector<Waypoint_t>&                    waypoints);
 
-  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&   waypoints,
-                                                                           const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt);
+  std::vector<int> getTrajectorySegmenCenterIdxs(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const std::vector<Waypoint_t>& waypoints);
 
-  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector>              findTrajectoryAsync(const std::vector<Waypoint_t>&   waypoints,
-                                                                                             const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt);
+  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&   waypoints,
+                                                                           const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt,
+                                                                           const bool& relax_heading);
+
+  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector>              findTrajectoryFallback(const std::vector<Waypoint_t>&   waypoints,
+                                                                                                const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt,
+                                                                                                const bool& relax_heading);
   std::future<std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector>> future_trajectory_result_;
   std::atomic<bool>                                                      running_async_planning_ = false;
 
-  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectoryfallback(const std::vector<Waypoint_t>&   waypoints,
-                                                                                   const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt);
+  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectoryAsync(const std::vector<Waypoint_t>&   waypoints,
+                                                                                const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt,
+                                                                                const bool& relax_heading);
 
   std::vector<Waypoint_t> preprocessPath(const std::vector<Waypoint_t>& waypoints_in);
 
@@ -249,6 +265,8 @@ void MrsTrajectoryGeneration::onInit() {
   subscriber_position_cmd_ = nh_.subscribe("position_cmd_in", 1, &MrsTrajectoryGeneration::callbackPositionCmd, this, ros::TransportHints().tcpNoDelay());
   subscriber_prediction_full_state_ =
       nh_.subscribe("prediction_full_state_in", 1, &MrsTrajectoryGeneration::callbackPredictionFullState, this, ros::TransportHints().tcpNoDelay());
+  subscriber_control_manager_diag_ =
+      nh_.subscribe("control_manager_diag_in", 1, &MrsTrajectoryGeneration::callbackControlManagerDiag, this, ros::TransportHints().tcpNoDelay());
   subscriber_path_ = nh_.subscribe("path_in", 1, &MrsTrajectoryGeneration::callbackPath, this, ros::TransportHints().tcpNoDelay());
 
   // | --------------------- service servers -------------------- |
@@ -267,6 +285,8 @@ void MrsTrajectoryGeneration::onInit() {
 
   param_loader.loadParam("sampling_dt", _sampling_dt_);
 
+  param_loader.loadParam("enforce_fallback_solver", params_.enforce_fallback_solver);
+
   param_loader.loadParam("max_trajectory_len_factor", _max_trajectory_len_factor_);
   param_loader.loadParam("min_trajectory_len_factor", _min_trajectory_len_factor_);
 
@@ -274,6 +294,7 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam("fallback_sampling/enabled", _fallback_sampling_enabled_);
   param_loader.loadParam("fallback_sampling/speed_factor", _fallback_sampling_speed_factor_);
   param_loader.loadParam("fallback_sampling/accel_factor", _fallback_sampling_accel_factor_);
+  param_loader.loadParam("fallback_sampling/stopping_time", _fallback_sampling_stopping_time_);
 
   param_loader.loadParam("check_trajectory_deviation/enabled", _trajectory_max_segment_deviation_enabled_);
   param_loader.loadParam("check_trajectory_deviation/max_deviation", _trajectory_max_segment_deviation_);
@@ -345,7 +366,7 @@ void MrsTrajectoryGeneration::onInit() {
  * 2. optimize(): solves the whole problem including
  *    - subdivision for satisfying max deviation
  * 3. findTrajectory(): solves single instance by the ETH tool
- * 4. findTrajectoryfallback(): Baca's sampling for backup solution
+ * 4. findTrajectoryFallback(): Baca's sampling for backup solution
  * 5. validateTrajectorySpatial(): checks for the spatial soundness of a trajectory vs. the original path
  */
 
@@ -428,7 +449,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
                                                                                                const std_msgs::Header&                 waypoints_header,
                                                                                                const mrs_msgs::PositionCommand&        position_cmd,
                                                                                                const mrs_msgs::MpcPredictionFullState& current_prediction,
-                                                                                               const bool                              fallback_sampling) {
+                                                                                               const bool fallback_sampling, const bool relax_heading) {
 
   /* mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("optimize()"); */
 
@@ -441,8 +462,13 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   bool path_from_future = false;
 
   // positive = in the future
-  double path_time_offset   = (waypoints_header.stamp - ros::Time::now()).toSec();
-  int    path_sample_offset = 0;
+  double path_time_offset = 0;
+
+  if (waypoints_header.stamp != ros::Time(0)) {
+    path_time_offset = (waypoints_header.stamp - ros::Time::now()).toSec();
+  }
+
+  int path_sample_offset = 0;
 
   // if the desired path starts in the future, more than one MPC step ahead
   if (path_time_offset > 0.2) {
@@ -495,6 +521,14 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     ss << "could not transform initial condition to the path frame";
     ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
+  }
+
+  auto control_manager_diag = mrs_lib::get_mutexed(mutex_control_manager_diag_, control_manager_diag_);
+
+  if (waypoints_header.stamp == ros::Time(0)) {
+    if (!control_manager_diag.tracker_status.have_goal) {
+      initial_condition.header.stamp = ros::Time(0);
+    }
   }
 
   // | ---------------- reset the visual markers ---------------- |
@@ -554,17 +588,22 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> result;
 
-  if (fallback_sampling) {
+  auto params = mrs_lib::get_mutexed(mutex_params_, params_);
+
+  if (params.enforce_fallback_solver) {
+    ROS_WARN("[MrsTrajectoryGeneration]: fallback sampling enforced");
+    result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt, relax_heading);
+  } else if (fallback_sampling) {
     ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling");
-    result = findTrajectoryfallback(waypoints, initial_condition, sampling_dt);
+    result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt, relax_heading);
   } else if (running_async_planning_) {
     ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling, the previous async task is still running");
-    result = findTrajectoryfallback(waypoints, initial_condition, sampling_dt);
+    result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt, relax_heading);
   } else if (overtime()) {
     ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling, we are running over time");
-    result = findTrajectoryfallback(waypoints, initial_condition, sampling_dt);
+    result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt, relax_heading);
   } else {
-    result = findTrajectory(waypoints, initial_condition, sampling_dt);
+    result = findTrajectoryAsync(waypoints, initial_condition, sampling_dt, relax_heading);
   }
 
   if (result) {
@@ -602,17 +641,20 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
         safeness++;
       }
 
-      if (fallback_sampling) {
+      if (params.enforce_fallback_solver) {
+        ROS_WARN("[MrsTrajectoryGeneration]: fallback sampling enforced");
+        result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt, relax_heading);
+      } else if (fallback_sampling) {
         ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling");
-        result = findTrajectoryfallback(waypoints, initial_condition, sampling_dt);
+        result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt, relax_heading);
       } else if (running_async_planning_) {
         ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling, the previous async task is still running");
-        result = findTrajectoryfallback(waypoints, initial_condition, sampling_dt);
+        result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt, relax_heading);
       } else if (overtime()) {
         ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling, we are running over time");
-        result = findTrajectoryfallback(waypoints, initial_condition, sampling_dt);
+        result = findTrajectoryFallback(waypoints, initial_condition, sampling_dt, relax_heading);
       } else {
-        result = findTrajectory(waypoints, initial_condition, sampling_dt);
+        result = findTrajectoryAsync(waypoints, initial_condition, sampling_dt, relax_heading);
       }
 
       if (result) {
@@ -667,7 +709,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
       }
     }
 
-    mrs_trajectory.header.stamp = current_prediction.header.stamp + ros::Duration(0.01); // TODO generalize
+    mrs_trajectory.header.stamp = current_prediction.header.stamp + ros::Duration(0.01);  // TODO generalize
   }
 
   bw_original_.publish();
@@ -687,48 +729,25 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
 std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectory(const std::vector<Waypoint_t>&   waypoints,
                                                                                                   const mrs_msgs::PositionCommand& initial_state,
-                                                                                                  const double&                    sampling_dt) {
+                                                                                                  const double& sampling_dt, const bool& relax_heading) {
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: starting the async planning task");
-
-  future_trajectory_result_ = std::async(std::launch::async, &MrsTrajectoryGeneration::findTrajectoryAsync, this, waypoints, initial_state, sampling_dt);
-
-  while (ros::ok() && future_trajectory_result_.wait_for(std::chrono::milliseconds(1)) != std::future_status::ready) {
-
-    if (overtime()) {
-      ROS_WARN("[MrsTrajectoryGeneration]: async task planning timeout, breaking");
-      return {};
-    }
-  }
-
-  ROS_DEBUG("[MrsTrajectoryGeneration]: async planning task finished successfully");
-
-  return future_trajectory_result_.get();
-}
-
-//}
-
-/* findTrajectoryAsync() //{ */
-
-std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectoryAsync(const std::vector<Waypoint_t>&   waypoints,
-                                                                                                       const mrs_msgs::PositionCommand& initial_state,
-                                                                                                       const double&                    sampling_dt) {
-
-  /* mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("findTrajectoryAsync()"); */
+  /* mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("findTrajectory()"); */
 
   mrs_lib::AtomicScopeFlag unset_running(running_async_planning_);
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: findTrajectoryAsync() started");
+  ROS_DEBUG("[MrsTrajectoryGeneration]: findTrajectory() started");
 
   ros::Time find_trajectory_time_start = ros::Time::now();
 
   auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
   auto constraints = mrs_lib::get_mutexed(mutex_constraints_, constraints_);
 
-  if (sqrt(pow(initial_state.velocity.x, 2) + pow(initial_state.velocity.y, 2) + pow(initial_state.velocity.z, 2)) > 0.1) {
-    max_deviation_first_segment_ = true;
-  } else {
+  auto control_manager_diag = mrs_lib::get_mutexed(mutex_control_manager_diag_, control_manager_diag_);
+
+  if (control_manager_diag.tracker_status.have_goal) {
     max_deviation_first_segment_ = false;
+  } else {
+    max_deviation_first_segment_ = true;
   }
 
   // optimizer
@@ -811,6 +830,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
       if (waypoints.at(i).stop_at) {
         vertex.addConstraint(eth_trajectory_generation::derivative_order::VELOCITY, Eigen::Vector4d(0, 0, 0, 0));
+        vertex.addConstraint(eth_trajectory_generation::derivative_order::ACCELERATION, Eigen::Vector4d(0, 0, 0, 0));
+        vertex.addConstraint(eth_trajectory_generation::derivative_order::JERK, Eigen::Vector4d(0, 0, 0, 0));
       }
     }
 
@@ -819,24 +840,57 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   // | ---------------- compute the segment times --------------- |
 
-  double v_max, a_max, j_max;
+  double v_max_horizontal, a_max_horizontal, j_max_horizontal;
+  double v_max_vertical, a_max_vertical, j_max_vertical;
+
+  // use the small of the ascending/descending values
+  double vertical_speed_lim        = std::min(constraints.vertical_ascending_speed, constraints.vertical_descending_speed);
+  double vertical_acceleration_lim = std::min(constraints.vertical_ascending_acceleration, constraints.vertical_descending_acceleration);
 
   if (override_constraints_) {
-    v_max = override_max_velocity_ < constraints.horizontal_speed ? override_max_velocity_ : constraints.horizontal_speed;
-    a_max = override_max_acceleration_ < constraints.horizontal_acceleration ? override_max_acceleration_ : constraints.horizontal_acceleration;
+
+    v_max_horizontal = override_max_velocity_horizontal_ < constraints.horizontal_speed ? override_max_velocity_horizontal_ : constraints.horizontal_speed;
+    a_max_horizontal = override_max_acceleration_horizontal_ < constraints.horizontal_acceleration ? override_max_acceleration_horizontal_
+                                                                                                   : constraints.horizontal_acceleration;
+
+    v_max_vertical = override_max_velocity_vertical_ < vertical_speed_lim ? override_max_velocity_vertical_ : vertical_speed_lim;
+    a_max_vertical = override_max_acceleration_vertical_ < vertical_acceleration_lim ? override_max_acceleration_vertical_ : vertical_acceleration_lim;
+
     ROS_DEBUG("[MrsTrajectoryGeneration]: overriding constraints by a user");
   } else {
-    v_max = constraints.horizontal_speed;
-    a_max = constraints.horizontal_acceleration;
+
+    v_max_horizontal = constraints.horizontal_speed;
+    a_max_horizontal = constraints.horizontal_acceleration;
+
+    v_max_vertical = vertical_speed_lim;
+    a_max_vertical = vertical_acceleration_lim;
   }
 
-  ROS_INFO("[MrsTrajectoryGeneration]: constraints: max speed=%.2f m/s, max_acceleration=%.2f m/s^2", v_max, a_max);
+  j_max_horizontal = constraints.horizontal_jerk;
+  j_max_vertical   = std::min(constraints.vertical_ascending_jerk, constraints.vertical_descending_jerk);
 
-  j_max = constraints.horizontal_jerk;
+  double v_max_heading, a_max_heading, j_max_heading;
+
+  if (relax_heading) {
+    v_max_heading = std::numeric_limits<float>::max();
+    a_max_heading = std::numeric_limits<float>::max();
+    j_max_heading = std::numeric_limits<float>::max();
+  } else {
+    v_max_heading = constraints.heading_speed;
+    a_max_heading = constraints.heading_acceleration;
+    j_max_heading = constraints.heading_jerk;
+  }
+
+  ROS_INFO("[MrsTrajectoryGeneration]: using constraints:");
+  ROS_INFO("[MrsTrajectoryGeneration]: horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal, j_max_horizontal);
+  ROS_INFO("[MrsTrajectoryGeneration]: vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
+  ROS_INFO("[MrsTrajectoryGeneration]: heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_vertical, j_max_vertical);
 
   std::vector<double> segment_times, segment_times_baca;
-  segment_times      = estimateSegmentTimes(vertices, v_max, a_max, j_max);
-  segment_times_baca = estimateSegmentTimesBaca(vertices, v_max, a_max, j_max);
+  segment_times      = estimateSegmentTimes(vertices, v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical,
+                                       v_max_heading, a_max_heading);
+  segment_times_baca = estimateSegmentTimesBaca(vertices, v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical,
+                                                v_max_heading, a_max_heading);
 
   double initial_total_time      = 0;
   double initial_total_time_baca = 0;
@@ -853,9 +907,23 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   const int                                                     N = 10;
   eth_trajectory_generation::PolynomialOptimizationNonLinear<N> opt(dimension, parameters);
   opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
-  opt.addMaximumMagnitudeConstraint(eth_trajectory_generation::derivative_order::VELOCITY, v_max);
-  opt.addMaximumMagnitudeConstraint(eth_trajectory_generation::derivative_order::ACCELERATION, a_max);
-  opt.addMaximumMagnitudeConstraint(eth_trajectory_generation::derivative_order::JERK, j_max);
+
+  opt.addMaximumMagnitudeConstraint(0, eth_trajectory_generation::derivative_order::VELOCITY, v_max_horizontal);
+  opt.addMaximumMagnitudeConstraint(0, eth_trajectory_generation::derivative_order::ACCELERATION, a_max_horizontal);
+  opt.addMaximumMagnitudeConstraint(0, eth_trajectory_generation::derivative_order::JERK, j_max_horizontal);
+
+  opt.addMaximumMagnitudeConstraint(1, eth_trajectory_generation::derivative_order::VELOCITY, v_max_horizontal);
+  opt.addMaximumMagnitudeConstraint(1, eth_trajectory_generation::derivative_order::ACCELERATION, a_max_horizontal);
+  opt.addMaximumMagnitudeConstraint(1, eth_trajectory_generation::derivative_order::JERK, j_max_horizontal);
+
+  opt.addMaximumMagnitudeConstraint(2, eth_trajectory_generation::derivative_order::VELOCITY, v_max_vertical);
+  opt.addMaximumMagnitudeConstraint(2, eth_trajectory_generation::derivative_order::ACCELERATION, a_max_vertical);
+  opt.addMaximumMagnitudeConstraint(2, eth_trajectory_generation::derivative_order::JERK, j_max_vertical);
+
+  opt.addMaximumMagnitudeConstraint(3, eth_trajectory_generation::derivative_order::VELOCITY, v_max_heading);
+  opt.addMaximumMagnitudeConstraint(3, eth_trajectory_generation::derivative_order::ACCELERATION, a_max_heading);
+  opt.addMaximumMagnitudeConstraint(3, eth_trajectory_generation::derivative_order::JERK, j_max_heading);
+
   opt.optimize();
 
   if (overtime()) {
@@ -986,11 +1054,12 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
 //}
 
-/* findTrajectoryfallback() //{ */
+/* findTrajectoryFallback() //{ */
 
-std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectoryfallback(const std::vector<Waypoint_t>&   waypoints,
+std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectoryFallback(const std::vector<Waypoint_t>&   waypoints,
                                                                                                           const mrs_msgs::PositionCommand& initial_state,
-                                                                                                          const double&                    sampling_dt) {
+                                                                                                          const double&                    sampling_dt,
+                                                                                                          const bool&                      relax_heading) {
 
   ros::Time time_start = ros::Time::now();
 
@@ -1023,27 +1092,57 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   // | ---------------- compute the segment times --------------- |
 
-  double v_max, a_max, j_max;
+  double v_max_horizontal, a_max_horizontal, j_max_horizontal;
+  double v_max_vertical, a_max_vertical, j_max_vertical;
+
+  // use the small of the ascending/descending values
+  double vertical_speed_lim        = std::min(constraints.vertical_ascending_speed, constraints.vertical_descending_speed);
+  double vertical_acceleration_lim = std::min(constraints.vertical_ascending_acceleration, constraints.vertical_descending_acceleration);
 
   if (override_constraints_) {
-    v_max = override_max_velocity_ < constraints.horizontal_speed ? override_max_velocity_ : constraints.horizontal_speed;
-    a_max = override_max_acceleration_ < constraints.horizontal_acceleration ? override_max_acceleration_ : constraints.horizontal_acceleration;
-    ROS_WARN("[MrsTrajectoryGeneration]: fallback: overriding constraints by a user");
+
+    v_max_horizontal = override_max_velocity_horizontal_ < constraints.horizontal_speed ? override_max_velocity_horizontal_ : constraints.horizontal_speed;
+    a_max_horizontal = override_max_acceleration_horizontal_ < constraints.horizontal_acceleration ? override_max_acceleration_horizontal_
+                                                                                                   : constraints.horizontal_acceleration;
+
+    v_max_vertical = override_max_velocity_vertical_ < vertical_speed_lim ? override_max_velocity_vertical_ : vertical_speed_lim;
+    a_max_vertical = override_max_acceleration_vertical_ < vertical_acceleration_lim ? override_max_acceleration_vertical_ : vertical_acceleration_lim;
+
+    ROS_DEBUG("[MrsTrajectoryGeneration]: overriding constraints by a user");
   } else {
-    v_max = constraints.horizontal_speed;
-    a_max = constraints.horizontal_acceleration;
+
+    v_max_horizontal = constraints.horizontal_speed;
+    a_max_horizontal = constraints.horizontal_acceleration;
+
+    v_max_vertical = vertical_speed_lim;
+    a_max_vertical = vertical_acceleration_lim;
   }
 
-  v_max *= _fallback_sampling_speed_factor_;
-  a_max *= _fallback_sampling_accel_factor_;
+  j_max_horizontal = constraints.horizontal_jerk;
+  j_max_vertical   = std::min(constraints.vertical_ascending_jerk, constraints.vertical_descending_jerk);
 
-  ROS_WARN("[MrsTrajectoryGeneration]: fallback: constraints: max speed=%.2f m/s, max_acceleration=%.2f m/s^2", v_max, a_max);
+  double v_max_heading, a_max_heading, j_max_heading;
 
-  j_max = constraints.horizontal_jerk;
+  if (relax_heading) {
+    v_max_heading = std::numeric_limits<float>::max();
+    a_max_heading = std::numeric_limits<float>::max();
+    j_max_heading = std::numeric_limits<float>::max();
+  } else {
+    v_max_heading = constraints.heading_speed;
+    a_max_heading = constraints.heading_acceleration;
+    j_max_heading = constraints.heading_jerk;
+  }
+
+  ROS_INFO("[MrsTrajectoryGeneration]: using constraints:");
+  ROS_INFO("[MrsTrajectoryGeneration]: horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal, j_max_horizontal);
+  ROS_INFO("[MrsTrajectoryGeneration]: vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
+  ROS_INFO("[MrsTrajectoryGeneration]: heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_vertical, j_max_vertical);
 
   std::vector<double> segment_times, segment_times_baca;
-  segment_times      = estimateSegmentTimes(vertices, v_max, a_max, j_max);
-  segment_times_baca = estimateSegmentTimesBaca(vertices, v_max, a_max, j_max);
+  segment_times      = estimateSegmentTimes(vertices, v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical,
+                                       v_max_heading, a_max_heading);
+  segment_times_baca = estimateSegmentTimesBaca(vertices, v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical,
+                                                v_max_heading, a_max_heading);
 
   double initial_total_time      = 0;
   double initial_total_time_baca = 0;
@@ -1104,6 +1203,9 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
       states.push_back(eth_point);
 
+      // the first sample of the first waypoint
+      // we should stop for a little bit to give the transition
+      // from the initial cooordinates more time
       if (i == 0 && j == 0) {
 
         double time_to_stop = fabs(initial_state.velocity.x) / constraints.horizontal_acceleration +
@@ -1118,6 +1220,15 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
         ROS_DEBUG("[MrsTrajectoryGeneration]: pre-inserting %d samples of the first point", samples_to_stop);
 
         for (int k = 0; k < samples_to_stop; k++) {
+          states.push_back(eth_point);
+        }
+      }
+
+      if (j == 0 && i > 0 && waypoints[i].stop_at) {
+
+        int insert_samples = int(round(_fallback_sampling_stopping_time_ / sampling_dt));
+
+        for (int k = 0; k < insert_samples; k++) {
           states.push_back(eth_point);
         }
       }
@@ -1198,7 +1309,80 @@ std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::valida
 
 //}
 
+/* getTrajectorySegmenCenterIdxs() //{ */
+
+std::vector<int> MrsTrajectoryGeneration::getTrajectorySegmenCenterIdxs(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
+                                                                        const std::vector<Waypoint_t>&                    waypoints) {
+
+  // prepare the output
+
+  std::vector<int> segment_centers;
+
+  // index in the path
+  int last_segment_start = 0;
+
+  // index in the trajectory
+  int last_segment_start_sample = 0;
+
+  for (size_t i = 0; i < trajectory.size() - 1; i++) {
+
+    // the trajectory sample
+    const vec3_t sample = vec3_t(trajectory[i].position_W[0], trajectory[i].position_W[1], trajectory[i].position_W[2]);
+
+    // next sample
+    const vec3_t next_sample = vec3_t(trajectory[i + 1].position_W[0], trajectory[i + 1].position_W[1], trajectory[i + 1].position_W[2]);
+
+    // segment start
+    const vec3_t segment_start =
+        vec3_t(waypoints.at(last_segment_start).coords[0], waypoints.at(last_segment_start).coords[1], waypoints.at(last_segment_start).coords[2]);
+
+    // segment end
+    const vec3_t segment_end =
+        vec3_t(waypoints.at(last_segment_start + 1).coords[0], waypoints.at(last_segment_start + 1).coords[1], waypoints.at(last_segment_start + 1).coords[2]);
+
+    const double distance_from_segment = distFromSegment(sample, segment_start, segment_end);
+
+    const double segment_end_dist = distFromSegment(segment_end, sample, next_sample);
+
+    if (segment_end_dist < 0.05 && last_segment_start < (int(waypoints.size()) - 2)) {
+      last_segment_start++;
+
+      segment_centers.push_back(int(floor(double(i - last_segment_start_sample) / 2.0)));
+    }
+  }
+
+  return segment_centers;
+}
+
+//}
+
 // | --------------------- minor routines --------------------- |
+
+/* findTrajectoryAsync() //{ */
+
+std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectoryAsync(const std::vector<Waypoint_t>&   waypoints,
+                                                                                                       const mrs_msgs::PositionCommand& initial_state,
+                                                                                                       const double& sampling_dt, const bool& relax_heading) {
+
+  ROS_DEBUG("[MrsTrajectoryGeneration]: starting the async planning task");
+
+  future_trajectory_result_ =
+      std::async(std::launch::async, &MrsTrajectoryGeneration::findTrajectory, this, waypoints, initial_state, sampling_dt, relax_heading);
+
+  while (ros::ok() && future_trajectory_result_.wait_for(std::chrono::milliseconds(1)) != std::future_status::ready) {
+
+    if (overtime()) {
+      ROS_WARN("[MrsTrajectoryGeneration]: async task planning timeout, breaking");
+      return {};
+    }
+  }
+
+  ROS_DEBUG("[MrsTrajectoryGeneration]: async planning task finished successfully");
+
+  return future_trajectory_result_.get();
+}
+
+//}
 
 /* distFromSegment() //{ */
 
@@ -1516,6 +1700,13 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     return;
   }
 
+  if (!got_control_manager_diag_) {
+    std::stringstream ss;
+    ss << "missing control manager diagnostics";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    return;
+  }
+
   //}
 
   {
@@ -1524,7 +1715,11 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     start_time_total_ = ros::Time::now();
   }
 
-  double path_time_offset = (msg->header.stamp - ros::Time::now()).toSec();
+  double path_time_offset = 0;
+
+  if (msg->header.stamp != ros::Time(0)) {
+    path_time_offset = (msg->header.stamp - ros::Time::now()).toSec();
+  }
 
   if (path_time_offset > 1e-3) {
 
@@ -1557,14 +1752,16 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     return;
   }
 
-  fly_now_                   = msg->fly_now;
-  use_heading_               = msg->use_heading;
-  frame_id_                  = msg->header.frame_id;
-  override_constraints_      = msg->override_constraints;
-  loop_                      = msg->loop;
-  override_max_velocity_     = msg->override_max_velocity;
-  override_max_acceleration_ = msg->override_max_acceleration;
-  stop_at_waypoints_         = msg->stop_at_waypoints;
+  fly_now_                              = msg->fly_now;
+  use_heading_                          = msg->use_heading;
+  frame_id_                             = msg->header.frame_id;
+  override_constraints_                 = msg->override_constraints;
+  loop_                                 = msg->loop;
+  override_max_velocity_horizontal_     = msg->override_max_velocity_horizontal;
+  override_max_velocity_vertical_       = msg->override_max_velocity_vertical;
+  override_max_acceleration_horizontal_ = msg->override_max_acceleration_horizontal;
+  override_max_acceleration_vertical_   = msg->override_max_acceleration_vertical;
+  stop_at_waypoints_                    = msg->stop_at_waypoints;
 
   std::vector<Waypoint_t> waypoints;
 
@@ -1606,7 +1803,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     // the last iteration and the fallback sampling is enabled
     bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
 
-    std::tie(success, message, trajectory) = optimize(waypoints, msg->header, position_cmd, prediction_full_state_, fallback_sampling);
+    std::tie(success, message, trajectory) = optimize(waypoints, msg->header, position_cmd, prediction_full_state_, fallback_sampling, msg->relax_heading);
 
     if (success) {
       break;
@@ -1693,6 +1890,16 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     return true;
   }
 
+  if (!got_control_manager_diag_) {
+    std::stringstream ss;
+    ss << "missing control manager diagnostics";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+
+    res.message = ss.str();
+    res.success = false;
+    return true;
+  }
+
   //}
 
   {
@@ -1701,7 +1908,11 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     start_time_total_ = ros::Time::now();
   }
 
-  double path_time_offset = (req.path.header.stamp - ros::Time::now()).toSec();
+  double path_time_offset = 0;
+
+  if (req.path.header.stamp != ros::Time(0)) {
+    path_time_offset = (req.path.header.stamp - ros::Time::now()).toSec();
+  }
 
   if (path_time_offset > 1e-3) {
 
@@ -1737,14 +1948,16 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     return true;
   }
 
-  fly_now_                   = req.path.fly_now;
-  use_heading_               = req.path.use_heading;
-  frame_id_                  = req.path.header.frame_id;
-  override_constraints_      = req.path.override_constraints;
-  loop_                      = req.path.loop;
-  override_max_velocity_     = req.path.override_max_velocity;
-  override_max_acceleration_ = req.path.override_max_acceleration;
-  stop_at_waypoints_         = req.path.stop_at_waypoints;
+  fly_now_                              = req.path.fly_now;
+  use_heading_                          = req.path.use_heading;
+  frame_id_                             = req.path.header.frame_id;
+  override_constraints_                 = req.path.override_constraints;
+  loop_                                 = req.path.loop;
+  override_max_velocity_horizontal_     = req.path.override_max_velocity_horizontal;
+  override_max_velocity_vertical_       = req.path.override_max_velocity_vertical;
+  override_max_acceleration_horizontal_ = req.path.override_max_acceleration_horizontal;
+  override_max_acceleration_vertical_   = req.path.override_max_acceleration_vertical;
+  stop_at_waypoints_                    = req.path.stop_at_waypoints;
 
   std::vector<Waypoint_t> waypoints;
 
@@ -1785,7 +1998,8 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     // the last iteration and the fallback sampling is enabled
     bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
 
-    std::tie(success, message, trajectory) = optimize(waypoints, req.path.header, position_cmd, prediction_full_state_, fallback_sampling);
+    std::tie(success, message, trajectory) =
+        optimize(waypoints, req.path.header, position_cmd, prediction_full_state_, fallback_sampling, req.path.relax_heading);
 
     if (success) {
       break;
@@ -1891,6 +2105,23 @@ void MrsTrajectoryGeneration::callbackPredictionFullState(const mrs_msgs::MpcPre
   got_prediction_full_state_ = true;
 
   mrs_lib::set_mutexed(mutex_prediction_full_state_, *msg, prediction_full_state_);
+}
+
+//}
+
+/* callbackControlManagerDiag() //{ */
+
+void MrsTrajectoryGeneration::callbackControlManagerDiag(const mrs_msgs::ControlManagerDiagnosticsConstPtr& msg) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  ROS_INFO_ONCE("[MrsTrajectoryGeneration]: got control manager diagnostics");
+
+  got_control_manager_diag_ = true;
+
+  mrs_lib::set_mutexed(mutex_control_manager_diag_, *msg, control_manager_diag_);
 }
 
 //}

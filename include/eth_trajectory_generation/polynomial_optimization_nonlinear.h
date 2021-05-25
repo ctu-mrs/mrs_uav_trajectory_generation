@@ -162,7 +162,7 @@ public:
   // Input: derivative_order = Order of the derivative, for which the
   // constraint should be checked. Usually velocity (=1) or acceleration (=2).
   // maximum_value = Maximum magnitude of the specified derivative.
-  bool addMaximumMagnitudeConstraint(int derivative_order, double maximum_value);
+  bool addMaximumMagnitudeConstraint(int dimension, int derivative_order, double maximum_value);
 
   // Solves the linear optimization problem according to [1].
   // The solver is re-used for every dimension, which means:
@@ -216,6 +216,7 @@ private:
   {
     PolynomialOptimizationNonLinear<N>* this_object;
     int                                 derivative;
+    int                                 dimension;
     double                              value;
   };
 

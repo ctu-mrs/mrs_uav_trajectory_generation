@@ -122,7 +122,9 @@ std::ostream& operator<<(std::ostream& stream, const std::vector<Vertex>& vertic
 // Makes a rough estimate based on v_max and a_max about the time
 // required to get from one vertex to the next. Uses the current preferred
 // method.
-std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, double v_max, double a_max, double j_max);
+std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+                                         const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal, const double j_max_vertical,
+                                         const double heading_speed_max, const double heading_acc_max);
 
 // Calculate the velocity assuming instantaneous constant acceleration a_max
 // and straight line rest-to-rest trajectories.
@@ -131,9 +133,13 @@ std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, double 
 // account the start and goal velocity and acceleration.
 std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector& vertices, double v_max, double a_max, double time_factor = 1.0);
 
-std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices, double v_max);
+std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+                                                  const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal,
+                                                  const double j_max_vertical, const double heading_speed_max, const double heading_acc_max);
 
-std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, double v_max, double a_max, double j_max);
+std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+                                             const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal,
+                                             const double j_max_vertical, const double heading_speed_max, const double heading_acc_max);
 
 double computeTimeVelocityRamp(const Eigen::VectorXd& start, const Eigen::VectorXd& goal, double v_max, double a_max);
 
