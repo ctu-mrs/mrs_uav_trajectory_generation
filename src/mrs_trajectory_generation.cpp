@@ -1203,19 +1203,24 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
       states.push_back(eth_point);
 
+      auto control_manager_diag = mrs_lib::get_mutexed(mutex_control_manager_diag_, control_manager_diag_);
+
       // the first sample of the first waypoint
       // we should stop for a little bit to give the transition
       // from the initial cooordinates more time
-      if (i == 0 && j == 0) {
+      if (((control_manager_diag.tracker_status.have_goal && i == 0) || (!control_manager_diag.tracker_status.have_goal && i == 1)) && j == 0) {
 
-        double time_to_stop = fabs(initial_state.velocity.x) / constraints.horizontal_acceleration +
-                              fabs(initial_state.velocity.y) / constraints.horizontal_acceleration +
-                              fabs(initial_state.velocity.z) / constraints.vertical_descending_acceleration;
+        double time_to_stop = fabs(initial_state.velocity.x) / a_max_horizontal + fabs(initial_state.velocity.y) / a_max_horizontal +
+                              fabs(initial_state.velocity.z) / a_max_vertical;
 
-        time_to_stop += fabs(initial_state.acceleration.x) / constraints.horizontal_jerk + fabs(initial_state.acceleration.y) / constraints.horizontal_jerk +
-                        fabs(initial_state.acceleration.z) / constraints.vertical_descending_jerk;
+        time_to_stop += fabs(initial_state.acceleration.x) / j_max_horizontal + fabs(initial_state.acceleration.y) / j_max_horizontal +
+                        fabs(initial_state.acceleration.z) / j_max_vertical;
 
         int samples_to_stop = int(round(1.5 * (time_to_stop / sampling_dt)));
+
+        if (!control_manager_diag.tracker_status.have_goal) {
+          samples_to_stop += int(round(1.0 / sampling_dt));
+        }
 
         ROS_DEBUG("[MrsTrajectoryGeneration]: pre-inserting %d samples of the first point", samples_to_stop);
 
