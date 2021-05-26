@@ -33,11 +33,9 @@
       <!-- Publishers -->
       <remap from="~original_path_out" to="~original_path" />
 
-        <!-- Service servers -->
-      <remap from="~test_in" to="~test" />
-
         <!-- Subscribers and Service servers -->
       <remap from="~path_in" to="~path" />
+      <remap from="~get_path_in" to="~get_path" />
 
         <!-- Service clients -->
       <remap from="~trajectory_reference_out" to="control_manager/trajectory_reference" />

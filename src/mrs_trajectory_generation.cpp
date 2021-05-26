@@ -14,6 +14,7 @@
 #include <mrs_msgs/DynamicsConstraints.h>
 #include <mrs_msgs/Path.h>
 #include <mrs_msgs/PathSrv.h>
+#include <mrs_msgs/GetPathSrv.h>
 #include <mrs_msgs/PositionCommand.h>
 #include <mrs_msgs/MpcPredictionFullState.h>
 #include <mrs_msgs/Reference.h>
@@ -134,6 +135,10 @@ private:
   // service client for input
   bool               callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_msgs::PathSrv::Response& res);
   ros::ServiceServer service_server_path_;
+
+  // service client for returning result to the user
+  bool               callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& req, mrs_msgs::GetPathSrv::Response& res);
+  ros::ServiceServer service_server_get_path_;
 
   // subscriber for input
   void            callbackPath(const mrs_msgs::PathConstPtr& msg);
@@ -272,6 +277,8 @@ void MrsTrajectoryGeneration::onInit() {
   // | --------------------- service servers -------------------- |
 
   service_server_path_ = nh_.advertiseService("path_in", &MrsTrajectoryGeneration::callbackPathSrv, this);
+
+  service_server_get_path_ = nh_.advertiseService("get_path_in", &MrsTrajectoryGeneration::callbackGetPathSrv, this);
 
   service_client_trajectory_reference_ = nh_.serviceClient<mrs_msgs::TrajectoryReferenceSrv>("trajectory_reference_out");
 
@@ -2057,6 +2064,198 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   } else {
 
     ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, not publishing a result");
+
+    res.success = success;
+    res.message = message;
+  }
+
+  return true;
+}
+
+//}
+
+/* callbackGetPathSrv() //{ */
+
+bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& req, mrs_msgs::GetPathSrv::Response& res) {
+
+  if (!is_initialized_) {
+    return false;
+  }
+
+  /* precondition //{ */
+
+  if (!got_constraints_) {
+    std::stringstream ss;
+    ss << "missing constraints";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+
+    res.message = ss.str();
+    res.success = false;
+    return true;
+  }
+
+  if (!got_position_cmd_) {
+    std::stringstream ss;
+    ss << "missing position cmd";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+
+    res.message = ss.str();
+    res.success = false;
+    return true;
+  }
+
+  if (!got_prediction_full_state_) {
+    std::stringstream ss;
+    ss << "missing full-state prediction";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+
+    res.message = ss.str();
+    res.success = false;
+    return true;
+  }
+
+  if (!got_control_manager_diag_) {
+    std::stringstream ss;
+    ss << "missing control manager diagnostics";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+
+    res.message = ss.str();
+    res.success = false;
+    return true;
+  }
+
+  //}
+
+  {
+    std::scoped_lock lock(mutex_start_time_total_);
+
+    start_time_total_ = ros::Time::now();
+  }
+
+  double path_time_offset = 0;
+
+  if (req.path.header.stamp != ros::Time(0)) {
+    path_time_offset = (req.path.header.stamp - ros::Time::now()).toSec();
+  }
+
+  if (path_time_offset > 1e-3) {
+
+    std::scoped_lock lock(mutex_max_execution_time_);
+
+    max_execution_time_ = FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset;
+
+    ROS_INFO("[MrsTrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
+             path_time_offset);
+  } else {
+
+    std::scoped_lock lock(mutex_max_execution_time_, mutex_params_);
+
+    max_execution_time_ = params_.max_time;
+  }
+
+  ROS_INFO("[MrsTrajectoryGeneration]: got path from service");
+
+  try {
+    publisher_original_path_.publish(req.path);
+  }
+  catch (...) {
+    ROS_ERROR("exception caught during publishing topic '%s'", publisher_original_path_.getTopic().c_str());
+  }
+
+  if (req.path.points.empty()) {
+    std::stringstream ss;
+    ss << "received an empty message";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+
+    res.message = ss.str();
+    res.success = false;
+    return true;
+  }
+
+  fly_now_                              = req.path.fly_now;
+  use_heading_                          = req.path.use_heading;
+  frame_id_                             = req.path.header.frame_id;
+  override_constraints_                 = req.path.override_constraints;
+  loop_                                 = req.path.loop;
+  override_max_velocity_horizontal_     = req.path.override_max_velocity_horizontal;
+  override_max_velocity_vertical_       = req.path.override_max_velocity_vertical;
+  override_max_acceleration_horizontal_ = req.path.override_max_acceleration_horizontal;
+  override_max_acceleration_vertical_   = req.path.override_max_acceleration_vertical;
+  stop_at_waypoints_                    = req.path.stop_at_waypoints;
+
+  std::vector<Waypoint_t> waypoints;
+
+  for (size_t i = 0; i < req.path.points.size(); i++) {
+
+    double x       = req.path.points[i].position.x;
+    double y       = req.path.points[i].position.y;
+    double z       = req.path.points[i].position.z;
+    double heading = req.path.points[i].heading;
+
+    Waypoint_t wp;
+    wp.coords  = Eigen::Vector4d(x, y, z, heading);
+    wp.stop_at = stop_at_waypoints_;
+
+    if (!checkNaN(wp)) {
+      ROS_ERROR("[MrsTrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
+      res.success = false;
+      res.message = "invalid path";
+      return true;
+    }
+
+    waypoints.push_back(wp);
+  }
+
+  if (loop_) {
+    waypoints.push_back(waypoints[0]);
+  }
+
+  bool                          success = false;
+  std::string                   message;
+  mrs_msgs::TrajectoryReference trajectory;
+
+  for (int i = 0; i < _n_attempts_; i++) {
+
+    auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
+    auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
+
+    // the last iteration and the fallback sampling is enabled
+    bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
+
+    std::tie(success, message, trajectory) =
+        optimize(waypoints, req.path.header, position_cmd, prediction_full_state_, fallback_sampling, req.path.relax_heading);
+
+    if (success) {
+      break;
+    } else {
+      if (i < _n_attempts_) {
+        ROS_WARN("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+      } else {
+        ROS_WARN("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
+      }
+    }
+  }
+
+  double total_time = (ros::Time::now() - start_time_total_).toSec();
+
+  auto max_execution_time = mrs_lib::get_mutexed(mutex_max_execution_time_, max_execution_time_);
+
+  if (total_time > max_execution_time) {
+    ROS_ERROR("[MrsTrajectoryGeneration]: trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time, max_execution_time,
+              total_time - max_execution_time);
+  } else {
+    ROS_INFO("[MrsTrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
+  }
+
+  if (success) {
+
+    res.trajectory = trajectory;
+    res.success    = success;
+    res.message    = message;
+
+  } else {
+
+    ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
 
     res.success = success;
     res.message = message;
