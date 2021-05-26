@@ -440,9 +440,9 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, con
     /* double t = max_velocity_time + acceleration_time_1 + acceleration_time_2 + jerk_time_1 + jerk_time_2; */
     double t = max_velocity_time + acceleration_time_1 + acceleration_time_2;
 
-    printf("segment %d, [%.2f %.2f %.2f] - > [%.2f %.2f %.2f] = %.2f\n", i, start(0), start(1), start(2), end(0), end(1), end(2), distance);
-    printf("segment %d time %.2f, distance %.2f, %.2f, %.2f, %.2f, vmax: %.2f, amax: %.2f, jmax: %.2f\n", i, t, distance, max_velocity_time,
-           acceleration_time_1, acceleration_time_2, v_max, a_max, j_max);
+    /* printf("segment %d, [%.2f %.2f %.2f] - > [%.2f %.2f %.2f] = %.2f\n", i, start(0), start(1), start(2), end(0), end(1), end(2), distance); */
+    /* printf("segment %d time %.2f, distance %.2f, %.2f, %.2f, %.2f, vmax: %.2f, amax: %.2f, jmax: %.2f\n", i, t, distance, max_velocity_time, */
+    /*        acceleration_time_1, acceleration_time_2, v_max, a_max, j_max); */
 
     if (t < 0.01) {
       t = 0.01;
