@@ -705,7 +705,9 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
       ROS_INFO("[MrsTrajectoryGeneration]: inserting pre-trajectory from the prediction, idxs %d to %d", path_sample_offset_2, path_sample_offset);
 
-      for (int i = path_sample_offset - 1; i >= 1; i--) {
+      for (int i = path_sample_offset - 1; i >= 0; i--) {
+
+        ROS_DEBUG("[MrsTrajectoryGeneration]: inserting idx %d", i);
 
         mrs_msgs::Reference reference;
 
@@ -716,7 +718,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
       }
     }
 
-    mrs_trajectory.header.stamp = current_prediction.header.stamp + ros::Duration(0.01);  // TODO generalize
+    mrs_trajectory.header.stamp = current_prediction.header.stamp;
   }
 
   bw_original_.publish();
