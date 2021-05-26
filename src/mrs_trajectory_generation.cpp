@@ -1222,7 +1222,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
         time_to_stop += fabs(initial_state.acceleration.x) / j_max_horizontal + fabs(initial_state.acceleration.y) / j_max_horizontal +
                         fabs(initial_state.acceleration.z) / j_max_vertical;
 
-        int samples_to_stop = int(round(1.5 * (time_to_stop / sampling_dt)));
+        int samples_to_stop = int(round(1.0 * (time_to_stop / sampling_dt)));
 
         if (!control_manager_diag.tracker_status.have_goal) {
           samples_to_stop += int(round(1.0 / sampling_dt));

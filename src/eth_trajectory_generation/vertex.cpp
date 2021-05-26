@@ -413,32 +413,36 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, con
       jerk_time_2 = acc_2_coeff * (2 * (a_max / j_max));
     }
 
-    if (acceleration_time_1 > sqrt(distance / a_max)) {
-      acceleration_time_1 = sqrt(distance / a_max);
+    if (acceleration_time_1 > sqrt(2 * distance / a_max)) {
+      acceleration_time_1 = sqrt(2 * distance / a_max);
     }
 
-    if (jerk_time_1 > sqrt(v_max / j_max)) {
-      jerk_time_1 = sqrt(v_max / j_max);
+    if (jerk_time_1 > sqrt(2 * v_max / j_max)) {
+      jerk_time_1 = sqrt(2 * v_max / j_max);
     }
 
-    if (acceleration_time_2 > sqrt(distance / a_max)) {
-      acceleration_time_2 = sqrt(distance / a_max);
+    if (acceleration_time_2 > sqrt(2 * distance / a_max)) {
+      acceleration_time_2 = sqrt(2 * distance / a_max);
     }
 
-    if (jerk_time_2 > sqrt(v_max / j_max)) {
-      jerk_time_2 = sqrt(v_max / j_max);
+    if (jerk_time_2 > sqrt(2 * v_max / j_max)) {
+      jerk_time_2 = sqrt(2 * v_max / j_max);
     }
 
     double max_velocity_time;
 
-    if (((distance - ((v_max * v_max) / a_max)) / v_max) < 0) {
+    if (((distance - (2 * (v_max * v_max) / a_max)) / v_max) < 0) {
       max_velocity_time = ((distance) / v_max);
     } else {
-      max_velocity_time = ((distance - ((v_max * v_max) / a_max)) / v_max);
+      max_velocity_time = ((distance - (2 * (v_max * v_max) / a_max)) / v_max);
     }
 
     /* double t = max_velocity_time + acceleration_time_1 + acceleration_time_2 + jerk_time_1 + jerk_time_2; */
     double t = max_velocity_time + acceleration_time_1 + acceleration_time_2;
+
+    printf("segment %d, [%.2f %.2f %.2f] - > [%.2f %.2f %.2f] = %.2f\n", i, start(0), start(1), start(2), end(0), end(1), end(2), distance);
+    printf("segment %d time %.2f, distance %.2f, %.2f, %.2f, %.2f, vmax: %.2f, amax: %.2f, jmax: %.2f\n", i, t, distance, max_velocity_time,
+           acceleration_time_1, acceleration_time_2, v_max, a_max, j_max);
 
     if (t < 0.01) {
       t = 0.01;
@@ -453,10 +457,10 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, con
 
     if (heading_speed_max < std::numeric_limits<float>::max() && heading_acc_max < std::numeric_limits<float>::max()) {
 
-      if (((angular_distance - ((heading_speed_max * heading_speed_max) / heading_acc_max)) / heading_speed_max) < 0) {
+      if (((angular_distance - (2 * (heading_speed_max * heading_speed_max) / heading_acc_max)) / heading_speed_max) < 0) {
         hdg_velocity_time = ((angular_distance) / heading_speed_max);
       } else {
-        hdg_velocity_time = ((angular_distance - ((heading_speed_max * heading_speed_max) / heading_acc_max)) / heading_speed_max);
+        hdg_velocity_time = ((angular_distance - (2 * (heading_speed_max * heading_speed_max) / heading_acc_max)) / heading_speed_max);
       }
 
       if (angular_distance > M_PI / 4) {
