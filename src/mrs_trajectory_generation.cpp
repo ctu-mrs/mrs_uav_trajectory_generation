@@ -753,7 +753,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   auto control_manager_diag = mrs_lib::get_mutexed(mutex_control_manager_diag_, control_manager_diag_);
 
-  if (control_manager_diag.tracker_status.have_goal) {
+  if ((initial_state.header.stamp - ros::Time::now()).toSec() < 0.2 && control_manager_diag.tracker_status.have_goal) {
     max_deviation_first_segment_ = false;
   } else {
     max_deviation_first_segment_ = true;
