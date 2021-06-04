@@ -97,6 +97,7 @@ private:
   double _fallback_sampling_speed_factor_;
   double _fallback_sampling_accel_factor_;
   double _fallback_sampling_stopping_time_;
+  bool   _fallback_sampling_first_waypoint_additional_stop_;
 
   std::string _uav_name_;
 
@@ -302,6 +303,7 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam("fallback_sampling/speed_factor", _fallback_sampling_speed_factor_);
   param_loader.loadParam("fallback_sampling/accel_factor", _fallback_sampling_accel_factor_);
   param_loader.loadParam("fallback_sampling/stopping_time", _fallback_sampling_stopping_time_);
+  param_loader.loadParam("fallback_sampling/first_waypoint_additional_stop", _fallback_sampling_first_waypoint_additional_stop_);
 
   param_loader.loadParam("check_trajectory_deviation/enabled", _trajectory_max_segment_deviation_enabled_);
   param_loader.loadParam("check_trajectory_deviation/max_deviation", _trajectory_max_segment_deviation_);
@@ -1233,8 +1235,10 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
         int samples_to_stop = int(round(1.0 * (time_to_stop / sampling_dt)));
 
-        if (!control_manager_diag.tracker_status.have_goal) {
-          samples_to_stop += int(round(1.0 / sampling_dt));
+        if (_fallback_sampling_first_waypoint_additional_stop_) {
+          if (control_manager_diag.tracker_status.have_goal) {
+            samples_to_stop += int(round(1.0 / sampling_dt));
+          }
         }
 
         ROS_DEBUG("[MrsTrajectoryGeneration]: pre-inserting %d samples of the first point", samples_to_stop);
