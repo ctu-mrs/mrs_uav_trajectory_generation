@@ -42,15 +42,15 @@ n_attempts: 3 # [-]
 fallback_sampling:
 
   enabled: true
-  accel_factor: 1.00 # how fast when comparing to constraints
-  speed_factor: 1.00 # how fast when comparing to constraints
+  accel_factor: 0.75 # how fast when comparing to constraints
+  speed_factor: 0.75 # how fast when comparing to constraints
 
   # when stopping at waypoints, stop for this time
   stopping_time: 2.0 # [s]
 
   # when in motion, the first waypoint segment will be longer
   # to allow transition from initial conditions
-  first_waypoint_additional_stop: true
+  first_waypoint_additional_stop: false
 
 # optimizer parameters, usually left alone
 time_penalty: 100

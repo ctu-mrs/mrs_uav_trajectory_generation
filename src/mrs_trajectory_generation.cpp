@@ -1227,8 +1227,10 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
       // from the initial cooordinates more time
       if (((control_manager_diag.tracker_status.have_goal && i == 0) || (!control_manager_diag.tracker_status.have_goal && i == 1)) && j == 0) {
 
-        double time_to_stop = fabs(initial_state.velocity.x) / a_max_horizontal + fabs(initial_state.velocity.y) / a_max_horizontal +
-                              fabs(initial_state.velocity.z) / a_max_vertical;
+        double time_to_stop = 0;
+
+        /* time_to_stop += fabs(initial_state.velocity.x) / a_max_horizontal + fabs(initial_state.velocity.y) / a_max_horizontal + */
+        /*                       fabs(initial_state.velocity.z) / a_max_vertical; */
 
         time_to_stop += fabs(initial_state.acceleration.x) / j_max_horizontal + fabs(initial_state.acceleration.y) / j_max_horizontal +
                         fabs(initial_state.acceleration.z) / j_max_vertical;
