@@ -53,7 +53,7 @@ using sradians = mrs_lib::geometry::sradians;
 
 /* defines //{ */
 
-#define FUTURIZATION_EXEC_TIME_FACTOR 0.25       // [0, 1]
+#define FUTURIZATION_EXEC_TIME_FACTOR 0.5        // [0, 1]
 #define FUTURIZATION_FIRST_WAYPOINT_FACTOR 0.50  // [0, 1]
 #define OVERTIME_SAFETY_FACTOR 0.95              // [0, 1]
 #define OVERTIME_SAFETY_OFFSET 0.01              // [s]
@@ -563,6 +563,10 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
   std::vector<Waypoint_t> waypoints_in_with_init = waypoints_in;
 
+  if (path_time_offset > 0.2 && waypoints_in_with_init.size() >= 2) {
+    waypoints_in_with_init.erase(waypoints_in_with_init.begin());
+  }
+
   // prepend the initial condition
   Waypoint_t initial_waypoint;
   initial_waypoint.coords =
@@ -1030,7 +1034,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   // validate the temporal sampling of the trajectory
 
-  if ((states.size() * sampling_dt) > (_max_trajectory_len_factor_ * initial_total_time_baca)) {
+  // only check this if the trajectory is > 1.0 sec, this check does not make much sense for the short ones
+  if ((states.size() * sampling_dt) > 1.0 && (states.size() * sampling_dt) > (_max_trajectory_len_factor_ * initial_total_time_baca)) {
     ROS_ERROR("[MrsTrajectoryGeneration]: the final trajectory sampling is too long = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
               (states.size() * sampling_dt), initial_total_time_baca, _max_trajectory_len_factor_);
 
@@ -1039,7 +1044,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
     return {};
 
-  } else if ((states.size() * sampling_dt) < (_min_trajectory_len_factor_ * initial_total_time_baca)) {
+  } else if ((states.size() * sampling_dt) > 1.0 && (states.size() * sampling_dt) < (_min_trajectory_len_factor_ * initial_total_time_baca)) {
     ROS_ERROR("[MrsTrajectoryGeneration]: the final trajectory sampling is too short = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
               (states.size() * sampling_dt), initial_total_time_baca, _min_trajectory_len_factor_);
 
