@@ -16,7 +16,7 @@ check_trajectory_deviation:
 # This makes for similar but sparser paths, which are easier for the
 # trajectory generator to work with.
 path_straightener:
-  enabled: true
+  enabled: false
   max_deviation: 0.05 # [m]
   max_hdg_deviation: 0.1 # [rad]
 
