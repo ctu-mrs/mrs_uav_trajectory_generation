@@ -7,8 +7,8 @@ enforce_fallback_solver: false
 # check and fix the max deviation between the input path and the output trajectory
 # by subsampling the original path with more waypoints
 check_trajectory_deviation:
-  enabled: true
-  max_deviation: 0.05 # [m]
+  enabled: false
+  max_deviation: 1.00 # [m]
   max_iterations: 6 # [-]
 
 # allows to neglect waypoints in the original path if the new path
@@ -16,7 +16,7 @@ check_trajectory_deviation:
 # This makes for similar but sparser paths, which are easier for the
 # trajectory generator to work with.
 path_straightener:
-  enabled: false
+  enabled: true
   max_deviation: 0.05 # [m]
   max_hdg_deviation: 0.1 # [rad]
 
@@ -41,7 +41,7 @@ n_attempts: 3 # [-]
 # move the drone and therefore avoid potential deadlocks?
 fallback_sampling:
 
-  enabled: true
+  enabled: false
   accel_factor: 0.75 # how fast when comparing to constraints
   speed_factor: 0.75 # how fast when comparing to constraints
 
