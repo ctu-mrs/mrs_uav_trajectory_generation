@@ -335,7 +335,7 @@ void MrsTrajectoryGeneration::onInit() {
 
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[MrsTrajectoryGeneration]: could not load all parameters!");
-    ros::requestShutdown();
+    ros::shutdown();
   }
 
   // | -------------------- batch visualizer -------------------- |
