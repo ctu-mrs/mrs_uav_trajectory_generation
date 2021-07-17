@@ -180,7 +180,7 @@ namespace mrs_uav_trajectory_generation
     std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> optimize(const std::vector<Waypoint_t>& waypoints_in, const std_msgs::Header& waypoints_stamp,
                                                                           const mrs_msgs::PositionCommand& initial_condition,
                                                                           const mrs_msgs::MpcPredictionFullState& current_prediction, bool fallback_sampling,
-                                                                          const bool relax_heading);
+                                                                          const bool relax_heading, const bool override_heading = false);
 
     // batch vizualizer
     mrs_lib::BatchVisualizer bw_original_;
@@ -473,7 +473,7 @@ namespace mrs_uav_trajectory_generation
                                                                                                  const std_msgs::Header& waypoints_header,
                                                                                                  const mrs_msgs::PositionCommand& position_cmd,
                                                                                                  const mrs_msgs::MpcPredictionFullState& current_prediction,
-                                                                                                 const bool fallback_sampling, const bool relax_heading)
+                                                                                                 const bool fallback_sampling, const bool relax_heading, const bool override_heading)
   {
 
     /* mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("optimize()"); */
@@ -746,6 +746,16 @@ namespace mrs_uav_trajectory_generation
 
     // convert the optimized trajectory to mrs_msgs::TrajectoryReference
     mrs_trajectory = getTrajectoryReference(trajectory, initial_condition.header.stamp, sampling_dt);
+
+    if (override_heading)
+    {
+      // override the headings
+      const double heading_override = waypoints_in.front().coords.w();
+      ROS_INFO("[MrsTrajectoryGeneration]: Overriding heading to %.2frad", heading_override);
+      for (auto& traj_pt : mrs_trajectory.points)
+        traj_pt.heading = heading_override;
+    }
+
 
     // insert part of the MPC prediction in the front of the generated trajectory to compensate for the future
     if (path_from_future)
@@ -1994,7 +2004,7 @@ namespace mrs_uav_trajectory_generation
       // the last iteration and the fallback sampling is enabled
       bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
 
-      std::tie(success, message, trajectory) = optimize(waypoints, msg->header, position_cmd, prediction_full_state_, fallback_sampling, msg->relax_heading);
+      std::tie(success, message, trajectory) = optimize(waypoints, msg->header, position_cmd, prediction_full_state_, fallback_sampling, msg->relax_heading, msg->override_heading);
 
       if (success)
       {
