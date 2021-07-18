@@ -7,7 +7,7 @@ enforce_fallback_solver: false
 # check and fix the max deviation between the input path and the output trajectory
 # by subsampling the original path with more waypoints
 check_trajectory_deviation:
-  enabled: false
+  enabled: true
   max_deviation: 1.00 # [m]
   max_iterations: 6 # [-]
 
@@ -16,7 +16,7 @@ check_trajectory_deviation:
 # This makes for similar but sparser paths, which are easier for the
 # trajectory generator to work with.
 path_straightener:
-  enabled: true
+  enabled: false
   max_deviation: 1.0 # [m]
   max_hdg_deviation: 0.2 # [rad]
 

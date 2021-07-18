@@ -589,11 +589,6 @@ namespace mrs_uav_trajectory_generation
 
     std::vector<Waypoint_t> waypoints_in_with_init = waypoints_in;
 
-    if (path_time_offset > 0.2 && waypoints_in_with_init.size() >= 2)
-    {
-      waypoints_in_with_init.erase(waypoints_in_with_init.begin());
-    }
-
     // prepend the initial condition
     Waypoint_t initial_waypoint(Eigen::Vector4d(initial_condition.position.x, initial_condition.position.y, initial_condition.position.z, initial_condition.heading));
     waypoints_in_with_init.insert(waypoints_in_with_init.begin(), initial_waypoint);
@@ -747,15 +742,6 @@ namespace mrs_uav_trajectory_generation
     // convert the optimized trajectory to mrs_msgs::TrajectoryReference
     mrs_trajectory = getTrajectoryReference(trajectory, initial_condition.header.stamp, sampling_dt);
 
-    if (override_heading)
-    {
-      // override the headings
-      const double heading_override = waypoints_in.front().coords.w();
-      ROS_INFO("[MrsTrajectoryGeneration]: Overriding heading to %.2frad", heading_override);
-      for (auto& traj_pt : mrs_trajectory.points)
-        traj_pt.heading = heading_override;
-    }
-
 
     // insert part of the MPC prediction in the front of the generated trajectory to compensate for the future
     if (path_from_future)
@@ -786,6 +772,15 @@ namespace mrs_uav_trajectory_generation
       }
 
       mrs_trajectory.header.stamp = current_prediction.header.stamp;
+    }
+
+    if (override_heading)
+    {
+      // override the headings
+      const double heading_override = waypoints_in.front().coords.w();
+      ROS_INFO("[MrsTrajectoryGeneration]: Overriding heading to %.2frad", heading_override);
+      for (auto& traj_pt : mrs_trajectory.points)
+        traj_pt.heading = heading_override;
     }
 
     bw_original_.publish();
