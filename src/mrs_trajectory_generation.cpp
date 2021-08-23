@@ -516,6 +516,8 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
   } else {
 
+    ROS_INFO("[MrsTrajectoryGeneration]: desired path is NOT from the future, using position_cmd as the initial condition");
+
     initial_condition = position_cmd;
   }
 
