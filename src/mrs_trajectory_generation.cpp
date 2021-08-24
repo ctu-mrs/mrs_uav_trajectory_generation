@@ -868,12 +868,13 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   if (override_constraints_) {
 
-    v_max_horizontal = override_max_velocity_horizontal_ < constraints.horizontal_speed ? override_max_velocity_horizontal_ : constraints.horizontal_speed;
-    a_max_horizontal = override_max_acceleration_horizontal_ < constraints.horizontal_acceleration ? override_max_acceleration_horizontal_
-                                                                                                   : constraints.horizontal_acceleration;
+    v_max_horizontal = override_max_velocity_horizontal_;
+    a_max_horizontal = override_max_acceleration_horizontal_;
+    j_max_horizontal = override_max_jerk_horizontal_;
 
-    v_max_vertical = override_max_velocity_vertical_ < vertical_speed_lim ? override_max_velocity_vertical_ : vertical_speed_lim;
-    a_max_vertical = override_max_acceleration_vertical_ < vertical_acceleration_lim ? override_max_acceleration_vertical_ : vertical_acceleration_lim;
+    v_max_vertical = override_max_velocity_vertical_;
+    a_max_vertical = override_max_acceleration_vertical_;
+    j_max_vertical = override_max_jerk_vertical_;
 
     ROS_DEBUG("[MrsTrajectoryGeneration]: overriding constraints by a user");
   } else {
@@ -883,10 +884,11 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
     v_max_vertical = vertical_speed_lim;
     a_max_vertical = vertical_acceleration_lim;
+
+    j_max_horizontal = constraints.horizontal_jerk;
+    j_max_vertical   = std::min(constraints.vertical_ascending_jerk, constraints.vertical_descending_jerk);
   }
 
-  j_max_horizontal = constraints.horizontal_jerk;
-  j_max_vertical   = std::min(constraints.vertical_ascending_jerk, constraints.vertical_descending_jerk);
 
   double v_max_heading, a_max_heading, j_max_heading;
 
@@ -903,7 +905,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   ROS_INFO("[MrsTrajectoryGeneration]: using constraints:");
   ROS_INFO("[MrsTrajectoryGeneration]: horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal, j_max_horizontal);
   ROS_INFO("[MrsTrajectoryGeneration]: vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
-  ROS_INFO("[MrsTrajectoryGeneration]: heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_vertical, j_max_vertical);
+  ROS_INFO("[MrsTrajectoryGeneration]: heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_heading, j_max_heading);
 
   std::vector<double> segment_times, segment_times_baca;
   segment_times      = estimateSegmentTimes(vertices, v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical,
@@ -1140,7 +1142,6 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
     j_max_horizontal = constraints.horizontal_jerk;
     j_max_vertical   = std::min(constraints.vertical_ascending_jerk, constraints.vertical_descending_jerk);
-
   }
 
 
@@ -1995,6 +1996,8 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   override_max_velocity_vertical_       = req.path.override_max_velocity_vertical;
   override_max_acceleration_horizontal_ = req.path.override_max_acceleration_horizontal;
   override_max_acceleration_vertical_   = req.path.override_max_acceleration_vertical;
+  override_max_jerk_horizontal_         = req.path.override_max_jerk_horizontal;
+  override_max_jerk_vertical_           = req.path.override_max_jerk_horizontal;
   stop_at_waypoints_                    = req.path.stop_at_waypoints;
 
   std::vector<Waypoint_t> waypoints;
