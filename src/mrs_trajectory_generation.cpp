@@ -868,15 +868,30 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   if (override_constraints_) {
 
-    v_max_horizontal = override_max_velocity_horizontal_;
-    a_max_horizontal = override_max_acceleration_horizontal_;
-    j_max_horizontal = override_max_jerk_horizontal_;
+    bool can_change = (hypot(initial_state.velocity.x, initial_state.velocity.y) < override_max_velocity_horizontal_) &&
+                      (hypot(initial_state.acceleration.x, initial_state.acceleration.y) < override_max_acceleration_horizontal_) &&
+                      (hypot(initial_state.jerk.x, initial_state.jerk.y) < override_max_jerk_horizontal_) &&
+                      (fabs(initial_state.velocity.z) < override_max_velocity_vertical_) &&
+                      (fabs(initial_state.acceleration.z) < override_max_acceleration_vertical_) && (fabs(initial_state.jerk.z) < override_max_jerk_vertical_);
 
-    v_max_vertical = override_max_velocity_vertical_;
-    a_max_vertical = override_max_acceleration_vertical_;
-    j_max_vertical = override_max_jerk_vertical_;
+    if (can_change) {
 
-    ROS_DEBUG("[MrsTrajectoryGeneration]: overriding constraints by a user");
+      v_max_horizontal = override_max_velocity_horizontal_;
+      a_max_horizontal = override_max_acceleration_horizontal_;
+      j_max_horizontal = override_max_jerk_horizontal_;
+
+      v_max_vertical = override_max_velocity_vertical_;
+      a_max_vertical = override_max_acceleration_vertical_;
+      j_max_vertical = override_max_jerk_vertical_;
+
+      ROS_DEBUG("[MrsTrajectoryGeneration]: overriding constraints by a user");
+
+    } else {
+
+      ROS_WARN("[MrsTrajectoryGeneration]: overrifing constraints refused due to possible infeasibility");
+
+    }
+
   } else {
 
     v_max_horizontal = constraints.horizontal_speed;
