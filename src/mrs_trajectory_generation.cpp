@@ -1779,7 +1779,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
     std::scoped_lock lock(mutex_max_execution_time_);
 
-    max_execution_time_ = FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset;
+    max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, params_.max_time);
 
     ROS_INFO("[MrsTrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
              path_time_offset);
@@ -1972,7 +1972,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
 
     std::scoped_lock lock(mutex_max_execution_time_);
 
-    max_execution_time_ = FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset;
+    max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, params_.max_time);
 
     ROS_INFO("[MrsTrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
              path_time_offset);
