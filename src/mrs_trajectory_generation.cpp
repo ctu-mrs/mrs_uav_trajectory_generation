@@ -1881,6 +1881,8 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     ROS_INFO("[MrsTrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
   }
 
+  trajectory.input_id = msg->input_id;
+
   if (success) {
 
     bool published = trajectorySrv(trajectory);
@@ -2078,6 +2080,8 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   } else {
     ROS_INFO("[MrsTrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
   }
+
+  trajectory.input_id = req.path.input_id;
 
   if (success) {
 
