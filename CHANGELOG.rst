@@ -2,8 +2,8 @@
 Changelog for package mrs_uav_trajectory_generation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.1 (2021-10-05)
+------------------
 * added path input id
 * Add absolute limit on computation time
 * Add check of feasibilty for constraints overriding
