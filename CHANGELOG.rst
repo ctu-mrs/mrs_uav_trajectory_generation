@@ -4,6 +4,20 @@ Changelog for package mrs_uav_trajectory_generation
 
 Forthcoming
 -----------
+* added path input id
+* Add absolute limit on computation time
+* Add check of feasibilty for constraints overriding
+* Add override jerk constraints
+* reworked constrains: separate horizontal, vertical and heading
+* added async execution
+* added checks for nlopt return code
+* updated constraints callback
+* relaxed default path straightenner distance to 5 cm
+* added loop option
+* added republisher for the original path
+* added path-from-future compensation
+* Contributors: Tomas Baca, Vit Kratky, Yurii Stasinchuk
+
 * updated ros::shutdown
 * fixed includes
 * fixed trajectory from future time stamp
