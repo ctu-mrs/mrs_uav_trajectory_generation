@@ -889,7 +889,6 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     } else {
 
       ROS_WARN("[MrsTrajectoryGeneration]: overrifing constraints refused due to possible infeasibility");
-
     }
 
   } else {
@@ -1486,7 +1485,11 @@ mrs_msgs::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReference(co
     point.position.x = trajectory[it].position_W[0];
     point.position.y = trajectory[it].position_W[1];
     point.position.z = trajectory[it].position_W[2];
-    point.heading    = trajectory[it].getYaw();
+
+    /* point.heading    = trajectory[it].getYaw(); */
+    if (it < (trajectory.size() - 1)) {
+      point.heading = atan2(trajectory[it + 1].position_W[1] - trajectory[it].position_W[1], trajectory[it + 1].position_W[0] - trajectory[it].position_W[0]);
+    }
 
     msg.points.push_back(point);
   }
