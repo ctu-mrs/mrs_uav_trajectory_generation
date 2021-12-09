@@ -61,3 +61,8 @@ equality_constraint_tolerance: 1.0e-3
 inequality_constraint_tolerance: 0.1
 max_iterations: 10
 derivative_to_optimize: 0
+
+scope_timer:
+
+  enabled: false
+  log_filename: "" # if empty, scope timers output to terminal; otherwise log to file

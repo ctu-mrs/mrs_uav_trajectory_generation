@@ -135,6 +135,11 @@ private:
 
   std::shared_ptr<mrs_lib::Transformer> transformer_;
 
+  // | ------------------- scope timer logger ------------------- |
+
+  bool                                       scope_timer_enabled_ = false;
+  std::shared_ptr<mrs_lib::ScopeTimerLogger> scope_timer_logger_;
+
   // service client for input
   bool               callbackPathSrv(mrs_msgs::PathSrv::Request& req, mrs_msgs::PathSrv::Response& res);
   ros::ServiceServer service_server_path_;
@@ -200,7 +205,7 @@ private:
   std::tuple<bool, int, std::vector<bool>, double> validateTrajectorySpatial(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
                                                                              const std::vector<Waypoint_t>&                    waypoints);
 
-  std::vector<int> getTrajectorySegmenCenterIdxs(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const std::vector<Waypoint_t>& waypoints);
+  std::vector<int> getTrajectorySegmentCenterIdxs(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const std::vector<Waypoint_t>& waypoints);
 
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&   waypoints,
                                                                            const mrs_msgs::PositionCommand& initial_state, const double& sampling_dt,
@@ -321,6 +326,12 @@ void MrsTrajectoryGeneration::onInit() {
 
   transformer_ = std::make_shared<mrs_lib::Transformer>("TrajectoryGeneration", _uav_name_);
 
+  // | ------------------- scope timer logger ------------------- |
+
+  param_loader.loadParam("scope_timer/enabled", scope_timer_enabled_);
+  const std::string scope_timer_log_filename = param_loader.loadParam2("scope_timer/log_filename", std::string(""));
+  scope_timer_logger_                        = std::make_shared<mrs_lib::ScopeTimerLogger>(scope_timer_log_filename, scope_timer_enabled_);
+
   // | --------------------- service clients -------------------- |
 
   param_loader.loadParam("time_penalty", params_.time_penalty);
@@ -384,6 +395,8 @@ void MrsTrajectoryGeneration::onInit() {
 /* preprocessPath() //{ */
 
 std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessPath(const std::vector<Waypoint_t>& waypoints_in) {
+
+  mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::preprocessPath", scope_timer_logger_, scope_timer_enabled_);
 
   std::vector<Waypoint_t> waypoints;
 
@@ -462,7 +475,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
                                                                                                const mrs_msgs::MpcPredictionFullState& current_prediction,
                                                                                                const bool fallback_sampling, const bool relax_heading) {
 
-  /* mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("optimize()"); */
+  mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::optimize", scope_timer_logger_, scope_timer_enabled_);
 
   ros::Time optimize_time_start = ros::Time::now();
 
@@ -750,7 +763,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
                                                                                                   const mrs_msgs::PositionCommand& initial_state,
                                                                                                   const double& sampling_dt, const bool& relax_heading) {
 
-  /* mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("findTrajectory()"); */
+  mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::findTrajectory", scope_timer_logger_, scope_timer_enabled_);
 
   mrs_lib::AtomicScopeFlag unset_running(running_async_planning_);
 
@@ -889,7 +902,6 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     } else {
 
       ROS_WARN("[MrsTrajectoryGeneration]: overrifing constraints refused due to possible infeasibility");
-
     }
 
   } else {
@@ -1097,6 +1109,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
                                                                                                           const mrs_msgs::PositionCommand& initial_state,
                                                                                                           const double&                    sampling_dt,
                                                                                                           const bool&                      relax_heading) {
+
+  mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::findTrajectoryFallback", scope_timer_logger_, scope_timer_enabled_);
 
   ros::Time time_start = ros::Time::now();
 
@@ -1310,6 +1324,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::validateTrajectorySpatial(
     const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const std::vector<Waypoint_t>& waypoints) {
 
+  mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::validateTrajectorySpatial", scope_timer_logger_, scope_timer_enabled_);
+
   // prepare the output
 
   std::vector<bool> segments;
@@ -1363,10 +1379,12 @@ std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::valida
 
 //}
 
-/* getTrajectorySegmenCenterIdxs() //{ */
+/* getTrajectorySegmentCenterIdxs() //{ */
 
-std::vector<int> MrsTrajectoryGeneration::getTrajectorySegmenCenterIdxs(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
+std::vector<int> MrsTrajectoryGeneration::getTrajectorySegmentCenterIdxs(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
                                                                         const std::vector<Waypoint_t>&                    waypoints) {
+
+  mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::getTrajectorySegmentCenterIdxs", scope_timer_logger_, scope_timer_enabled_);
 
   // prepare the output
 
