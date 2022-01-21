@@ -511,20 +511,45 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
     } else {
 
+      // copy the sample from the current prediction into PositionCommand, so that we can easily transform it
+      mrs_msgs::PositionCommand full_state;
+
+      full_state.header = current_prediction.header;
+
+      full_state.position     = current_prediction.position[path_sample_offset];
+      full_state.velocity     = current_prediction.velocity[path_sample_offset];
+      full_state.acceleration = current_prediction.acceleration[path_sample_offset];
+      full_state.jerk         = current_prediction.jerk[path_sample_offset];
+
+      full_state.heading              = current_prediction.heading[path_sample_offset];
+      full_state.heading_rate         = current_prediction.heading_rate[path_sample_offset];
+      full_state.heading_acceleration = current_prediction.heading_acceleration[path_sample_offset];
+      full_state.heading_jerk         = current_prediction.heading_jerk[path_sample_offset];
+
+      auto res = transformPositionCmd(full_state, waypoints_header.frame_id);
+
+      if (res) {
+        full_state = res.value();
+      } else {
+        std::stringstream ss;
+        ss << "could not transform current_prediction to the path frame";
+        ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+        return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
+      }
+
       ROS_INFO("[MrsTrajectoryGeneration]: getting initial condition from the %d-th sample of the MPC prediction", path_sample_offset);
 
-      initial_condition.header.stamp    = current_prediction.header.stamp + ros::Duration(0.01 + 0.2 * path_sample_offset);
-      initial_condition.header.frame_id = current_prediction.header.frame_id;
+      initial_condition.header = full_state.header;
 
-      initial_condition.position     = current_prediction.position[path_sample_offset];
-      initial_condition.velocity     = current_prediction.velocity[path_sample_offset];
-      initial_condition.acceleration = current_prediction.acceleration[path_sample_offset];
-      initial_condition.jerk         = current_prediction.jerk[path_sample_offset];
+      initial_condition.position     = full_state.position;
+      initial_condition.velocity     = full_state.velocity;
+      initial_condition.acceleration = full_state.acceleration;
+      initial_condition.jerk         = full_state.jerk;
 
-      initial_condition.heading              = current_prediction.heading[path_sample_offset];
-      initial_condition.heading_rate         = current_prediction.heading_rate[path_sample_offset];
-      initial_condition.heading_acceleration = current_prediction.heading_acceleration[path_sample_offset];
-      initial_condition.heading_jerk         = current_prediction.heading_jerk[path_sample_offset];
+      initial_condition.heading              = full_state.heading;
+      initial_condition.heading_rate         = full_state.heading_rate;
+      initial_condition.heading_acceleration = full_state.heading_acceleration;
+      initial_condition.heading_jerk         = full_state.heading_jerk;
 
       path_from_future = true;
     }
@@ -732,16 +757,27 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
         ROS_DEBUG("[MrsTrajectoryGeneration]: inserting idx %d", i);
 
-        mrs_msgs::Reference reference;
+        mrs_msgs::ReferenceStamped reference;
 
-        reference.heading  = current_prediction.heading[i];
-        reference.position = current_prediction.position[i];
+        reference.header = current_prediction.header;
 
-        mrs_trajectory.points.insert(mrs_trajectory.points.begin(), reference);
+        reference.reference.heading  = current_prediction.heading[i];
+        reference.reference.position = current_prediction.position[i];
+
+        auto res = transformer_->transformSingle(waypoints_header.frame_id, reference);
+
+        if (res) {
+          reference = res.value();
+        } else {
+          std::stringstream ss;
+          ss << "could not transform reference to the path frame";
+          ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+          return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
+        }
+
+        mrs_trajectory.points.insert(mrs_trajectory.points.begin(), reference.reference);
       }
     }
-
-    mrs_trajectory.header.stamp = current_prediction.header.stamp;
   }
 
   bw_original_.publish();
@@ -1382,7 +1418,7 @@ std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::valida
 /* getTrajectorySegmentCenterIdxs() //{ */
 
 std::vector<int> MrsTrajectoryGeneration::getTrajectorySegmentCenterIdxs(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
-                                                                        const std::vector<Waypoint_t>&                    waypoints) {
+                                                                         const std::vector<Waypoint_t>&                    waypoints) {
 
   mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::getTrajectorySegmentCenterIdxs", scope_timer_logger_, scope_timer_enabled_);
 
@@ -1833,6 +1869,8 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
   override_max_velocity_vertical_       = msg->override_max_velocity_vertical;
   override_max_acceleration_horizontal_ = msg->override_max_acceleration_horizontal;
   override_max_acceleration_vertical_   = msg->override_max_acceleration_vertical;
+  override_max_jerk_horizontal_         = msg->override_max_jerk_horizontal;
+  override_max_jerk_vertical_           = msg->override_max_jerk_horizontal;
   stop_at_waypoints_                    = msg->stop_at_waypoints;
 
   std::vector<Waypoint_t> waypoints;
@@ -1860,9 +1898,6 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     waypoints.push_back(waypoints[0]);
   }
 
-  auto position_cmd       = mrs_lib::get_mutexed(mutex_position_cmd_, position_cmd_);
-  auto current_prediction = mrs_lib::get_mutexed(mutex_prediction_full_state_, prediction_full_state_);
-
   bool                          success = false;
   std::string                   message;
   mrs_msgs::TrajectoryReference trajectory;
@@ -1875,7 +1910,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
     // the last iteration and the fallback sampling is enabled
     bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
 
-    std::tie(success, message, trajectory) = optimize(waypoints, msg->header, position_cmd, prediction_full_state_, fallback_sampling, msg->relax_heading);
+    std::tie(success, message, trajectory) = optimize(waypoints, msg->header, position_cmd, current_prediction, fallback_sampling, msg->relax_heading);
 
     if (success) {
       break;
@@ -2074,8 +2109,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     // the last iteration and the fallback sampling is enabled
     bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
 
-    std::tie(success, message, trajectory) =
-        optimize(waypoints, req.path.header, position_cmd, prediction_full_state_, fallback_sampling, req.path.relax_heading);
+    std::tie(success, message, trajectory) = optimize(waypoints, req.path.header, position_cmd, current_prediction, fallback_sampling, req.path.relax_heading);
 
     if (success) {
       break;
@@ -2241,6 +2275,8 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   override_max_velocity_vertical_       = req.path.override_max_velocity_vertical;
   override_max_acceleration_horizontal_ = req.path.override_max_acceleration_horizontal;
   override_max_acceleration_vertical_   = req.path.override_max_acceleration_vertical;
+  override_max_jerk_horizontal_         = req.path.override_max_jerk_horizontal;
+  override_max_jerk_vertical_           = req.path.override_max_jerk_horizontal;
   stop_at_waypoints_                    = req.path.stop_at_waypoints;
 
   std::vector<Waypoint_t> waypoints;
@@ -2282,8 +2318,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     // the last iteration and the fallback sampling is enabled
     bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
 
-    std::tie(success, message, trajectory) =
-        optimize(waypoints, req.path.header, position_cmd, prediction_full_state_, fallback_sampling, req.path.relax_heading);
+    std::tie(success, message, trajectory) = optimize(waypoints, req.path.header, position_cmd, current_prediction, fallback_sampling, req.path.relax_heading);
 
     if (success) {
       break;
