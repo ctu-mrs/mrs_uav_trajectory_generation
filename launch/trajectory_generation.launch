@@ -19,7 +19,6 @@
 
       <!-- ROS parameters config file -->
       <rosparam file="$(find mrs_uav_trajectory_generation)/config/default.yaml" />
-      <rosparam file="$(find mrs_uav_trajectory_generation)/paths/example.yaml" />
 
       <!-- Load a user param file -->
       <rosparam if="$(eval not arg('custom_config') == '')" file="$(arg custom_config)" />

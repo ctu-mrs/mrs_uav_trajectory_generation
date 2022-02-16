@@ -81,9 +81,6 @@ private:
 
   // | ----------------------- parameters ----------------------- |
 
-  // path for debuggins
-  Eigen::MatrixXd _yaml_path_;
-
   double _sampling_dt_;
 
   double _max_trajectory_len_factor_;
@@ -293,8 +290,6 @@ void MrsTrajectoryGeneration::onInit() {
   // | ----------------------- parameters ----------------------- |
 
   mrs_lib::ParamLoader param_loader(nh_, "MrsTrajectoryGeneration");
-
-  _yaml_path_ = param_loader.loadMatrixDynamic2("path", -1, 4);
 
   param_loader.loadParam("uav_name", _uav_name_);
 
