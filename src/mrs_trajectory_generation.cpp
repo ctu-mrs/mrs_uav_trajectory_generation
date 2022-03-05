@@ -320,7 +320,7 @@ void MrsTrajectoryGeneration::onInit() {
 
   // | --------------------- tf transformer --------------------- |
 
-  transformer_ = std::make_shared<mrs_lib::Transformer>("TrajectoryGeneration");
+  transformer_ = std::make_shared<mrs_lib::Transformer>(nh_, "TrajectoryGeneration");
   transformer_->setDefaultPrefix(_uav_name_);
   transformer_->retryLookupNewest(true);
 
