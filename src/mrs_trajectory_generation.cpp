@@ -33,6 +33,7 @@
 #include <mrs_lib/utils.h>
 #include <mrs_lib/scope_timer.h>
 #include <mrs_lib/attitude_converter.h>
+#include <mrs_lib/publisher_handler.h>
 
 #include <dynamic_reconfigure/server.h>
 #include <mrs_uav_trajectory_generation/drsConfig.h>
@@ -78,6 +79,8 @@ public:
   virtual void onInit();
 
 private:
+  ros::NodeHandle nh_;
+
   bool is_initialized_ = false;
 
   // | ----------------------- parameters ----------------------- |
@@ -244,7 +247,7 @@ private:
 
   // | ------------ Republisher for the desired path ------------ |
 
-  ros::Publisher publisher_original_path_;
+  mrs_lib::PublisherHandler<mrs_msgs::Path> ph_original_path_;
 
   // | ------------- measuring the time of execution ------------ |
 
@@ -261,14 +264,14 @@ private:
 void MrsTrajectoryGeneration::onInit() {
 
   /* obtain node handle */
-  ros::NodeHandle nh_("~");
+  nh_ = nodelet::Nodelet::getMTPrivateNodeHandle();
 
   /* waits for the ROS to publish clock */
   ros::Time::waitForValid();
 
   // | ----------------------- publishers ----------------------- |
 
-  publisher_original_path_ = nh_.advertise<mrs_msgs::Path>("original_path_out", 1);
+  ph_original_path_ = mrs_lib::PublisherHandler<mrs_msgs::Path>(nh_, "original_path_out", 1);
 
   // | ----------------------- subscribers ---------------------- |
 
@@ -1844,12 +1847,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
   ROS_INFO("[MrsTrajectoryGeneration]: got path from message");
 
-  try {
-    publisher_original_path_.publish(msg);
-  }
-  catch (...) {
-    ROS_ERROR("exception caught during publishing topic '%s'", publisher_original_path_.getTopic().c_str());
-  }
+  ph_original_path_.publish(msg);
 
   if (msg->points.empty()) {
     std::stringstream ss;
@@ -2038,12 +2036,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
 
   ROS_INFO("[MrsTrajectoryGeneration]: got path from service");
 
-  try {
-    publisher_original_path_.publish(req.path);
-  }
-  catch (...) {
-    ROS_ERROR("exception caught during publishing topic '%s'", publisher_original_path_.getTopic().c_str());
-  }
+  ph_original_path_.publish(req.path);
 
   if (req.path.points.empty()) {
     std::stringstream ss;
@@ -2247,12 +2240,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
 
   ROS_INFO("[MrsTrajectoryGeneration]: got path from service");
 
-  try {
-    publisher_original_path_.publish(req.path);
-  }
-  catch (...) {
-    ROS_ERROR("exception caught during publishing topic '%s'", publisher_original_path_.getTopic().c_str());
-  }
+  ph_original_path_.publish(req.path);
 
   if (req.path.points.empty()) {
     std::stringstream ss;
