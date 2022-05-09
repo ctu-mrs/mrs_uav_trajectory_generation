@@ -2,8 +2,8 @@
 Changelog for package mrs_uav_trajectory_generation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.2 (2022-05-09)
+------------------
 * refactored agains publisher handler
 * updated transformer interface
 * refactored agains the new transformer
