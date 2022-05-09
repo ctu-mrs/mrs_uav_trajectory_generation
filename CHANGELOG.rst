@@ -2,6 +2,16 @@
 Changelog for package mrs_uav_trajectory_generation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* refactored agains publisher handler
+* updated transformer interface
+* refactored agains the new transformer
+* + install in cmakelists, refactoring
+* fixed arbitrary frame_id bug
+* add ScopeTimer and its logger; disabled by default
+* Contributors: Pavel Petracek, Tomas Baca
+
 1.0.1 (2021-10-05)
 ------------------
 * added path input id
