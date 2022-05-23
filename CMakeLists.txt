@@ -21,6 +21,7 @@ generate_dynamic_reconfigure_options(
   config/drs.cfg
   )
 
+find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 set(Eigen_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
 set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
@@ -50,6 +51,7 @@ add_library(MrsTrajectoryGeneration
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
   ${Eigen_INCLUDE_DIRS}
   ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
   )

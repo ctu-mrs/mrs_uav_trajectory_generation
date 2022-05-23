@@ -27,6 +27,7 @@
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/geometry/cyclic.h>
 #include <mrs_lib/geometry/misc.h>
+#include <mrs_lib/geometry/conversions.h>
 #include <mrs_lib/mutex.h>
 #include <mrs_lib/batch_visualizer.h>
 #include <mrs_lib/transformer.h>
@@ -322,7 +323,7 @@ namespace mrs_uav_trajectory_generation
 
     // | --------------------- tf transformer --------------------- |
 
-    transformer_ = std::make_shared<mrs_lib::Transformer>("TrajectoryGeneration", _uav_name_);
+    transformer_ = std::make_shared<mrs_lib::Transformer>(nh_, "TrajectoryGeneration");
 
     // | --------------------- service clients -------------------- |
 
@@ -572,8 +573,8 @@ namespace mrs_uav_trajectory_generation
     bw_final_.clearBuffers();
     bw_final_.clearVisuals();
 
-    bw_original_.setParentFrame(transformer_->resolveFrameName(frame_id_));
-    bw_final_.setParentFrame(transformer_->resolveFrameName(frame_id_));
+    bw_original_.setParentFrame(transformer_->resolveFrame(frame_id_));
+    bw_final_.setParentFrame(transformer_->resolveFrame(frame_id_));
 
     bw_original_.setPointsScale(0.4);
     bw_final_.setPointsScale(0.35);
@@ -1697,8 +1698,8 @@ namespace mrs_uav_trajectory_generation
 
     mrs_msgs::PositionCommand cmd_out;
 
-    cmd_out.header.stamp = tf.value().stamp();
-    cmd_out.header.frame_id = tf.value().to();
+    cmd_out.header.stamp = tf.value().header.stamp;
+    cmd_out.header.frame_id = mrs_lib::Transformer::frame_from(tf.value());
 
     /* position + heading //{ */
 
@@ -1707,14 +1708,14 @@ namespace mrs_uav_trajectory_generation
       pos.header = position_cmd.header;
 
       pos.pose.position = position_cmd.position;
-      pos.pose.orientation = mrs_lib::AttitudeConverter(0, 0, position_cmd.heading);
+      pos.pose.orientation = mrs_lib::geometry::fromEigen(mrs_lib::geometry::quaternionFromHeading(position_cmd.heading));
 
-      if (auto ret = transformer_->transform(tf.value(), pos))
+      if (const auto ret = transformer_->transform(pos, tf.value()))
       {
         cmd_out.position = ret.value().pose.position;
         try
         {
-          cmd_out.heading = mrs_lib::AttitudeConverter(ret.value().pose.orientation).getHeading();
+          cmd_out.heading = mrs_lib::geometry::headingFromRot(mrs_lib::geometry::toEigen(ret.value().pose.orientation));
         }
         catch (...)
         {
@@ -1737,7 +1738,7 @@ namespace mrs_uav_trajectory_generation
 
       vec.vector = position_cmd.velocity;
 
-      if (auto ret = transformer_->transform(tf.value(), vec))
+      if (const auto ret = transformer_->transform(vec, tf.value()))
       {
         cmd_out.velocity = ret.value().vector;
       } else
@@ -1756,7 +1757,7 @@ namespace mrs_uav_trajectory_generation
 
       vec.vector = position_cmd.acceleration;
 
-      if (auto ret = transformer_->transform(tf.value(), vec))
+      if (const auto ret = transformer_->transform(vec, tf.value()))
       {
         cmd_out.acceleration = ret.value().vector;
       } else
@@ -1775,7 +1776,7 @@ namespace mrs_uav_trajectory_generation
 
       vec.vector = position_cmd.jerk;
 
-      if (auto ret = transformer_->transform(tf.value(), vec))
+      if (const auto ret = transformer_->transform(vec, tf.value()))
       {
         cmd_out.jerk = ret.value().vector;
       } else
@@ -2535,7 +2536,7 @@ namespace mrs_uav_trajectory_generation
 
     got_position_cmd_ = true;
 
-    transformer_->setCurrentControlFrame(msg->header.frame_id);
+    transformer_->setDefaultFrame(msg->header.frame_id);
 
     mrs_lib::set_mutexed(mutex_position_cmd_, *msg, position_cmd_);
   }
