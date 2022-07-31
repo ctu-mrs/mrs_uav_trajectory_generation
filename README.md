@@ -21,12 +21,12 @@ The main differences are:
 * The utilized variant minimizes acceleration and uses the _Mellinger's_ time allocation method.
 * Improved _Mellinger's_ time allocation: only the polynomial segments that violate constraints are _stretched_, instead of the whole trajectory.
 * Purely Euclidean `max_speed` time estimate is used for initializing segment times. It provides lower bound, which is good since the constraints are met by prolonging the segment times (not shortening them).
-* Iterrative segment subsectioning is added to satisfy maximum distance from the original segmented waypoint path.
+* Iterative segment subsectioning is added to satisfy maximum distance from the original segmented waypoint path.
 * Added mechanism to smoothly continue with the current motion when replanning (the incoming path needs to be from the future).
 * Added checks for spatial and temporal validity of the resulting trajectory.
-* Added check for nlopt results, that can, in fact, indicate the the process has failed.
+* Added check for nlopt results, that can, in fact, indicate the process has failed.
 * Added the maxtime parameter for nlopt, therefore, timeouting is possible.
-* Added fallback trajectory geneneration that is used in case of failure of the ETH trajectory generation.
+* Added fallback trajectory generation that is used in case of failure of the ETH trajectory generation.
 * Removed dependency on the [glog](https://github.com/google/glog) library and the ETH glog [wrapper](https://github.com/ethz-asl/glog_catkin).
 * Removed dependency on [catkin_simple](https://github.com/catkin/catkin_simple).
 * Removed dependency on the _yaml_cpp_ library.
