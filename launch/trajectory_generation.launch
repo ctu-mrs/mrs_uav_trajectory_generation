@@ -2,7 +2,7 @@
 
   <arg name="custom_config" default="" />
 
-  <arg name="UAV_NAME" default="$(env UAV_NAME)" />
+  <arg name="UAV_NAME" default="$(optenv UAV_NAME)" />
   <arg name="LOGGER_DEBUG" default="$(optenv LOGGER_DEBUG false)" />
 
   <arg name="DEBUG" default="false" />
