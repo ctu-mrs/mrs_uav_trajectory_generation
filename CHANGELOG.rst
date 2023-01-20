@@ -2,8 +2,8 @@
 Changelog for package mrs_uav_trajectory_generation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.3 (2023-01-20)
+------------------
 * updated readme, updated ci
 * fixed launch, env->optenv
 * Update README.md

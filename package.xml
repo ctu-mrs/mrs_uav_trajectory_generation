@@ -2,7 +2,7 @@
 <package format="2">
 
   <name>mrs_uav_trajectory_generation</name>
-  <version>1.0.2</version>
+  <version>1.0.3</version>
   <description>UAV trajectory generation</description>
 
   <author email="tomas.baca@fel.cvut.cz">Tomas Baca</author>
