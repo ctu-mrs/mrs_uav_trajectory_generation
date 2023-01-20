@@ -2,6 +2,13 @@
 Changelog for package mrs_uav_trajectory_generation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* updated readme, updated ci
+* fixed launch, env->optenv
+* Update README.md
+* Contributors: Tomas Baca, Tomáš Báča
+
 1.0.2 (2022-05-09)
 ------------------
 * refactored agains publisher handler
