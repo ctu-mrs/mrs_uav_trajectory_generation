@@ -18,20 +18,25 @@
  * limitations under the License.
  */
 
-#include "mav_trajectory_generation/motion_defines.h"
+#include <eth_trajectory_generation/motion_defines.h>
 
-namespace mav_trajectory_generation {
+namespace eth_trajectory_generation
+{
+
+/* positionDerivativeToString //{ */
 
 std::string positionDerivativeToString(int derivative) {
-  if (derivative >= derivative_order::POSITION &&
-      derivative <= derivative_order::SNAP) {
-    static constexpr const char* text[] = {"position", "velocity",
-                                           "acceleration", "jerk", "snap"};
+  if (derivative >= derivative_order::POSITION && derivative <= derivative_order::SNAP) {
+    static constexpr const char* text[] = {"position", "velocity", "acceleration", "jerk", "snap"};
     return std::string(text[derivative]);
   } else {
     return std::string("invalid");
   }
 }
+
+//}
+
+/* positionDerivativeToInt() //{ */
 
 int positionDerivativeToInt(const std::string& string) {
   using namespace derivative_order;
@@ -50,16 +55,22 @@ int positionDerivativeToInt(const std::string& string) {
   }
 }
 
+//}
+
+/* orintationDerivativeToString() //{ */
+
 std::string orintationDerivativeToString(int derivative) {
-  if (derivative >= derivative_order::ORIENTATION &&
-      derivative <= derivative_order::ANGULAR_ACCELERATION) {
-    static constexpr const char* text[] = {"orientation", "angular_velocity",
-                                           "angular_acceleration"};
+  if (derivative >= derivative_order::ORIENTATION && derivative <= derivative_order::ANGULAR_ACCELERATION) {
+    static constexpr const char* text[] = {"orientation", "angular_velocity", "angular_acceleration"};
     return std::string(text[derivative]);
   } else {
     return std::string("invalid");
   }
 }
+
+//}
+
+/* orientationDerivativeToInt() //{ */
 
 int orientationDerivativeToInt(const std::string& string) {
   using namespace derivative_order;
@@ -74,4 +85,6 @@ int orientationDerivativeToInt(const std::string& string) {
   }
 }
 
-}  // namespace mav_trajectory_generation
+//}
+
+}  // namespace eth_trajectory_generation

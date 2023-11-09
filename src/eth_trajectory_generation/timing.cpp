@@ -27,19 +27,25 @@
 #include <sstream>
 #include <string>
 
-#include "mav_trajectory_generation/timing.h"
+#include <eth_trajectory_generation/timing.h>
 
-namespace mav_trajectory_generation {
-namespace timing {
+namespace eth_trajectory_generation
+{
+namespace timing
+{
 
 Timing& Timing::Instance() {
   static Timing t;
   return t;
 }
 
-Timing::Timing() : max_tag_length_(0) {}
+Timing::Timing() : max_tag_length_(0) {
+}
 
-Timing::~Timing() {}
+Timing::~Timing() {
+}
+
+/* GetHandle() //{ */
 
 // Static functions to query the timers:
 size_t Timing::GetHandle(std::string const& tag) {
@@ -47,18 +53,21 @@ size_t Timing::GetHandle(std::string const& tag) {
   map_t::iterator i = Instance().tag_map_.find(tag);
   if (i == Instance().tag_map_.end()) {
     // If it is not there, create a tag.
-    size_t handle = Instance().timers_.size();
+    size_t handle            = Instance().timers_.size();
     Instance().tag_map_[tag] = handle;
     Instance().timers_.push_back(TimerMapValue());
     // Track the maximum tag length to help printing a table of timing values
     // later.
-    Instance().max_tag_length_ =
-        std::max(Instance().max_tag_length_, tag.size());
+    Instance().max_tag_length_ = std::max(Instance().max_tag_length_, tag.size());
     return handle;
   } else {
     return i->second;
   }
 }
+
+//}
+
+/* GetTag() //{ */
 
 std::string Timing::GetTag(size_t handle) {
   std::string tag;
@@ -72,89 +81,196 @@ std::string Timing::GetTag(size_t handle) {
   return tag;
 }
 
+//}
+
+/* Timer() //{ */
+
 // Class functions used for timing.
-Timer::Timer(size_t handle, bool constructStopped)
-    : timing_(false), handle_(handle) {
-  if (!constructStopped) Start();
+Timer::Timer(size_t handle, bool constructStopped) : timing_(false), handle_(handle) {
+  if (!constructStopped)
+    Start();
 }
 
-Timer::Timer(std::string const& tag, bool constructStopped)
-    : timing_(false), handle_(Timing::GetHandle(tag)) {
-  if (!constructStopped) Start();
+//}
+
+/* Timer() //{ */
+
+Timer::Timer(std::string const& tag, bool constructStopped) : timing_(false), handle_(Timing::GetHandle(tag)) {
+  if (!constructStopped)
+    Start();
 }
+
+//}
+
+/* ~Timer() //{ */
 
 Timer::~Timer() {
-  if (IsTiming()) Stop();
+  if (IsTiming())
+    Stop();
 }
+
+//}
+
+/* Start() //{ */
 
 void Timer::Start() {
   timing_ = true;
-  time_ = std::chrono::system_clock::now();
+  time_   = std::chrono::system_clock::now();
 }
 
+//}
+
+/* Stop() //{ */
+
 void Timer::Stop() {
-  std::chrono::time_point<std::chrono::system_clock> now =
-      std::chrono::system_clock::now();
-  double dt = std::chrono::duration<double>(now - time_).count();
+  std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+  double                                             dt  = std::chrono::duration<double>(now - time_).count();
 
   Timing::Instance().AddTime(handle_, dt);
   timing_ = false;
 }
 
-bool Timer::IsTiming() const { return timing_; }
+//}
+
+/* IsTiming() //{ */
+
+bool Timer::IsTiming() const {
+  return timing_;
+}
+
+//}
+
+/* AddTime() //{ */
 
 void Timing::AddTime(size_t handle, double seconds) {
   timers_[handle].acc_.Add(seconds);
 }
 
+//}
+
+/* GetTotalSeconds() //{ */
+
 double Timing::GetTotalSeconds(size_t handle) {
   return Instance().timers_[handle].acc_.Sum();
 }
+
+//}
+
+/* GetTotalSeconds() //{ */
+
 double Timing::GetTotalSeconds(std::string const& tag) {
   return GetTotalSeconds(GetHandle(tag));
 }
+
+//}
+
+/* GetMeanSeconds() //{ */
+
 double Timing::GetMeanSeconds(size_t handle) {
   return Instance().timers_[handle].acc_.Mean();
 }
+
+//}
+
+/* GetMeanSeconds() //{ */
+
 double Timing::GetMeanSeconds(std::string const& tag) {
   return GetMeanSeconds(GetHandle(tag));
 }
+
+//}
+
+/* GetNumSamples() //{ */
+
 size_t Timing::GetNumSamples(size_t handle) {
   return Instance().timers_[handle].acc_.TotalSamples();
 }
+
+//}
+
+/* GetNumSamples() //{ */
+
 size_t Timing::GetNumSamples(std::string const& tag) {
   return GetNumSamples(GetHandle(tag));
 }
+
+//}
+
+/* GetVarianceSeconds() //{ */
+
 double Timing::GetVarianceSeconds(size_t handle) {
   return Instance().timers_[handle].acc_.LazyVariance();
 }
+
+//}
+
+/* GetVarianceSeconds() //{ */
+
 double Timing::GetVarianceSeconds(std::string const& tag) {
   return GetVarianceSeconds(GetHandle(tag));
 }
+
+//}
+
+/* GetMinSeconds() //{ */
+
 double Timing::GetMinSeconds(size_t handle) {
   return Instance().timers_[handle].acc_.Min();
 }
+
+//}
+
+/* GetMinSeconds() //{ */
+
 double Timing::GetMinSeconds(std::string const& tag) {
   return GetMinSeconds(GetHandle(tag));
 }
+
+//}
+
+/* GetMaxSeconds() //{ */
+
 double Timing::GetMaxSeconds(size_t handle) {
   return Instance().timers_[handle].acc_.Max();
 }
+
+//}
+
+/* GetMaxSeconds() //{ */
+
 double Timing::GetMaxSeconds(std::string const& tag) {
   return GetMaxSeconds(GetHandle(tag));
 }
+
+//}
+
+/* GetHz() //{ */
 
 double Timing::GetHz(size_t handle) {
   return 1.0 / Instance().timers_[handle].acc_.RollingMean();
 }
 
-double Timing::GetHz(std::string const& tag) { return GetHz(GetHandle(tag)); }
+//}
+
+/* GetHz() //{ */
+
+double Timing::GetHz(std::string const& tag) {
+  return GetHz(GetHandle(tag));
+}
+
+//}
+
+/* SecondsToTimeString() //{ */
 
 std::string Timing::SecondsToTimeString(double seconds) {
   char buffer[256];
   snprintf(buffer, sizeof(buffer), "%09.6f", seconds);
   return buffer;
 }
+
+//}
+
+/* Print() //{ */
 
 void Timing::Print(std::ostream& out) {
   map_t& tagMap = Instance().tag_map_;
@@ -177,7 +293,7 @@ void Timing::Print(std::ostream& out) {
     if (GetNumSamples(i) > 0) {
       out << SecondsToTimeString(GetTotalSeconds(i)) << "\t";
       double meansec = GetMeanSeconds(i);
-      double stddev = sqrt(GetVarianceSeconds(i));
+      double stddev  = sqrt(GetVarianceSeconds(i));
       out << "(" << SecondsToTimeString(meansec) << " +- ";
       out << SecondsToTimeString(stddev) << ")\t";
 
@@ -185,19 +301,31 @@ void Timing::Print(std::ostream& out) {
       double maxsec = GetMaxSeconds(i);
 
       // The min or max are out of bounds.
-      out << "[" << SecondsToTimeString(minsec) << ","
-          << SecondsToTimeString(maxsec) << "]";
+      out << "[" << SecondsToTimeString(minsec) << "," << SecondsToTimeString(maxsec) << "]";
     }
     out << std::endl;
   }
 }
+
+//}
+
+/* Print() //{ */
+
 std::string Timing::Print() {
   std::stringstream ss;
   Print(ss);
   return ss.str();
 }
 
-void Timing::Reset() { Instance().tag_map_.clear(); }
+//}
+
+/* Reset() //{ */
+
+void Timing::Reset() {
+  Instance().tag_map_.clear();
+}
+
+//}
 
 }  // namespace timing
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation

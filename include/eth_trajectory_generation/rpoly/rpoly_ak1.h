@@ -19,13 +19,13 @@
 
 #include <Eigen/Eigen>
 
-namespace mav_trajectory_generation {
+namespace eth_trajectory_generation
+{
 
 int findLastNonZeroCoeff(const Eigen::VectorXd& coefficients);
 
-bool findRootsJenkinsTraub(const Eigen::VectorXd& coefficients_increasing,
-                           Eigen::VectorXcd* roots);
+bool findRootsJenkinsTraub(const Eigen::VectorXd& coefficients_increasing, Eigen::VectorXcd* roots);
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_RPOLY_RPOLY_AK1_H_
+#endif  // ETH_TRAJECTORY_GENERATION_RPOLY_RPOLY_AK1_H_

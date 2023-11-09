@@ -1,38 +1,4 @@
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+*.swp
+*.swo
 
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# Macs
-.DS_Store
-
-# Temporary git files
-*.orig
-
-# Matlab
-*.m~
+.gitman

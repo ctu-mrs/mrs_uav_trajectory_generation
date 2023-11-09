@@ -20,8 +20,8 @@
 
 /* Adapted from Paul Furgale Schweizer Messer sm_timing */
 
-#ifndef MAV_TRAJECTORY_GENERATION_TIMING_H_
-#define MAV_TRAJECTORY_GENERATION_TIMING_H_
+#ifndef ETH_TRAJECTORY_GENERATION_TIMING_H_
+#define ETH_TRAJECTORY_GENERATION_TIMING_H_
 
 #include <algorithm>
 #include <chrono>
@@ -30,19 +30,16 @@
 #include <string>
 #include <vector>
 
-namespace mav_trajectory_generation {
-namespace timing {
+namespace eth_trajectory_generation
+{
+namespace timing
+{
 
 template <typename T, typename Total, int N>
 class Accumulator {
- public:
-  Accumulator()
-      : window_samples_(0),
-        total_samples_(0),
-        window_sum_(0),
-        sum_(0),
-        min_(std::numeric_limits<T>::max()),
-        max_(std::numeric_limits<T>::min()) {}
+public:
+  Accumulator() : window_samples_(0), total_samples_(0), window_sum_(0), sum_(0), min_(std::numeric_limits<T>::max()), max_(std::numeric_limits<T>::min()) {
+  }
 
   void Add(T sample) {
     if (window_samples_ < N) {
@@ -63,25 +60,35 @@ class Accumulator {
     }
   }
 
-  int TotalSamples() const { return total_samples_; }
+  int TotalSamples() const {
+    return total_samples_;
+  }
 
-  double Sum() const { return sum_; }
+  double Sum() const {
+    return sum_;
+  }
 
-  double Mean() const { return sum_ / total_samples_; }
+  double Mean() const {
+    return sum_ / total_samples_;
+  }
 
   double RollingMean() const {
     return window_sum_ / std::min(window_samples_, N);
   }
 
-  double Max() const { return max_; }
+  double Max() const {
+    return max_;
+  }
 
-  double Min() const { return min_; }
+  double Min() const {
+    return min_;
+  }
 
   double LazyVariance() const {
     if (window_samples_ == 0) {
       return 0.0;
     }
-    double var = 0;
+    double var  = 0;
     double mean = RollingMean();
     for (int i = 0; i < std::min(window_samples_, N); ++i) {
       var += (samples_[i] - mean) * (samples_[i] - mean);
@@ -90,18 +97,20 @@ class Accumulator {
     return var;
   }
 
- private:
-  int window_samples_;
-  int total_samples_;
+private:
+  int   window_samples_;
+  int   total_samples_;
   Total window_sum_;
   Total sum_;
-  T min_;
-  T max_;
-  T samples_[N];
+  T     min_;
+  T     max_;
+  T     samples_[N];
 };
 
-struct TimerMapValue {
-  TimerMapValue() {}
+struct TimerMapValue
+{
+  TimerMapValue() {
+  }
 
   // Create an accumulator with specified window size.
   Accumulator<double, double, 50> acc_;
@@ -111,18 +120,25 @@ struct TimerMapValue {
 // place of the Timer class (say with a typedef) should allow one to disable
 // timing. Because all of the functions are inline, they should just disappear.
 class DummyTimer {
- public:
-  DummyTimer(size_t /*handle*/, bool /*constructStopped*/ = false) {}
-  DummyTimer(std::string const& /*tag*/, bool /*constructStopped*/ = false) {}
-  ~DummyTimer() {}
+public:
+  DummyTimer(size_t /*handle*/, bool /*constructStopped*/ = false) {
+  }
+  DummyTimer(std::string const& /*tag*/, bool /*constructStopped*/ = false) {
+  }
+  ~DummyTimer() {
+  }
 
-  void Start() {}
-  void Stop() {}
-  bool IsTiming() { return false; }
+  void Start() {
+  }
+  void Stop() {
+  }
+  bool IsTiming() {
+    return false;
+  }
 };
 
 class Timer {
- public:
+public:
   Timer(size_t handle, bool constructStopped = false);
   Timer(std::string const& tag, bool constructStopped = false);
   ~Timer();
@@ -131,41 +147,43 @@ class Timer {
   void Stop();
   bool IsTiming() const;
 
- private:
+private:
   std::chrono::time_point<std::chrono::system_clock> time_;
 
-  bool timing_;
+  bool   timing_;
   size_t handle_;
 };
 
 class Timing {
- public:
+public:
   typedef std::map<std::string, size_t> map_t;
   friend class Timer;
   // Definition of static functions to query the timers.
-  static size_t GetHandle(std::string const& tag);
-  static std::string GetTag(size_t handle);
-  static double GetTotalSeconds(size_t handle);
-  static double GetTotalSeconds(std::string const& tag);
-  static double GetMeanSeconds(size_t handle);
-  static double GetMeanSeconds(std::string const& tag);
-  static size_t GetNumSamples(size_t handle);
-  static size_t GetNumSamples(std::string const& tag);
-  static double GetVarianceSeconds(size_t handle);
-  static double GetVarianceSeconds(std::string const& tag);
-  static double GetMinSeconds(size_t handle);
-  static double GetMinSeconds(std::string const& tag);
-  static double GetMaxSeconds(size_t handle);
-  static double GetMaxSeconds(std::string const& tag);
-  static double GetHz(size_t handle);
-  static double GetHz(std::string const& tag);
-  static void Print(std::ostream& out);
-  static std::string Print();
-  static std::string SecondsToTimeString(double seconds);
-  static void Reset();
-  static const map_t& GetTimers() { return Instance().tag_map_; }
+  static size_t       GetHandle(std::string const& tag);
+  static std::string  GetTag(size_t handle);
+  static double       GetTotalSeconds(size_t handle);
+  static double       GetTotalSeconds(std::string const& tag);
+  static double       GetMeanSeconds(size_t handle);
+  static double       GetMeanSeconds(std::string const& tag);
+  static size_t       GetNumSamples(size_t handle);
+  static size_t       GetNumSamples(std::string const& tag);
+  static double       GetVarianceSeconds(size_t handle);
+  static double       GetVarianceSeconds(std::string const& tag);
+  static double       GetMinSeconds(size_t handle);
+  static double       GetMinSeconds(std::string const& tag);
+  static double       GetMaxSeconds(size_t handle);
+  static double       GetMaxSeconds(std::string const& tag);
+  static double       GetHz(size_t handle);
+  static double       GetHz(std::string const& tag);
+  static void         Print(std::ostream& out);
+  static std::string  Print();
+  static std::string  SecondsToTimeString(double seconds);
+  static void         Reset();
+  static const map_t& GetTimers() {
+    return Instance().tag_map_;
+  }
 
- private:
+private:
   void AddTime(size_t handle, double seconds);
 
   static Timing& Instance();
@@ -176,7 +194,7 @@ class Timing {
   typedef std::vector<TimerMapValue> list_t;
 
   list_t timers_;
-  map_t tag_map_;
+  map_t  tag_map_;
   size_t max_tag_length_;
 };
 
@@ -188,8 +206,9 @@ typedef Timer DebugTimer;
 
 // Small timer for benchmarking.
 class MiniTimer {
- public:
-  MiniTimer() : start_(std::chrono::system_clock::now()) {}
+public:
+  MiniTimer() : start_(std::chrono::system_clock::now()) {
+  }
 
   void start() {
     start_ = std::chrono::system_clock::now();
@@ -208,12 +227,12 @@ class MiniTimer {
     return duration.count();
   }
 
- private:
+private:
   std::chrono::time_point<std::chrono::system_clock> start_;
   std::chrono::time_point<std::chrono::system_clock> end_;
 };
 
 }  // namespace timing
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_TIMING_H_
+#endif  // ETH_TRAJECTORY_GENERATION_TIMING_H_

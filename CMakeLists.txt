@@ -1,64 +1,99 @@
-cmake_minimum_required(VERSION 2.8.3)
-project(mav_trajectory_generation)
+cmake_minimum_required(VERSION 3.5)
+project(mrs_uav_trajectory_generation)
 
-find_package(catkin_simple REQUIRED)
-catkin_simple(ALL_DEPS_REQUIRED)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_MACOSX_RPATH 0)
-add_definitions(-std=c++11)
+add_definitions(-O3)
 
-# Link against system catkin yaml-cpp if installed.
-find_package(PkgConfig)
-find_package(yaml_cpp_catkin QUIET)
-if(${yaml_cpp_catkin_FOUND})
-    message(STATUS "Found yaml_cpp_catkin, using instead of system library.")
-    set(YamlCpp_LIBRARIES ${yaml_cpp_catkin_LIBRARIES})
-    set(YamlCpp_INCLUDE_DIRS ${yaml_cpp_catkin_INCLUDE_DIRS})
-else()
-    message(STATUS "No yaml_cpp_catkin, using yaml-cpp system library instead.")
-    pkg_check_modules(YamlCpp REQUIRED yaml-cpp>=0.5)
-endif()
+set(CATKIN_DEPENDENCIES
+  cmake_modules
+  roscpp
+  rospy
+  nodelet
+  dynamic_reconfigure
+  std_msgs
+  mrs_msgs
+  mrs_lib
+  nlopt
+  )
 
-#############
-# LIBRARIES #
-#############
-cs_add_library(${PROJECT_NAME}
-  src/motion_defines.cpp
-  src/polynomial.cpp
-  src/segment.cpp
-  src/timing.cpp
-  src/trajectory.cpp
-  src/trajectory_sampling.cpp
-  src/vertex.cpp
-  src/io.cpp
-  src/rpoly/rpoly_ak1.cpp
-)
-# Link against yaml-cpp.
-target_link_libraries(${PROJECT_NAME} ${YamlCpp_LIBRARIES})
+find_package(catkin REQUIRED COMPONENTS
+  ${CATKIN_DEPENDENCIES}
+  )
 
-############
-# BINARIES #
-############
-cs_add_executable(polynomial_timing_evaluation
-  src/polynomial_timing_evaluation.cpp
-)
-target_link_libraries(polynomial_timing_evaluation ${PROJECT_NAME})
+generate_dynamic_reconfigure_options(
+  config/drs.cfg
+  )
 
-#########
-# TESTS #
-#########
-catkin_add_gtest(test_polynomial
-  test/test_polynomial.cpp
-)
-target_link_libraries(test_polynomial ${PROJECT_NAME} ${catkin_LIBRARIES})
+find_package(Eigen3 REQUIRED)
+set(Eigen_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
+set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 
-catkin_add_gtest(test_polynomial_optimization
-  test/test_polynomial_optimization.cpp
-)
-target_link_libraries(test_polynomial_optimization ${PROJECT_NAME} ${catkin_LIBRARIES})
+set(LIBRARIES
+  MrsUavTrajectoryGeneration_EthTrajectoryGeneration
+  MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
+  )
 
-##########
-# EXPORT #
-##########
-cs_install()
-cs_export()
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES ${LIBRARIES}
+  CATKIN_DEPENDS ${CATKIN_DEPENDENCIES}
+  DEPENDS Eigen
+  )
+
+add_library(MrsUavTrajectoryGeneration_EthTrajectoryGeneration
+  src/eth_trajectory_generation/motion_defines.cpp
+  src/eth_trajectory_generation/polynomial.cpp
+  src/eth_trajectory_generation/segment.cpp
+  src/eth_trajectory_generation/timing.cpp
+  src/eth_trajectory_generation/trajectory.cpp
+  src/eth_trajectory_generation/trajectory_sampling.cpp
+  src/eth_trajectory_generation/vertex.cpp
+  src/eth_trajectory_generation/rpoly/rpoly_ak1.cpp
+  )
+
+add_library(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
+  src/mrs_trajectory_generation.cpp
+  )
+
+include_directories(
+  include
+  ${catkin_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
+  ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
+  )
+
+target_link_libraries(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
+  MrsUavTrajectoryGeneration_EthTrajectoryGeneration
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
+## --------------------------------------------------------------
+## |                           Install                          |
+## --------------------------------------------------------------
+
+install(TARGETS ${LIBRARIES}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+  )
+
+install(DIRECTORY launch config
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )
+
+install(DIRECTORY scripts/
+  USE_SOURCE_PERMISSIONS
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  )
+
+install(DIRECTORY scripts
+  USE_SOURCE_PERMISSIONS
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )
+
+install(FILES nodelets.xml
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )

@@ -1,0 +1,67 @@
+<launch>
+
+  <arg name="custom_config" default="" />
+  <arg name="platform_config" default="" />
+  <arg name="standalone" default="true" />
+  <arg name="nodelet_manager_name" default="$(optenv NODELET_MANAGER)" />
+  <arg name="debug" default="false" />
+  <arg name="bond" default="$(optenv BOND true)" />
+
+  <arg name="UAV_NAME" default="$(optenv UAV_NAME uav1)" />
+  <arg name="LOGGER_DEBUG" default="$(optenv LOGGER_DEBUG false)" />
+
+  <arg name="DEBUG" default="false" />
+  <arg unless="$(arg DEBUG)" name="launch_prefix_debug" value=""/>
+  <arg     if="$(arg DEBUG)" name="launch_prefix_debug" value="debug_roslaunch"/>
+  <arg unless="$(arg DEBUG)" name="respawn" value="true"/>
+  <arg     if="$(arg DEBUG)" name="respawn" value="false"/>
+
+  <env name="ROSCONSOLE_CONFIG_FILE" if="$(eval arg('LOGGER_DEBUG'))" value="$(find mrs_uav_trajectory_generation)/config/debug_verbosity.yaml" />
+
+  <arg     if="$(arg bond)" name="bond_suffix" value="" />
+  <arg unless="$(arg bond)" name="bond_suffix" value="--no-bond" />
+
+  <arg     if="$(eval arg('standalone') or arg('debug'))" name="nodelet" value="standalone" />
+  <arg unless="$(eval arg('standalone') or arg('debug'))" name="nodelet" value="load" />
+  <arg     if="$(eval arg('standalone') or arg('debug'))" name="nodelet_manager" value="" />
+  <arg unless="$(eval arg('standalone') or arg('debug'))" name="nodelet_manager" value="$(arg nodelet_manager_name)" />
+
+  <group ns="$(arg UAV_NAME)">
+
+    <node pkg="nodelet" type="nodelet" name="trajectory_generation" args="$(arg nodelet)  mrs_uav_trajectory_generation/MrsTrajectoryGeneration $(arg nodelet_manager) $(arg bond_suffix)" launch-prefix="$(arg launch_prefix_debug)" respawn="$(arg respawn)" respawn_delay="1" output="screen">
+
+      <param name="uav_name" type="string" value="$(arg UAV_NAME)" />
+
+      <!-- Load default param files -->
+      <param name="private_config" value="$(find mrs_uav_trajectory_generation)/config/private/trajectory_generation.yaml" />
+      <param name="public_config" value="$(find mrs_uav_trajectory_generation)/config/public/trajectory_generation.yaml" />
+
+      <!-- Load user param files -->
+      <param if="$(eval arg('custom_config') == '')" name="custom_config" value="" />
+      <param if="$(eval not arg('custom_config') == '' and arg('custom_config')[0] == '/')" name="custom_config" value="$(arg custom_config)" />
+      <param if="$(eval not arg('custom_config') == '' and not arg('custom_config')[0] == '/')" name="custom_config" value="$(env PWD)/$(arg custom_config)" />
+
+      <param if="$(eval arg('platform_config') == '')" name="platform_config" value="" />
+      <param if="$(eval not arg('platform_config') == '' and arg('platform_config')[0] == '/')" name="platform_config" value="$(arg platform_config)" />
+      <param if="$(eval not arg('platform_config') == '' and not arg('platform_config')[0] == '/')" name="platform_config" value="$(env PWD)/$(arg platform_config)" />
+
+        <!-- Subscribers -->
+      <remap from="~constraints_in" to="control_manager/current_constraints" />
+      <remap from="~tracker_cmd_in" to="control_manager/tracker_cmd" />
+      <remap from="~control_manager_diag_in" to="control_manager/diagnostics" />
+
+      <!-- Publishers -->
+      <remap from="~original_path_out" to="~original_path" />
+
+        <!-- Subscribers and Service servers -->
+      <remap from="~path_in" to="~path" />
+      <remap from="~get_path_in" to="~get_path" />
+
+        <!-- Service clients -->
+      <remap from="~trajectory_reference_out" to="control_manager/trajectory_reference" />
+
+    </node>
+
+  </group>
+
+</launch>

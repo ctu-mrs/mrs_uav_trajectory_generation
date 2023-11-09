@@ -18,20 +18,22 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
-#define MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
+#ifndef ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
+#define ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
 
 #include <memory>
 #include <nlopt.hpp>
 
-#include "mav_trajectory_generation/polynomial_optimization_linear.h"
+#include <eth_trajectory_generation/polynomial_optimization_linear.h>
 
-namespace mav_trajectory_generation {
+namespace eth_trajectory_generation
+{
 
-constexpr double kOptimizationTimeLowerBound = 0.1;
+constexpr double kOptimizationTimeLowerBound = 0.01;
 
 // Class holding all important parameters for nonlinear optimization.
-struct NonlinearOptimizationParameters {
+struct NonlinearOptimizationParameters
+{
   // Default parameters should be reasonable enough to use without further
   // fine-tuning.
 
@@ -64,6 +66,9 @@ struct NonlinearOptimizationParameters {
   // Maximum number of iterations. Disabled if negative.
   int max_iterations = 3000;
 
+  // max execution time in secs
+  double max_time = 1.0;
+
   // Penalty for the segment time.
   double time_penalty = 500.0;
 
@@ -85,26 +90,28 @@ struct NonlinearOptimizationParameters {
   // Weights the relative violation of a soft constraint.
   double soft_constraint_weight = 100.0;
 
-  enum TimeAllocMethod {
-    kSquaredTime,
-    kRichterTime,
-    kMellingerOuterLoop,
-    kSquaredTimeAndConstraints,
-    kRichterTimeAndConstraints,
-    kUnknown
+  enum TimeAllocMethod
+  {
+    kSquaredTime               = 0,
+    kRichterTime               = 1,
+    kMellingerOuterLoop        = 2,
+    kSquaredTimeAndConstraints = 3,
+    kRichterTimeAndConstraints = 4,
+    kUnknown                   = 5,
   } time_alloc_method = kSquaredTimeAndConstraints;
 
-  bool print_debug_info = false;
+  bool print_debug_info                 = false;
   bool print_debug_info_time_allocation = false;
 };
 
-struct OptimizationInfo {
-  int n_iterations = 0;
-  int stopping_reason = nlopt::FAILURE;
-  double cost_trajectory = 0.0;
-  double cost_time = 0.0;
-  double cost_soft_constraints = 0.0;
-  double optimization_time = 0.0;
+struct OptimizationInfo
+{
+  int                     n_iterations          = 0;
+  int                     stopping_reason       = nlopt::FAILURE;
+  double                  cost_trajectory       = 0.0;
+  double                  cost_time             = 0.0;
+  double                  cost_soft_constraints = 0.0;
+  double                  optimization_time     = 0.0;
   std::map<int, Extremum> maxima;
 };
 
@@ -120,8 +127,11 @@ template <int _N = 10>
 class PolynomialOptimizationNonLinear {
   static_assert(_N % 2 == 0, "The number of coefficients has to be even.");
 
- public:
-  enum { N = _N };
+public:
+  enum
+  {
+    N = _N
+  };
 
   // Sets up the nonlinear optimization problem.
   // Input: dimension = Spatial dimension of the problem. Usually 1 or 3.
@@ -134,8 +144,7 @@ class PolynomialOptimizationNonLinear {
   // If false, both segment times and free derivatives become optimization
   // variables. The latter case is theoretically correct, but may result in
   // more iterations.
-  PolynomialOptimizationNonLinear(
-      size_t dimension, const NonlinearOptimizationParameters& parameters);
+  PolynomialOptimizationNonLinear(size_t dimension, const NonlinearOptimizationParameters& parameters);
 
   // Sets up the optimization problem from a vector of Vertex objects and
   // a vector of times between the vertices.
@@ -145,18 +154,15 @@ class PolynomialOptimizationNonLinear {
   // between two vertices. Thus, its size is size(vertices) - 1.
   // Input: derivative_to_optimize = Specifies the derivative of which the
   // cost is optimized.
-  bool setupFromVertices(
-      const Vertex::Vector& vertices, const std::vector<double>& segment_times,
-      int derivative_to_optimize =
-          PolynomialOptimization<N>::kHighestDerivativeToOptimize);
+  bool setupFromVertices(const Vertex::Vector& vertices, const std::vector<double>& segment_times,
+                         int derivative_to_optimize = PolynomialOptimization<N>::kHighestDerivativeToOptimize);
 
   // Adds a constraint for the maximum of magnitude to the optimization
   // problem.
   // Input: derivative_order = Order of the derivative, for which the
   // constraint should be checked. Usually velocity (=1) or acceleration (=2).
   // maximum_value = Maximum magnitude of the specified derivative.
-  bool addMaximumMagnitudeConstraint(int derivative_order,
-                                     double maximum_value);
+  bool addMaximumMagnitudeConstraint(int dimension, int derivative_order, double maximum_value);
 
   // Solves the linear optimization problem according to [1].
   // The solver is re-used for every dimension, which means:
@@ -188,7 +194,9 @@ class PolynomialOptimizationNonLinear {
     return poly_opt_;
   }
 
-  OptimizationInfo getOptimizationInfo() const { return optimization_info_; }
+  OptimizationInfo getOptimizationInfo() const {
+    return optimization_info_;
+  }
 
   // Functions for optimization, but may be useful for diagnostics outside.
   // Gets the trajectory cost (same as the cost in the linear problem).
@@ -201,13 +209,15 @@ class PolynomialOptimizationNonLinear {
 
   void scaleSegmentTimesWithViolation();
 
- private:
+private:
   // Holds the data for constraint evaluation, since these methods are
   // static.
-  struct ConstraintData {
+  struct ConstraintData
+  {
     PolynomialOptimizationNonLinear<N>* this_object;
-    int derivative;
-    double value;
+    int                                 derivative;
+    int                                 dimension;
+    double                              value;
   };
 
   // Objective function for the time-only version.
@@ -217,9 +227,7 @@ class PolynomialOptimizationNonLinear {
   // Thus, only gradient-free optimization methods are possible.
   // Input: Custom data pointer = In our case, it's an ConstraintData object.
   // Output: Cost = based on the parameters passed in.
-  static double objectiveFunctionTime(const std::vector<double>& segment_times,
-                                      std::vector<double>& gradient,
-                                      void* data);
+  static double objectiveFunctionTime(const std::vector<double>& segment_times, std::vector<double>& gradient, void* data);
 
   // Objective function for the time-only Mellinger Outer Loop.
   // Input: segment_times = Segment times in the current iteration.
@@ -228,9 +236,7 @@ class PolynomialOptimizationNonLinear {
   // Thus, only gradient-free optimization methods are possible.
   // Input: Custom data pointer = In our case, it's an ConstraintData object.
   // Output: Cost = based on the parameters passed in.
-  static double objectiveFunctionTimeMellingerOuterLoop(
-      const std::vector<double>& segment_times, std::vector<double>& gradient,
-      void* data);
+  static double objectiveFunctionTimeMellingerOuterLoop(const std::vector<double>& segment_times, std::vector<double>& gradient, void* data);
 
   // Objective function for the version optimizing segment times and free
   // derivatives.
@@ -244,16 +250,12 @@ class PolynomialOptimizationNonLinear {
   // Input: data = Custom data pointer. In our case, it's an ConstraintData
   // object.
   // Output: Cost based on the parameters passed in.
-  static double objectiveFunctionTimeAndConstraints(
-      const std::vector<double>& optimization_variables,
-      std::vector<double>& gradient, void* data);
+  static double objectiveFunctionTimeAndConstraints(const std::vector<double>& optimization_variables, std::vector<double>& gradient, void* data);
 
   // Evaluates the maximum magnitude constraint at the current value of
   // the optimization variables.
   // All input parameters are ignored, all information is contained in data.
-  static double evaluateMaximumMagnitudeConstraint(
-      const std::vector<double>& optimization_variables,
-      std::vector<double>& gradient, void* data);
+  static double evaluateMaximumMagnitudeConstraint(const std::vector<double>& optimization_variables, std::vector<double>& gradient, void* data);
 
   // Does the actual optimization work for the time-only version.
   int optimizeTime();
@@ -272,22 +274,17 @@ class PolynomialOptimizationNonLinear {
   // Input: maximum_cost = Upper bound of the cost. Necessary, since exp of a
   // high violation can end up in inf.
   // Output: Sum of the costs per constraint.
-  double evaluateMaximumMagnitudeAsSoftConstraint(
-      const std::vector<std::shared_ptr<ConstraintData> >&
-          inequality_constraints,
-      double weight, double maximum_cost = 1.0e12) const;
+  double evaluateMaximumMagnitudeAsSoftConstraint(const std::vector<std::shared_ptr<ConstraintData>>& inequality_constraints, double weight,
+                                                  double maximum_cost = 1.0e12) const;
 
   // Set lower and upper bounds on the optimization parameters
-  void setFreeEndpointDerivativeHardConstraints(
-      const Vertex::Vector& vertices, std::vector<double>* lower_bounds,
-      std::vector<double>* upper_bounds);
+  void setFreeEndpointDerivativeHardConstraints(const Vertex::Vector& vertices, std::vector<double>* lower_bounds, std::vector<double>* upper_bounds);
 
   // Computes the gradients by doing forward difference!
   double getCostAndGradientMellinger(std::vector<double>* gradients);
 
   // Computes the total trajectory time.
-  static double computeTotalTrajectoryTime(
-      const std::vector<double>& segment_times);
+  static double computeTotalTrajectoryTime(const std::vector<double>& segment_times);
 
   // nlopt optimization object.
   std::shared_ptr<nlopt::opt> nlopt_;
@@ -299,19 +296,20 @@ class PolynomialOptimizationNonLinear {
   NonlinearOptimizationParameters optimization_parameters_;
 
   // Holds the data for evaluating inequality constraints.
-  std::vector<std::shared_ptr<ConstraintData> > inequality_constraints_;
+  std::vector<std::shared_ptr<ConstraintData>> inequality_constraints_;
 
   OptimizationInfo optimization_info_;
 };
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-namespace nlopt {
+namespace nlopt
+{
 // Convenience function that turns nlopt's return values into something
 // readable.
 std::string returnValueToString(int return_value);
 }  // namespace nlopt
 
-#endif  // MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
+#endif  // ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
 
-#include "mav_trajectory_generation/impl/polynomial_optimization_nonlinear_impl.h"
+#include "eth_trajectory_generation/impl/polynomial_optimization_nonlinear_impl.h"

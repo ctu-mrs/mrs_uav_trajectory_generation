@@ -18,30 +18,26 @@
  * limitations under the License.
  */
 
-#ifndef MAV_TRAJECTORY_GENERATION_TEST_UTILS_H_
-#define MAV_TRAJECTORY_GENERATION_TEST_UTILS_H_
+#ifndef ETH_TRAJECTORY_GENERATION_TEST_UTILS_H_
+#define ETH_TRAJECTORY_GENERATION_TEST_UTILS_H_
 
 #include <random>
 #include <Eigen/Eigen>
+#include <eth_trajectory_generation/trajectory.h>
 
-#include "mav_trajectory_generation/trajectory.h"
-
-namespace mav_trajectory_generation {
+namespace eth_trajectory_generation
+{
 
 inline double createRandomDouble(double min, double max) {
-  return (max - min) * (static_cast<double>(std::rand()) /
-                        static_cast<double>(RAND_MAX)) +
-         min;
+  return (max - min) * (static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX)) + min;
 }
 
 template <class T1, class T2>
-bool checkMatrices(const Eigen::MatrixBase<T1>& m1,
-                   const Eigen::MatrixBase<T2>& m2, double tol) {
+bool checkMatrices(const Eigen::MatrixBase<T1>& m1, const Eigen::MatrixBase<T2>& m2, double tol) {
   return (m1 - m2).cwiseAbs().maxCoeff() < tol;
 }
 
-double getMaximumMagnitude(const Trajectory& trajectory, size_t derivative,
-                           double dt = 0.01) {
+double getMaximumMagnitude(const Trajectory& trajectory, size_t derivative, double dt = 0.01) {
   double maximum = -1e9;
 
   for (double ts = 0; ts < trajectory.getMaxTime(); ts += dt) {
@@ -53,8 +49,7 @@ double getMaximumMagnitude(const Trajectory& trajectory, size_t derivative,
   return maximum;
 }
 
-double computeCostNumeric(const Trajectory& trajectory, size_t derivative,
-                          double dt = 0.001) {
+double computeCostNumeric(const Trajectory& trajectory, size_t derivative, double dt = 0.001) {
   double cost = 0;
 
   for (double ts = 0; ts < trajectory.getMaxTime(); ts += dt) {
@@ -63,6 +58,6 @@ double computeCostNumeric(const Trajectory& trajectory, size_t derivative,
   return cost;
 }
 
-}  // namespace mav_trajectory_generation
+}  // namespace eth_trajectory_generation
 
-#endif  // MAV_TRAJECTORY_GENERATION_TEST_UTILS_H_
+#endif  // ETH_TRAJECTORY_GENERATION_TEST_UTILS_H_
