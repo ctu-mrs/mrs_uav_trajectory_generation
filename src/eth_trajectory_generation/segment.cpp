@@ -81,6 +81,7 @@ void printSegment(std::ostream& stream, const Segment& s, int derivative) {
   stream << "t: " << s.getTime() << std::endl;
   stream << " coefficients for " << positionDerivativeToString(derivative) << ": " << std::endl;
   for (int i = 0; i < s.D(); ++i) {
+    stream << "dim " << i << ": " << std::endl;
     stream << s[i].getCoefficients(derivative) << std::endl;
   }
 }
