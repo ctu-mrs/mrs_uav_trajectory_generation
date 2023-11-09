@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<package format="2">
+
+  <name>mrs_uav_trajectory_generation</name>
+  <version>1.0.4</version>
+  <description>UAV trajectory generation</description>
+
+  <author email="tomas.baca@fel.cvut.cz">Tomas Baca</author>
+  <maintainer email="tomas.baca@fel.cvut.cz">Tomas Baca</maintainer>
+
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>cmake_modules</depend>
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <depend>nodelet</depend>
+  <depend>dynamic_reconfigure</depend>
+  <depend>std_msgs</depend>
+  <depend>mrs_msgs</depend>
+  <depend>mrs_lib</depend>
+  <depend version_gte="2.4.2">nlopt</depend>
+
+  <export>
+    <nodelet plugin="${prefix}/nodelets.xml" />
+  </export>
+
+</package>

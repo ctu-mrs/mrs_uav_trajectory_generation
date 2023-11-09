@@ -1,0 +1,16 @@
+mrs_uav_trajectory_generation:
+
+  # optimizer parameters, usually left alone
+  time_penalty: 100
+  soft_constraints_enabled: true
+  soft_constraints_weight: 1.5
+  time_allocation: 2 # method, 2 = Mellinger
+  equality_constraint_tolerance: 1.0e-3
+  inequality_constraint_tolerance: 0.1
+  max_iterations: 10
+  derivative_to_optimize: 0
+
+  scope_timer:
+
+    enabled: false
+    log_filename: "" # if empty, scope timers output to terminal; otherwise log to file
