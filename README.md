@@ -56,7 +56,7 @@ A waypoint that violates the condition relative to its predecesor will be remove
 
 The node allows to check and correct for the maximum allowed deviation from a segmented path supplied by the user.
 If enabled, the user-supplied segments will be subdivided to satisfy the maximum distance constraint.
-The [config](https://github.com/ctu-mrs/mrs_uav_trajectory_generation/blob/master/config/default.yaml) file provides the options to enable/disable this feature, to set the maximum allowed deviations, and the number of iterations.
+The [config](./config/public/trajectory_generation.yaml) file provides the options to enable/disable this feature, to set the maximum allowed deviations, and the number of iterations.
 Each iteration allows the algorithm to subdivide any segments if the resulting trajectory violates the distance constraint within the segment.
 6 iterations is enough to fall within 0.1 m tolerance.
 The first segment can be optionally excluded from this constraint.
@@ -72,11 +72,11 @@ check_trajectory_deviation:
 |                               |                               |
 |-------------------------------|-------------------------------|
 | without subsectioning         | 1 iteration                   |
-| ![](.fig/subsectioning_0.jpg) | ![](.fig/subsectioning_1.jpg) |
+| ![](.fig/subsectioning_0.png) | ![](.fig/subsectioning_1.png) |
 | 2 iterations                  | 3 iterations                  |
-| ![](.fig/subsectioning_2.jpg) | ![](.fig/subsectioning_3.jpg) |
+| ![](.fig/subsectioning_2.png) | ![](.fig/subsectioning_3.png) |
 | 4 iterations                  | 5 iterations                  |
-| ![](.fig/subsectioning_4.jpg) | ![](.fig/subsectioning_5.jpg) |
+| ![](.fig/subsectioning_4.png) | ![](.fig/subsectioning_5.png) |
 
 ### Initial condition \& First segment subsectioning
 
