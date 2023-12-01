@@ -4,7 +4,9 @@ project(mrs_uav_trajectory_generation)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_definitions(-O3)
+if(NOT CATKIN_ENABLE_TESTING)
+  add_definitions(-O3)
+endif()
 
 set(CATKIN_DEPENDENCIES
   cmake_modules
@@ -69,6 +71,19 @@ target_link_libraries(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
+
+## --------------------------------------------------------------
+## |                           Testing                          |
+## --------------------------------------------------------------
+
+if(CATKIN_ENABLE_TESTING)
+
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
+
+  add_subdirectory(test)
+
+endif()
 
 ## --------------------------------------------------------------
 ## |                           Install                          |

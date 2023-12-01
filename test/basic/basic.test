@@ -1,0 +1,7 @@
+<launch>
+
+  <include file="$(find mrs_uav_trajectory_generation)/test/basic/launch/mrs_uav_system.launch" />
+
+  <test pkg="mrs_uav_trajectory_generation" type="test_basic" test-name="basic" time-limit="60.0" />
+
+</launch>
