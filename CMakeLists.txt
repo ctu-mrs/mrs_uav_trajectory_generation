@@ -4,7 +4,10 @@ project(mrs_uav_trajectory_generation)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(NOT CATKIN_ENABLE_TESTING)
+add_definitions(-Wall)
+add_definitions(-Wextra)
+
+if(NOT TESTING)
   add_definitions(-O3)
 endif()
 
