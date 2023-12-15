@@ -616,7 +616,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   bool              safe = false;
   int               traj_idx;
   std::vector<bool> segment_safeness;
-  double            max_deviation;
+  double            max_deviation = 0;
 
   eth_mav_msgs::EigenTrajectoryPoint::Vector trajectory;
 
@@ -903,6 +903,15 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   double vertical_speed_lim        = std::min(constraints.vertical_ascending_speed, constraints.vertical_descending_speed);
   double vertical_acceleration_lim = std::min(constraints.vertical_ascending_acceleration, constraints.vertical_descending_acceleration);
 
+  v_max_horizontal = constraints.horizontal_speed;
+  a_max_horizontal = constraints.horizontal_acceleration;
+
+  v_max_vertical = vertical_speed_lim;
+  a_max_vertical = vertical_acceleration_lim;
+
+  j_max_horizontal = constraints.horizontal_jerk;
+  j_max_vertical   = std::min(constraints.vertical_ascending_jerk, constraints.vertical_descending_jerk);
+
   if (override_constraints_) {
 
     bool can_change = (hypot(initial_state.velocity.x, initial_state.velocity.y) < override_max_velocity_horizontal_) &&
@@ -927,19 +936,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
       ROS_WARN("[MrsTrajectoryGeneration]: overrifing constraints refused due to possible infeasibility");
     }
-
-  } else {
-
-    v_max_horizontal = constraints.horizontal_speed;
-    a_max_horizontal = constraints.horizontal_acceleration;
-
-    v_max_vertical = vertical_speed_lim;
-    a_max_vertical = vertical_acceleration_lim;
-
-    j_max_horizontal = constraints.horizontal_jerk;
-    j_max_vertical   = std::min(constraints.vertical_ascending_jerk, constraints.vertical_descending_jerk);
   }
-
 
   double v_max_heading, a_max_heading, j_max_heading;
 
@@ -1424,19 +1421,14 @@ std::vector<int> MrsTrajectoryGeneration::getTrajectorySegmentCenterIdxs(const e
     // next sample
     const vec3_t next_sample = vec3_t(trajectory[i + 1].position_W[0], trajectory[i + 1].position_W[1], trajectory[i + 1].position_W[2]);
 
-    // segment start
-    const vec3_t segment_start =
-        vec3_t(waypoints.at(last_segment_start).coords[0], waypoints.at(last_segment_start).coords[1], waypoints.at(last_segment_start).coords[2]);
-
     // segment end
     const vec3_t segment_end =
         vec3_t(waypoints.at(last_segment_start + 1).coords[0], waypoints.at(last_segment_start + 1).coords[1], waypoints.at(last_segment_start + 1).coords[2]);
 
-    const double distance_from_segment = distFromSegment(sample, segment_start, segment_end);
-
     const double segment_end_dist = distFromSegment(segment_end, sample, next_sample);
 
     if (segment_end_dist < 0.05 && last_segment_start < (int(waypoints.size()) - 2)) {
+
       last_segment_start++;
 
       segment_centers.push_back(int(floor(double(i - last_segment_start_sample) / 2.0)));

@@ -20,6 +20,7 @@
   <depend>std_msgs</depend>
   <depend>mrs_msgs</depend>
   <depend>mrs_lib</depend>
+  <depend>mrs_uav_testing</depend>
   <depend version_gte="2.4.2">nlopt</depend>
 
   <export>

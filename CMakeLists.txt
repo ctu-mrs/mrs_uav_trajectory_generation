@@ -27,6 +27,7 @@ set(CATKIN_DEPENDENCIES
   mrs_msgs
   mrs_lib
   nlopt
+  mrs_uav_testing
   )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -47,7 +48,7 @@ set(LIBRARIES
   )
 
 catkin_package(
-  INCLUDE_DIRS include
+  INCLUDE_DIRS include test/include
   LIBRARIES ${LIBRARIES}
   CATKIN_DEPENDS ${CATKIN_DEPENDENCIES}
   DEPENDS Eigen
@@ -70,6 +71,7 @@ add_library(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
 
 include_directories(
   include
+  test/include
   ${catkin_INCLUDE_DIRS}
   ${Eigen_INCLUDE_DIRS}
   ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
