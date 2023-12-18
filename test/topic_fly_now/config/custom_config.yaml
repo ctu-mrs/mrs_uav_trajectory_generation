@@ -22,3 +22,8 @@ mrs_uav_managers:
       after_activation:
         controller: "Se3Controller"
         tracker: "MpcTracker"
+
+mrs_uav_trajectory_generation:
+
+  # execution time limiter
+  max_time: 5.0 # [s]

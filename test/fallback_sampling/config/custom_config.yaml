@@ -26,4 +26,4 @@ mrs_uav_managers:
 mrs_uav_trajectory_generation:
 
   # execution time limiter
-  max_time: 5.0 # [s]
+  max_time: 0.0 # [s]
