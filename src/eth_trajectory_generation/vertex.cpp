@@ -431,11 +431,15 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, con
 
     double max_velocity_time;
 
-    if (((distance - (2 * (v_max * v_max) / a_max)) / v_max) < 0) {
-      max_velocity_time = ((distance) / v_max);
+    const double distance_due_acceleration = a_max * pow(acceleration_time_1, 2) + a_max * pow(acceleration_time_2, 2);
+
+    if (distance > distance_due_acceleration) {
+      max_velocity_time = ((distance - distance_due_acceleration) / v_max);
     } else {
-      max_velocity_time = ((distance - (2 * (v_max * v_max) / a_max)) / v_max);
+      max_velocity_time = (distance_due_acceleration / v_max);
     }
+
+    max_velocity_time = ((distance) / v_max);
 
     /* double t = max_velocity_time + acceleration_time_1 + acceleration_time_2 + jerk_time_1 + jerk_time_2; */
     double t = max_velocity_time + acceleration_time_1 + acceleration_time_2;

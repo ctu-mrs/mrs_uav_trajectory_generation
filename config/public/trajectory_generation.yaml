@@ -44,8 +44,8 @@ mrs_uav_trajectory_generation:
   fallback_sampling:
 
     enabled: true
-    accel_factor: 0.75 # how fast when comparing to constraints
-    speed_factor: 0.75 # how fast when comparing to constraints
+    accel_factor: 1.00 # how fast when comparing to constraints
+    speed_factor: 1.00 # how fast when comparing to constraints
 
     # when stopping at waypoints, stop for this time
     stopping_time: 2.0 # [s]

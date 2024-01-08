@@ -1229,12 +1229,12 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   for (int i = 0; i < int(segment_times_baca.size()); i++) {
     initial_total_time += segment_times[i];
     initial_total_time_baca += segment_times_baca[i];
+
+    ROS_DEBUG("[MrsTrajectoryGeneration]: segment time [%d] = %.2f", i, segment_times_baca[i]);
   }
 
   ROS_WARN("[MrsTrajectoryGeneration]: fallback: initial total time (Euclidean): %.2f", initial_total_time);
   ROS_WARN("[MrsTrajectoryGeneration]: fallback: initial total time (Baca): %.2f", initial_total_time_baca);
-
-  // | --------- create an optimizer object and solve it -------- |
 
   eth_mav_msgs::EigenTrajectoryPoint::Vector states;
 
@@ -1250,7 +1250,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
     if (segment_time > 1e-1) {
 
-      n_samples = floor(segment_time / sampling_dt);
+      n_samples = ceil(segment_time / sampling_dt);
 
       // important
       if (n_samples > 0) {
@@ -1264,7 +1264,9 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
       interp_step = 0;
     }
 
-    // for the last segment, git the last waypoint completely
+    ROS_DEBUG("[MrsTrajectoryGeneration]: segment n_samples [%d] = %d", i, n_samples);
+
+    // for the last segment, hit the last waypoint completely
     // otherwise, it is hit as the first sample of the following segment
     if (n_samples > 0 && i == waypoints.size() - 2) {
       n_samples++;
@@ -1287,27 +1289,27 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
       // the first sample of the first waypoint
       // we should stop for a little bit to give the transition
       // from the initial cooordinates more time
-      if (((control_manager_diag.tracker_status.have_goal && i == 0) || (!control_manager_diag.tracker_status.have_goal && i == 1)) && j == 0) {
+      /* if (((control_manager_diag.tracker_status.have_goal && i == 0) || (!control_manager_diag.tracker_status.have_goal && i == 1)) && j == 0) { */
 
-        double time_to_stop = 0;
+      /*   double time_to_stop = 0; */
 
-        time_to_stop += fabs(initial_state.acceleration.x) / j_max_horizontal + fabs(initial_state.acceleration.y) / j_max_horizontal +
-                        fabs(initial_state.acceleration.z) / j_max_vertical;
+      /*   time_to_stop += fabs(initial_state.acceleration.x) / j_max_horizontal + fabs(initial_state.acceleration.y) / j_max_horizontal + */
+      /*                   fabs(initial_state.acceleration.z) / j_max_vertical; */
 
-        int samples_to_stop = int(round(1.0 * (time_to_stop / sampling_dt)));
+      /*   int samples_to_stop = int(round(1.0 * (time_to_stop / sampling_dt))); */
 
-        if (_fallback_sampling_first_waypoint_additional_stop_) {
-          if (control_manager_diag.tracker_status.have_goal) {
-            samples_to_stop += int(round(1.0 / sampling_dt));
-          }
-        }
+      /*   if (_fallback_sampling_first_waypoint_additional_stop_) { */
+      /*     if (control_manager_diag.tracker_status.have_goal) { */
+      /*       samples_to_stop += int(round(1.0 / sampling_dt)); */
+      /*     } */
+      /*   } */
 
-        ROS_DEBUG("[MrsTrajectoryGeneration]: pre-inserting %d samples of the first point", samples_to_stop);
+      /*   ROS_DEBUG("[MrsTrajectoryGeneration]: pre-inserting %d samples of the first point", samples_to_stop); */
 
-        for (int k = 0; k < samples_to_stop; k++) {
-          states.push_back(eth_point);
-        }
-      }
+      /*   for (int k = 0; k < samples_to_stop; k++) { */
+      /*     states.push_back(eth_point); */
+      /*   } */
+      /* } */
 
       if (j == 0 && i > 0 && waypoints[i].stop_at) {
 
@@ -1639,8 +1641,6 @@ std::optional<mrs_msgs::Path> MrsTrajectoryGeneration::transformPath(const mrs_m
       return {};
     }
   }
-
-  //}
 
   return path_out;
 }
