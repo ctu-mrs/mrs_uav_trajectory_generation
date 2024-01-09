@@ -1264,7 +1264,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
       interp_step = 0;
     }
 
-    ROS_DEBUG("[MrsTrajectoryGeneration]: segment n_samples [%d] = %d", i, n_samples);
+    ROS_DEBUG("[MrsTrajectoryGeneration]: segment n_samples [%lu] = %d", i, n_samples);
 
     // for the last segment, hit the last waypoint completely
     // otherwise, it is hit as the first sample of the following segment
@@ -2153,27 +2153,39 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     return true;
   }
 
-  fly_now_                              = req.path.fly_now;
-  use_heading_                          = req.path.use_heading;
-  frame_id_                             = req.path.header.frame_id;
-  override_constraints_                 = req.path.override_constraints;
-  loop_                                 = req.path.loop;
-  override_max_velocity_horizontal_     = req.path.override_max_velocity_horizontal;
-  override_max_velocity_vertical_       = req.path.override_max_velocity_vertical;
-  override_max_acceleration_horizontal_ = req.path.override_max_acceleration_horizontal;
-  override_max_acceleration_vertical_   = req.path.override_max_acceleration_vertical;
-  override_max_jerk_horizontal_         = req.path.override_max_jerk_horizontal;
-  override_max_jerk_vertical_           = req.path.override_max_jerk_horizontal;
-  stop_at_waypoints_                    = req.path.stop_at_waypoints;
+  auto transformed_path = transformPath(req.path, "");
+
+  if (!transformed_path) {
+    std::stringstream ss;
+    ss << "could not transform the path to the current control frame";
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+
+    res.message = ss.str();
+    res.success = false;
+    return true;
+  }
+
+  fly_now_                              = transformed_path->fly_now;
+  use_heading_                          = transformed_path->use_heading;
+  frame_id_                             = transformed_path->header.frame_id;
+  override_constraints_                 = transformed_path->override_constraints;
+  loop_                                 = transformed_path->loop;
+  override_max_velocity_horizontal_     = transformed_path->override_max_velocity_horizontal;
+  override_max_velocity_vertical_       = transformed_path->override_max_velocity_vertical;
+  override_max_acceleration_horizontal_ = transformed_path->override_max_acceleration_horizontal;
+  override_max_acceleration_vertical_   = transformed_path->override_max_acceleration_vertical;
+  override_max_jerk_horizontal_         = transformed_path->override_max_jerk_horizontal;
+  override_max_jerk_vertical_           = transformed_path->override_max_jerk_horizontal;
+  stop_at_waypoints_                    = transformed_path->stop_at_waypoints;
 
   std::vector<Waypoint_t> waypoints;
 
-  for (size_t i = 0; i < req.path.points.size(); i++) {
+  for (size_t i = 0; i < transformed_path->points.size(); i++) {
 
-    double x       = req.path.points[i].position.x;
-    double y       = req.path.points[i].position.y;
-    double z       = req.path.points[i].position.z;
-    double heading = req.path.points[i].heading;
+    double x       = transformed_path->points[i].position.x;
+    double y       = transformed_path->points[i].position.y;
+    double z       = transformed_path->points[i].position.z;
+    double heading = transformed_path->points[i].heading;
 
     Waypoint_t wp;
     wp.coords  = Eigen::Vector4d(x, y, z, heading);
@@ -2205,7 +2217,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
 
     std::tie(success, message, trajectory) =
-        optimize(waypoints, req.path.header, tracker_cmd, tracker_cmd.full_state_prediction, fallback_sampling, req.path.relax_heading);
+        optimize(waypoints, transformed_path->header, tracker_cmd, tracker_cmd.full_state_prediction, fallback_sampling, transformed_path->relax_heading);
 
     if (success) {
       break;
@@ -2230,6 +2242,41 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   }
 
   if (success) {
+
+    std::optional<geometry_msgs::TransformStamped> tf_traj_state = transformer_->getTransform("", req.path.header.frame_id, ros::Time::now());
+
+    std::stringstream ss;
+
+    if (!tf_traj_state) {
+      ss << "could not create TF transformer for the trajectory to the requested frame";
+      ROS_WARN_STREAM_THROTTLE(1.0, "[ControlManager]: " << ss.str());
+      res.success = false;
+      res.message = ss.str();
+    }
+
+    trajectory.header.frame_id = transformer_->frame_to(*tf_traj_state);
+
+    for (unsigned long i = 0; i < trajectory.points.size(); i++) {
+
+      mrs_msgs::ReferenceStamped trajectory_point;
+      trajectory_point.header    = trajectory.header;
+      trajectory_point.reference = trajectory.points[i];
+
+      auto ret = transformer_->transform(trajectory_point, *tf_traj_state);
+
+      if (!ret) {
+
+        ss << "trajectory cannnot be transformed to the requested frame";
+        ROS_WARN_STREAM_THROTTLE(1.0, "[ControlManager]: " << ss.str());
+        res.success = false;
+        res.message = ss.str();
+
+      } else {
+
+        // transform the points in the trajectory to the current frame
+        trajectory.points[i] = ret.value().reference;
+      }
+    }
 
     res.trajectory = trajectory;
     res.success    = success;
