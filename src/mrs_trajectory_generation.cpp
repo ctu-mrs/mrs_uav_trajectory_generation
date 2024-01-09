@@ -200,8 +200,6 @@ private:
   std::tuple<bool, int, std::vector<bool>, double> validateTrajectorySpatial(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
                                                                              const std::vector<Waypoint_t>&                    waypoints);
 
-  std::vector<int> getTrajectorySegmentCenterIdxs(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const std::vector<Waypoint_t>& waypoints);
-
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&  waypoints,
                                                                            const mrs_msgs::TrackerCommand& initial_state, const double& sampling_dt,
                                                                            const bool& relax_heading);
@@ -1394,50 +1392,6 @@ std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::valida
   }
 
   return std::tuple(is_safe, trajectory.size(), segments, max_deviation);
-}
-
-//}
-
-/* getTrajectorySegmentCenterIdxs() //{ */
-
-std::vector<int> MrsTrajectoryGeneration::getTrajectorySegmentCenterIdxs(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
-                                                                         const std::vector<Waypoint_t>&                    waypoints) {
-
-  mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::getTrajectorySegmentCenterIdxs", scope_timer_logger_, scope_timer_enabled_);
-
-  // prepare the output
-
-  std::vector<int> segment_centers;
-
-  // index in the path
-  int last_segment_start = 0;
-
-  // index in the trajectory
-  int last_segment_start_sample = 0;
-
-  for (size_t i = 0; i < trajectory.size() - 1; i++) {
-
-    // the trajectory sample
-    const vec3_t sample = vec3_t(trajectory[i].position_W[0], trajectory[i].position_W[1], trajectory[i].position_W[2]);
-
-    // next sample
-    const vec3_t next_sample = vec3_t(trajectory[i + 1].position_W[0], trajectory[i + 1].position_W[1], trajectory[i + 1].position_W[2]);
-
-    // segment end
-    const vec3_t segment_end =
-        vec3_t(waypoints.at(last_segment_start + 1).coords[0], waypoints.at(last_segment_start + 1).coords[1], waypoints.at(last_segment_start + 1).coords[2]);
-
-    const double segment_end_dist = distFromSegment(segment_end, sample, next_sample);
-
-    if (segment_end_dist < 0.05 && last_segment_start < (int(waypoints.size()) - 2)) {
-
-      last_segment_start++;
-
-      segment_centers.push_back(int(floor(double(i - last_segment_start_sample) / 2.0)));
-    }
-  }
-
-  return segment_centers;
 }
 
 //}
