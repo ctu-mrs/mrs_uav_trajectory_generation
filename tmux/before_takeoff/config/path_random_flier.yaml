@@ -1,0 +1,33 @@
+relax_heading: true
+
+frame_id: "local_origin"
+
+z:
+  value: 5.0
+  deviation: 0.10
+
+n_points:
+  min: 10 # [-]
+  max: 20 # [-]
+
+point_distance:
+  min: 0.5 # [m]
+  max: 2.0 # [m]
+
+future_stamp:
+  prob: 1.0 # [0, 1]
+  min: 2.0 # [s]
+  max: 3.0 # [s]
+
+replanning_time:
+  min: 5.0 # [s]
+  max: 10.0 # [s]
+
+override_constraints:
+  enabled: false
+  speed: 0.5
+  acceleration: 2.0
+
+heading_change: 0.1 # [rad]
+bearing_change: 0.4 # [rad]
+initial_bearing_change: 3.0 # [rad]

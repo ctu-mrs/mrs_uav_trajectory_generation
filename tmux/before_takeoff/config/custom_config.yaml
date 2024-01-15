@@ -1,0 +1,59 @@
+mrs_uav_managers:
+
+  uav_manager:
+
+    takeoff:
+      after_takeoff:
+        controller: "Se3Controller"
+
+  constraint_manager:
+
+    default_constraints:
+
+      gps_garmin: "slow"
+
+  control_manager:
+
+    Se3Controller:
+      eland_threshold: 8.0 # [m], position error triggering eland
+      failsafe_threshold: 0.0 # [m], position error triggering failsafe land
+
+    EmergencyController:
+      eland_threshold: 10.0 # [m], position error triggering eland
+      failsafe_threshold: 0.0 # [m], position error triggering failsafe land
+
+    safety:
+
+      tilt_limit:
+
+        eland:
+          enabled: false
+
+        disarm:
+          enabled: false
+
+      yaw_error_eland:
+        enabled: false
+
+      tilt_error_disarm:
+        enabled: false
+
+# mrs_uav_trajectory_generation:
+
+  # max_time: 5.0 # [s]
+
+  # when true, only the fallback solver will be used by default
+  # enforce_fallback_solver: true
+
+  # check_trajectory_deviation:
+  #   enabled: true
+  #   max_deviation: 1.0 # [m]
+
+  # Allows to neglect waypoints in the original path if the new path
+  # does not violate max distance from the original path.
+  # This makes for similar but sparser paths, which are easier for the
+  # trajectory generator to work with.
+  # path_straightener:
+  #   enabled: false
+  #   max_deviation: 0.2 # [m]
+
