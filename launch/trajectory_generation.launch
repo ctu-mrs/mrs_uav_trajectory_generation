@@ -48,6 +48,7 @@
         <!-- Subscribers -->
       <remap from="~constraints_in" to="control_manager/current_constraints" />
       <remap from="~tracker_cmd_in" to="control_manager/tracker_cmd" />
+      <remap from="~uav_state_in" to="estimation_manager/uav_state" />
       <remap from="~control_manager_diag_in" to="control_manager/diagnostics" />
 
       <!-- Publishers -->
