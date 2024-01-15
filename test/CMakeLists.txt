@@ -5,3 +5,5 @@ add_subdirectory(service_fly_now)
 add_subdirectory(topic_fly_now)
 
 add_subdirectory(fallback_sampling)
+
+add_subdirectory(path_before_takeoff)
