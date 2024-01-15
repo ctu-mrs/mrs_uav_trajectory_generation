@@ -1,0 +1,57 @@
+# do not modify these
+root: ./
+name: simulation
+socket_name: mrs
+attach: false
+tmux_options: -f /etc/ctu-mrs/tmux.conf
+# you can modify these
+startup_window: status
+pre_window: export UAV_NAME=uav1; export RUN_TYPE=simulation; export UAV_TYPE=x500; export LOGGER_DEBUG=true
+windows:
+  - roscore:
+      layout: tiled
+      panes:
+        - roscore
+  - mrs_simulator:
+      layout: tiled
+      panes:
+        - waitForRos; export UAV_NAME=uav1; roslaunch mrs_multirotor_simulator multirotor_simulator.launch custom_config:=./config/simulator.yaml
+        - waitForTime; roslaunch mrs_multirotor_simulator hw_api.launch custom_config:=./config/hw_api_mrs_sim.yaml
+  # - gazebo:
+  #     layout: tiled
+  #     panes:
+  #       - waitForRos; roslaunch mrs_simulation simulation.launch world_name:=grass_plane gui:=true
+  #       - waitForTime; roslaunch mrs_uav_px4_api api.launch
+  #       - waitForControl; gz camera -c gzclient_camera -f uav1; history -s gz camera -c gzclient_camera -f uav1
+  #       - waitForGazebo; rosservice call /mrs_drone_spawner/spawn "1 $UAV_TYPE --enable-rangefinder"
+  - status:
+      layout: tiled
+      panes:
+        - waitForTime; roslaunch mrs_uav_status status.launch
+  - control:
+      layout: tiled
+      panes:
+        - waitForTime; roslaunch mrs_uav_core core.launch platform_config:=`rospack find mrs_multirotor_simulator`/config/mrs_uav_system/$UAV_TYPE.yaml custom_config:=./config/custom_config.yaml world_config:=./config/world_config.yaml network_config:=./config/network_config.yaml
+  - random_flier:
+      layout: tiled
+      panes:
+        - waitForHw; roslaunch mrs_uav_trajectory_generation path_random_flier.launch custom_config:=./config/path_random_flier.yaml
+  - takeoff:
+      layout: tiled
+      panes:
+        - waitForHw; roslaunch mrs_uav_autostart automatic_start.launch
+        - 'waitForControl; rosservice call /$UAV_NAME/hw_api/arming 1; sleep 2.0; rosservice call /$UAV_NAME/hw_api/offboard'
+  - rviz:
+      layout: tiled
+      panes:
+        - waitForControl; roslaunch mrs_uav_core rviz.launch
+        - waitForControl; roslaunch mrs_rviz_plugins load_robot.launch
+        - waitForControl; waitForControl; roslaunch mrs_rviz_plugins rviz_interface.launch
+  - rqt_reconfigure:
+      layout: tiled
+      panes:
+        - waitForControl; rosrun rqt_reconfigure rqt_reconfigure
+  - layout:
+      layout: tiled
+      panes:
+        - waitForControl; sleep 3; ~/.i3/layout_manager.sh ./layout.json

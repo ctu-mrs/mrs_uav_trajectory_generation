@@ -1,0 +1,37 @@
+active: true
+main_timer_rate: 100 # [Hz]
+
+frame_id: "world_origin"
+
+use_heading: true
+relax_heading: true
+
+z:
+  value: 1.5 # [m]
+  deviation: 0.5 # [m]
+
+n_points:
+  min: 30 # [-]
+  max: 40 # [-]
+
+point_distance:
+  min: 0.2 # [m]
+  max: 0.34641 # [m]
+
+future_stamp:
+  prob: 1.0 # [0, 1]
+  min: 2.0 # [s]
+  max: 4.0 # [s]
+
+replanning_time:
+  min: 4.0 # [s]
+  max: 5.0 # [s]
+
+override_constraints:
+  enabled: false
+  speed: 2.0
+  acceleration: 2.0
+
+heading_change: 3.14 # [rad]
+bearing_change: 0.78 # [rad]
+initial_bearing_change: 0.5 # [rad

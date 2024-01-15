@@ -1,0 +1,29 @@
+<launch>
+
+  <arg name="UAV_NAME" default="$(env UAV_NAME)"/>
+  <arg name="custom_config" default="" />
+
+  <group ns="$(arg UAV_NAME)">
+
+    <node name="path_random_flier" pkg="nodelet" type="nodelet" args="standalone mrs_uav_trajectory_generation/PathRandomFlier" output="screen" >
+
+      <rosparam file="$(find mrs_uav_trajectory_generation)/config/private/path_random_flier.yaml" />
+
+      <!-- Load a user param file -->
+      <rosparam if="$(eval not arg('custom_config') == '')" file="$(arg custom_config)" />
+
+      <param name="uav_name" value="$(arg UAV_NAME)" />
+
+        <!-- Subscribers -->
+      <remap from="~tracker_command_in" to="control_manager/tracker_cmd" />
+      <remap from="~control_manager_diag_in" to="control_manager/diagnostics" />
+
+        <!-- Services -->
+      <remap from="~activate_in" to="automatic_start/start" />
+      <remap from="~path_out" to="trajectory_generation/path" />
+      <remap from="~check_reference_out" to="control_manager/validate_reference" />
+
+    </node>
+
+  </group>
+</launch>

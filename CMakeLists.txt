@@ -45,6 +45,7 @@ set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 set(LIBRARIES
   MrsUavTrajectoryGeneration_EthTrajectoryGeneration
   MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
+  MrsUavTrajectoryGeneration_PathRandomFlier
   )
 
 catkin_package(
@@ -81,6 +82,21 @@ target_link_libraries(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
   MrsUavTrajectoryGeneration_EthTrajectoryGeneration
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
+  )
+
+## | -------------------- path random flier ------------------- |
+
+add_library(MrsUavTrajectoryGeneration_PathRandomFlier
+  src/path_random_flier.cpp
+  )
+
+add_dependencies(MrsUavTrajectoryGeneration_PathRandomFlier
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  )
+
+target_link_libraries(MrsUavTrajectoryGeneration_PathRandomFlier
+  ${catkin_LIBRARIES}
   )
 
 ## --------------------------------------------------------------

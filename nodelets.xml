@@ -3,3 +3,9 @@
     <description>MrsTrajectoryGeneration nodelet</description>
   </class>
 </library>
+
+<library path="lib/libMrsUavTrajectoryGeneration_PathRandomFlier">
+  <class name="mrs_uav_trajectory_generation/PathRandomFlier" type="mrs_uav_trajectory_generation::PathRandomFlier" base_class_type="nodelet::Nodelet">
+    <description>the PathRandomFlier nodelet</description>
+  </class>
+</library>
