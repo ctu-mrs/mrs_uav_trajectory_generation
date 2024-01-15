@@ -151,26 +151,16 @@ private:
   bool               callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& req, mrs_msgs::GetPathSrv::Response& res);
   ros::ServiceServer service_server_get_path_;
 
-  // subscriber for input
-  void            callbackPath(const mrs_msgs::PathConstPtr& msg);
-  ros::Subscriber subscriber_path_;
+  void                                      callbackPath(const mrs_msgs::Path::ConstPtr msg);
+  mrs_lib::SubscribeHandler<mrs_msgs::Path> sh_path_;
 
-  void                          callbackConstraints(const mrs_msgs::DynamicsConstraintsConstPtr& msg);
-  ros::Subscriber               subscriber_constraints_;
-  bool                          got_constraints_ = false;
-  mrs_msgs::DynamicsConstraints constraints_;
-  std::mutex                    mutex_constraints_;
-
-  mrs_lib::SubscribeHandler<mrs_msgs::TrackerCommand> sh_tracker_cmd_;
+  mrs_lib::SubscribeHandler<mrs_msgs::TrackerCommand>      sh_tracker_cmd_;
+  mrs_lib::SubscribeHandler<mrs_msgs::DynamicsConstraints> sh_constraints_;
 
   void                                          callbackUavState(const mrs_msgs::UavState::ConstPtr msg);
   mrs_lib::SubscribeHandler<mrs_msgs::UavState> sh_uav_state_;
 
-  void                                callbackControlManagerDiag(const mrs_msgs::ControlManagerDiagnosticsConstPtr& msg);
-  ros::Subscriber                     subscriber_control_manager_diag_;
-  bool                                got_control_manager_diag_ = false;
-  mrs_msgs::ControlManagerDiagnostics control_manager_diag_;
-  std::mutex                          mutex_control_manager_diag_;
+  mrs_lib::SubscribeHandler<mrs_msgs::ControlManagerDiagnostics> sh_control_manager_diag_;
 
   // service client for publishing trajectory out
   ros::ServiceClient service_client_trajectory_reference_;
@@ -277,14 +267,12 @@ void MrsTrajectoryGeneration::onInit() {
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  subscriber_constraints_ = nh_.subscribe("constraints_in", 1, &MrsTrajectoryGeneration::callbackConstraints, this, ros::TransportHints().tcpNoDelay());
+  sh_constraints_          = mrs_lib::SubscribeHandler<mrs_msgs::DynamicsConstraints>(shopts, "constraints_in");
+  sh_tracker_cmd_          = mrs_lib::SubscribeHandler<mrs_msgs::TrackerCommand>(shopts, "tracker_cmd_in");
+  sh_uav_state_            = mrs_lib::SubscribeHandler<mrs_msgs::UavState>(shopts, "uav_state_in", &MrsTrajectoryGeneration::callbackUavState, this);
+  sh_control_manager_diag_ = mrs_lib::SubscribeHandler<mrs_msgs::ControlManagerDiagnostics>(shopts, "control_manager_diag_in");
 
-  sh_tracker_cmd_ = mrs_lib::SubscribeHandler<mrs_msgs::TrackerCommand>(shopts, "tracker_cmd_in");
-  sh_uav_state_   = mrs_lib::SubscribeHandler<mrs_msgs::UavState>(shopts, "uav_state_in", &MrsTrajectoryGeneration::callbackUavState, this);
-
-  subscriber_control_manager_diag_ =
-      nh_.subscribe("control_manager_diag_in", 1, &MrsTrajectoryGeneration::callbackControlManagerDiag, this, ros::TransportHints().tcpNoDelay());
-  subscriber_path_ = nh_.subscribe("path_in", 1, &MrsTrajectoryGeneration::callbackPath, this, ros::TransportHints().tcpNoDelay());
+  sh_path_ = mrs_lib::SubscribeHandler<mrs_msgs::Path>(shopts, "path_in", &MrsTrajectoryGeneration::callbackPath, this);
 
   // | --------------------- service servers -------------------- |
 
@@ -571,10 +559,10 @@ std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> MrsTrajectoryGene
     initial_condition = *tracker_cmd;
   }
 
-  auto control_manager_diag = mrs_lib::get_mutexed(mutex_control_manager_diag_, control_manager_diag_);
+  auto control_manager_diag = sh_control_manager_diag_.getMsg();
 
   if (path_time == ros::Time(0)) {
-    if (!control_manager_diag.tracker_status.have_goal) {
+    if (!control_manager_diag->tracker_status.have_goal) {
       initial_condition.header.stamp = ros::Time(0);
     }
   }
@@ -833,11 +821,11 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   ros::Time find_trajectory_time_start = ros::Time::now();
 
   auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
-  auto constraints = mrs_lib::get_mutexed(mutex_constraints_, constraints_);
+  auto constraints = sh_constraints_.getMsg();
 
-  auto control_manager_diag = mrs_lib::get_mutexed(mutex_control_manager_diag_, control_manager_diag_);
+  auto control_manager_diag = sh_control_manager_diag_.getMsg();
 
-  if (initial_state && (initial_state->header.stamp - ros::Time::now()).toSec() < 0.2 && control_manager_diag.tracker_status.have_goal) {
+  if (initial_state && (initial_state->header.stamp - ros::Time::now()).toSec() < 0.2 && control_manager_diag->tracker_status.have_goal) {
     max_deviation_first_segment_ = false;
   } else {
     max_deviation_first_segment_ = true;
@@ -946,17 +934,17 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   double v_max_vertical, a_max_vertical, j_max_vertical;
 
   // use the small of the ascending/descending values
-  double vertical_speed_lim        = std::min(constraints.vertical_ascending_speed, constraints.vertical_descending_speed);
-  double vertical_acceleration_lim = std::min(constraints.vertical_ascending_acceleration, constraints.vertical_descending_acceleration);
+  double vertical_speed_lim        = std::min(constraints->vertical_ascending_speed, constraints->vertical_descending_speed);
+  double vertical_acceleration_lim = std::min(constraints->vertical_ascending_acceleration, constraints->vertical_descending_acceleration);
 
-  v_max_horizontal = constraints.horizontal_speed;
-  a_max_horizontal = constraints.horizontal_acceleration;
+  v_max_horizontal = constraints->horizontal_speed;
+  a_max_horizontal = constraints->horizontal_acceleration;
 
   v_max_vertical = vertical_speed_lim;
   a_max_vertical = vertical_acceleration_lim;
 
-  j_max_horizontal = constraints.horizontal_jerk;
-  j_max_vertical   = std::min(constraints.vertical_ascending_jerk, constraints.vertical_descending_jerk);
+  j_max_horizontal = constraints->horizontal_jerk;
+  j_max_vertical   = std::min(constraints->vertical_ascending_jerk, constraints->vertical_descending_jerk);
 
   if (override_constraints_) {
 
@@ -996,9 +984,9 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     a_max_heading = std::numeric_limits<float>::max();
     j_max_heading = std::numeric_limits<float>::max();
   } else {
-    v_max_heading = constraints.heading_speed;
-    a_max_heading = constraints.heading_acceleration;
-    j_max_heading = constraints.heading_jerk;
+    v_max_heading = constraints->heading_speed;
+    a_max_heading = constraints->heading_acceleration;
+    j_max_heading = constraints->heading_jerk;
   }
 
   ROS_DEBUG("[MrsTrajectoryGeneration]: using constraints:");
@@ -1188,7 +1176,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   ROS_WARN("[MrsTrajectoryGeneration]: fallback sampling started");
 
   auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
-  auto constraints = mrs_lib::get_mutexed(mutex_constraints_, constraints_);
+  auto constraints = sh_constraints_.getMsg();
 
   eth_trajectory_generation::Vertex::Vector vertices;
   const int                                 dimension = 4;
@@ -1218,8 +1206,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   double v_max_vertical, a_max_vertical, j_max_vertical;
 
   // use the small of the ascending/descending values
-  double vertical_speed_lim        = std::min(constraints.vertical_ascending_speed, constraints.vertical_descending_speed);
-  double vertical_acceleration_lim = std::min(constraints.vertical_ascending_acceleration, constraints.vertical_descending_acceleration);
+  double vertical_speed_lim        = std::min(constraints->vertical_ascending_speed, constraints->vertical_descending_speed);
+  double vertical_acceleration_lim = std::min(constraints->vertical_ascending_acceleration, constraints->vertical_descending_acceleration);
 
   if (override_constraints_) {
 
@@ -1234,14 +1222,14 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     ROS_DEBUG("[MrsTrajectoryGeneration]: overriding constraints by a user");
   } else {
 
-    v_max_horizontal = constraints.horizontal_speed;
-    a_max_horizontal = constraints.horizontal_acceleration;
+    v_max_horizontal = constraints->horizontal_speed;
+    a_max_horizontal = constraints->horizontal_acceleration;
 
     v_max_vertical = vertical_speed_lim;
     a_max_vertical = vertical_acceleration_lim;
 
-    j_max_horizontal = constraints.horizontal_jerk;
-    j_max_vertical   = std::min(constraints.vertical_ascending_jerk, constraints.vertical_descending_jerk);
+    j_max_horizontal = constraints->horizontal_jerk;
+    j_max_vertical   = std::min(constraints->vertical_ascending_jerk, constraints->vertical_descending_jerk);
   }
 
 
@@ -1252,9 +1240,9 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     a_max_heading = std::numeric_limits<float>::max();
     j_max_heading = std::numeric_limits<float>::max();
   } else {
-    v_max_heading = constraints.heading_speed;
-    a_max_heading = constraints.heading_acceleration;
-    j_max_heading = constraints.heading_jerk;
+    v_max_heading = constraints->heading_speed;
+    a_max_heading = constraints->heading_acceleration;
+    j_max_heading = constraints->heading_jerk;
   }
 
   v_max_horizontal *= _fallback_sampling_speed_factor_;
@@ -1333,8 +1321,6 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
       eth_point.setFromYaw(point.coords[3]);
 
       states.push_back(eth_point);
-
-      auto control_manager_diag = mrs_lib::get_mutexed(mutex_control_manager_diag_, control_manager_diag_);
 
       if (j == 0 && i > 0 && waypoints[i].stop_at) {
 
@@ -1674,7 +1660,7 @@ double MrsTrajectoryGeneration::timeLeft(void) {
 
 /* callbackPath() //{ */
 
-void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
+void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -1682,14 +1668,14 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::PathConstPtr& msg) {
 
   /* preconditions //{ */
 
-  if (!got_constraints_) {
+  if (!sh_constraints_.hasMsg()) {
     std::stringstream ss;
     ss << "missing constraints";
     ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
     return;
   }
 
-  if (!got_control_manager_diag_) {
+  if (!sh_control_manager_diag_.hasMsg()) {
     std::stringstream ss;
     ss << "missing control manager diagnostics";
     ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
@@ -1856,7 +1842,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
 
   /* preconditions //{ */
 
-  if (!got_constraints_) {
+  if (!sh_constraints_.hasMsg()) {
     std::stringstream ss;
     ss << "missing constraints";
     ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
@@ -1866,7 +1852,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     return true;
   }
 
-  if (!got_control_manager_diag_) {
+  if (!sh_control_manager_diag_.hasMsg()) {
     std::stringstream ss;
     ss << "missing control manager diagnostics";
     ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
@@ -2057,9 +2043,9 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     return false;
   }
 
-  /* precondition //{ */
+  /* preconditions //{ */
 
-  if (!got_constraints_) {
+  if (!sh_constraints_.hasMsg()) {
     std::stringstream ss;
     ss << "missing constraints";
     ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
@@ -2069,7 +2055,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     return true;
   }
 
-  if (!got_control_manager_diag_) {
+  if (!sh_control_manager_diag_.hasMsg()) {
     std::stringstream ss;
     ss << "missing control manager diagnostics";
     ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
@@ -2271,23 +2257,6 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
 
 //}
 
-/* callbackConstraints() //{ */
-
-void MrsTrajectoryGeneration::callbackConstraints(const mrs_msgs::DynamicsConstraintsConstPtr& msg) {
-
-  if (!is_initialized_) {
-    return;
-  }
-
-  ROS_INFO_ONCE("[MrsTrajectoryGeneration]: got constraints");
-
-  mrs_lib::set_mutexed(mutex_constraints_, *msg, constraints_);
-
-  got_constraints_ = true;
-}
-
-//}
-
 /* callbackUavState() //{ */
 
 void MrsTrajectoryGeneration::callbackUavState(const mrs_msgs::UavState::ConstPtr msg) {
@@ -2299,23 +2268,6 @@ void MrsTrajectoryGeneration::callbackUavState(const mrs_msgs::UavState::ConstPt
   ROS_INFO_ONCE("[MrsTrajectoryGeneration]: getting uav state");
 
   transformer_->setDefaultFrame(msg->header.frame_id);
-}
-
-//}
-
-/* callbackControlManagerDiag() //{ */
-
-void MrsTrajectoryGeneration::callbackControlManagerDiag(const mrs_msgs::ControlManagerDiagnosticsConstPtr& msg) {
-
-  if (!is_initialized_) {
-    return;
-  }
-
-  ROS_INFO_ONCE("[MrsTrajectoryGeneration]: got control manager diagnostics");
-
-  got_control_manager_diag_ = true;
-
-  mrs_lib::set_mutexed(mutex_control_manager_diag_, *msg, control_manager_diag_);
 }
 
 //}
