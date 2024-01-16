@@ -10,11 +10,11 @@ The **maximum deviation** of the resulting trajectory from the supplied path is 
 
 ![](.fig/animation.gif)
 
-We built upon of the work of [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation).
+We built upon the work of [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation).
 The main differences are:
 
 * This package provides ROS node that is meant to be used within the [MRS UAV System](https://github.com/ctu-mrs/mrs_uav_system). However, it can be easily modified for other purposes.
-* This ROS node subscribes to the current control reference of the UAV and current allowed dynamics constraints. The resulting trajectory satisfies the constraints and starts from the current reference state.
+* This ROS node subscribes to the current control reference of the UAV and current allowed dynamic constraints. The resulting trajectory starts from the current reference state and satisfies the constraints.
 * The utilized variant minimizes acceleration and uses the _Mellinger's_ time allocation method.
 * Improved _Mellinger's_ time allocation: only the polynomial segments that violate constraints are _stretched_, instead of the whole trajectory.
 * Purely Euclidean `max_speed` time estimate is used for initializing segment times. It provides lower bound, which is good since the constraints are met by prolonging the segment times (not shortening them).
@@ -88,15 +88,15 @@ The following images show the two situations with a dynamic initial condition.
 | the 1st segment unconstrained     | the 1st segment subsectioned      |
 | ![](.fig/initial_condition_1.jpg) | ![](.fig/initial_condition_2.jpg) |
 
-### Dynamics constraints
+### Dynamic constraints
 
-The dynamics constrints are automatically obtained from the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers) (`/uav*/control_manager/current_constraints`).
+The dynamic constraints are automatically obtained from the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers) (`/uav*/control_manager/current_constraints`).
 Beware, this method does not distinguish between horizontal and vertical constraints, as it is with the rest of the MRS UAV system.
 Therefore, only the **horizontal** constraints values are pull out of [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers).
-For arbitrarilly structured paths set the horizontal and vertical constraints equal in the [ConstraintManager](https://github.com/ctu-mrs/mrs_uav_managers).
+For arbitrarily structured paths set the horizontal and vertical constraints equal in the [ConstraintManager](https://github.com/ctu-mrs/mrs_uav_managers).
 
-The input service/topic allows to override the maximum velocity and acceleration constraint.
-If overriden, the smaller values (between the user-overriden and the supplied by the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers).) will be used.
+The input service/topic allows to override the maximum velocity and acceleration constraints.
+If overriden, the smaller values (between the user-overriden and the supplied by the [ControlManager](https://github.com/ctu-mrs/mrs_uav_managers)) will be used.
 
 ## Dependencies
 
@@ -106,7 +106,7 @@ If overriden, the smaller values (between the user-overriden and the supplied by
 
 ## Acknowledgments
 
-This package based upon [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation).
+This package is based upon [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation).
 Please, cite the original publications:
 
 C. Richter, A. Bry, and N. Roy, “**Polynomial trajectory planning for aggressive quadrotor flight in dense indoor environments,**” in *International Journal of Robotics Research*, Springer, 2016.
