@@ -105,7 +105,7 @@ private:
   std::string _uav_name_;
 
   bool   _trajectory_max_segment_deviation_enabled_;
-  double _trajectory_max_segment_deviation_;
+  double trajectory_max_segment_deviation_;
   int    _trajectory_max_segment_deviation_max_iterations_;
 
   bool   _path_straightener_enabled_;
@@ -133,6 +133,8 @@ private:
   std::mutex mutex_max_execution_time_;
 
   bool max_deviation_first_segment_;
+
+  std::atomic<bool> dont_prepend_initial_condition_ = false;
 
   // | -------------------- the transformer  -------------------- |
 
@@ -322,7 +324,7 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam(yaml_prefix + "fallback_sampling/first_waypoint_additional_stop", _fallback_sampling_first_waypoint_additional_stop_);
 
   param_loader.loadParam(yaml_prefix + "check_trajectory_deviation/enabled", _trajectory_max_segment_deviation_enabled_);
-  param_loader.loadParam(yaml_prefix + "check_trajectory_deviation/max_deviation", _trajectory_max_segment_deviation_);
+  param_loader.loadParam(yaml_prefix + "check_trajectory_deviation/max_deviation", params_.max_deviation);
   param_loader.loadParam(yaml_prefix + "check_trajectory_deviation/max_iterations", _trajectory_max_segment_deviation_max_iterations_);
 
   param_loader.loadParam(yaml_prefix + "path_straightener/enabled", _path_straightener_enabled_);
@@ -354,8 +356,7 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam(yaml_prefix + "max_iterations", params_.max_iterations);
   param_loader.loadParam(yaml_prefix + "derivative_to_optimize", params_.derivative_to_optimize);
 
-  param_loader.loadParam(yaml_prefix + "max_time", params_.max_time);
-  max_execution_time_ = params_.max_time;
+  param_loader.loadParam(yaml_prefix + "max_time", params_.max_execution_time);
 
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[MrsTrajectoryGeneration]: could not load all parameters!");
@@ -481,6 +482,10 @@ std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessPath(const std::vecto
 /* prepareInitialCondition() //{ */
 
 std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> MrsTrajectoryGeneration::prepareInitialCondition(const ros::Time path_time) {
+
+  if (dont_prepend_initial_condition_) {
+    return {{}, false, 0};
+  }
 
   if (!sh_tracker_cmd_.hasMsg()) {
     return {{}, false, 0};
@@ -623,7 +628,9 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     waypoints_in_with_init.insert(waypoints_in_with_init.begin(), initial_waypoint);
 
   } else {
-    fly_now_ = false;
+    if (!dont_prepend_initial_condition_) {
+      fly_now_ = false;
+    }
   }
 
   std::vector<Waypoint_t> waypoints = preprocessPath(waypoints_in_with_init);
@@ -1393,7 +1400,7 @@ std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::valida
         max_deviation = distance_from_segment;
       }
 
-      if (distance_from_segment > _trajectory_max_segment_deviation_) {
+      if (distance_from_segment > trajectory_max_segment_deviation_) {
         segments.at(waypoint_idx) = false;
         is_safe                   = false;
       }
@@ -1707,7 +1714,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
 
     std::scoped_lock lock(mutex_max_execution_time_);
 
-    max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, params_.max_time);
+    max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, params_.max_execution_time);
 
     ROS_INFO("[MrsTrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
              path_time_offset);
@@ -1715,7 +1722,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
 
     std::scoped_lock lock(mutex_max_execution_time_, mutex_params_);
 
-    max_execution_time_ = params_.max_time;
+    max_execution_time_ = params_.max_execution_time;
   }
 
   ROS_INFO("[MrsTrajectoryGeneration]: got path from message");
@@ -1750,6 +1757,22 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
   override_max_jerk_horizontal_         = transformed_path->override_max_jerk_horizontal;
   override_max_jerk_vertical_           = transformed_path->override_max_jerk_horizontal;
   stop_at_waypoints_                    = transformed_path->stop_at_waypoints;
+
+  auto params = mrs_lib::get_mutexed(mutex_params_, params_);
+
+  if (transformed_path->max_execution_time > 0) {
+    max_execution_time_ = transformed_path->max_execution_time;
+  } else {
+    max_execution_time_ = params.max_execution_time;
+  }
+
+  if (transformed_path->max_deviation_from_path > 0) {
+    trajectory_max_segment_deviation_ = transformed_path->max_deviation_from_path;
+  } else {
+    trajectory_max_segment_deviation_ = params.max_deviation;
+  }
+
+  dont_prepend_initial_condition_ = transformed_path->dont_prepend_current_state;
 
   std::vector<Waypoint_t> waypoints;
 
@@ -1890,7 +1913,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
 
     std::scoped_lock lock(mutex_max_execution_time_);
 
-    max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, params_.max_time);
+    max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, params_.max_execution_time);
 
     ROS_INFO("[MrsTrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
              path_time_offset);
@@ -1898,7 +1921,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
 
     std::scoped_lock lock(mutex_max_execution_time_, mutex_params_);
 
-    max_execution_time_ = params_.max_time;
+    max_execution_time_ = params_.max_execution_time;
   }
 
   ROS_INFO("[MrsTrajectoryGeneration]: got path from service");
@@ -1939,6 +1962,22 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   override_max_jerk_horizontal_         = transformed_path->override_max_jerk_horizontal;
   override_max_jerk_vertical_           = transformed_path->override_max_jerk_horizontal;
   stop_at_waypoints_                    = transformed_path->stop_at_waypoints;
+
+  auto params = mrs_lib::get_mutexed(mutex_params_, params_);
+
+  if (transformed_path->max_execution_time > 0) {
+    max_execution_time_ = transformed_path->max_execution_time;
+  } else {
+    max_execution_time_ = params.max_execution_time;
+  }
+
+  if (transformed_path->max_deviation_from_path > 0) {
+    trajectory_max_segment_deviation_ = transformed_path->max_deviation_from_path;
+  } else {
+    trajectory_max_segment_deviation_ = params.max_deviation;
+  }
+
+  dont_prepend_initial_condition_ = transformed_path->dont_prepend_current_state;
 
   std::vector<Waypoint_t> waypoints;
 
@@ -2101,7 +2140,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
 
     std::scoped_lock lock(mutex_max_execution_time_, mutex_params_);
 
-    max_execution_time_ = params_.max_time;
+    max_execution_time_ = params_.max_execution_time;
   }
 
   ROS_INFO("[MrsTrajectoryGeneration]: got path from service");
@@ -2142,6 +2181,22 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   override_max_jerk_horizontal_         = transformed_path->override_max_jerk_horizontal;
   override_max_jerk_vertical_           = transformed_path->override_max_jerk_horizontal;
   stop_at_waypoints_                    = transformed_path->stop_at_waypoints;
+
+  auto params = mrs_lib::get_mutexed(mutex_params_, params_);
+
+  if (transformed_path->max_execution_time > 0) {
+    max_execution_time_ = transformed_path->max_execution_time;
+  } else {
+    max_execution_time_ = params.max_execution_time;
+  }
+
+  if (transformed_path->max_deviation_from_path > 0) {
+    trajectory_max_segment_deviation_ = transformed_path->max_deviation_from_path;
+  } else {
+    trajectory_max_segment_deviation_ = params.max_deviation;
+  }
+
+  dont_prepend_initial_condition_ = transformed_path->dont_prepend_current_state;
 
   std::vector<Waypoint_t> waypoints;
 
@@ -2281,7 +2336,7 @@ void MrsTrajectoryGeneration::callbackDrs(mrs_uav_trajectory_generation::drsConf
   {
     std::scoped_lock lock(mutex_max_execution_time_);
 
-    max_execution_time_ = params.max_time;
+    max_execution_time_ = params.max_execution_time;
   }
 
   ROS_INFO("[MrsTrajectoryGeneration]: DRS updated");

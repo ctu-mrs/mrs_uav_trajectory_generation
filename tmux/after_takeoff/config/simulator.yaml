@@ -1,0 +1,15 @@
+simulation_rate: 250.0 # Hz
+clock_rate: 250.0 # Hz
+realtime_factor: 1.0
+
+uav_names: [
+  "uav1",
+]
+
+uav1:
+  type: "t650"
+  spawn:
+    x: 0.0
+    y: 0.0
+    z: 1.0
+    heading: 0.0
