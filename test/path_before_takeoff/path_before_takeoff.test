@@ -25,7 +25,6 @@
   <include file="$(find mrs_uav_testing)/launch/mrs_uav_system.launch">
     <arg name="automatic_start" default="true" />
     <arg name="platform_config" default="$(find mrs_multirotor_simulator)/config/mrs_uav_system/$(arg UAV_TYPE).yaml" />
-    <arg name="custom_config" default="$(dirname)/config/custom_config.yaml" />
     <arg name="UAV_NAME" default="$(arg UAV_NAME)" />
   </include>
 
