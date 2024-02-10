@@ -358,6 +358,8 @@ void MrsTrajectoryGeneration::onInit() {
 
   param_loader.loadParam(yaml_prefix + "max_time", params_.max_execution_time);
 
+  max_execution_time_ = params_.max_execution_time;
+
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[MrsTrajectoryGeneration]: could not load all parameters!");
     ros::shutdown();
@@ -855,7 +857,9 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   parameters.inequality_constraint_tolerance = params.inequality_constraint_tolerance;
   parameters.equality_constraint_tolerance   = params.equality_constraint_tolerance;
   parameters.max_iterations                  = params.max_iterations;
-  parameters.max_time                        = NLOPT_EXEC_TIME_FACTOR * timeLeft();
+
+  // let's tell the solver tha it is more time then it thinks, to not stop prematurely
+  parameters.max_time = 2 * (NLOPT_EXEC_TIME_FACTOR * timeLeft());
 
   eth_trajectory_generation::Vertex::Vector vertices;
   const int                                 dimension = 4;
@@ -1761,8 +1765,15 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
   auto params = mrs_lib::get_mutexed(mutex_params_, params_);
 
   if (transformed_path->max_execution_time > 0) {
+
+    std::scoped_lock lock(mutex_max_execution_time_);
+
     max_execution_time_ = transformed_path->max_execution_time;
+
   } else {
+
+    std::scoped_lock lock(mutex_max_execution_time_);
+
     max_execution_time_ = params.max_execution_time;
   }
 
@@ -1966,8 +1977,15 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   auto params = mrs_lib::get_mutexed(mutex_params_, params_);
 
   if (transformed_path->max_execution_time > 0) {
+
+    std::scoped_lock lock(mutex_max_execution_time_);
+
     max_execution_time_ = transformed_path->max_execution_time;
+
   } else {
+
+    std::scoped_lock lock(mutex_max_execution_time_);
+
     max_execution_time_ = params.max_execution_time;
   }
 
@@ -2185,8 +2203,15 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   auto params = mrs_lib::get_mutexed(mutex_params_, params_);
 
   if (transformed_path->max_execution_time > 0) {
+
+    std::scoped_lock lock(mutex_max_execution_time_);
+
     max_execution_time_ = transformed_path->max_execution_time;
+
   } else {
+
+    std::scoped_lock lock(mutex_max_execution_time_);
+
     max_execution_time_ = params.max_execution_time;
   }
 
