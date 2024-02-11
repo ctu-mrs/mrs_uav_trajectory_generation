@@ -11,6 +11,19 @@ public:
 
 bool Tester::test() {
 
+  {
+    auto [uhopt, message] = getUAVHandler(_uav_name_);
+
+    if (!uhopt) {
+      ROS_ERROR("[%s]: Failed obtain handler for '%s': '%s'", ros::this_node::getName().c_str(), _uav_name_.c_str(), message.c_str());
+      return false;
+    }
+
+    uh_ = uhopt.value();
+  }
+
+  // | --------------------- define the path -------------------- |
+
   std::vector<Eigen::Vector4d> points;
 
   points.push_back(Eigen::Vector4d(-5, -5, 5, 1));
@@ -46,7 +59,7 @@ bool Tester::test() {
 
     ROS_INFO_THROTTLE(1.0, "[%s]: waiting for the MRS UAV System", name_.c_str());
 
-    if (mrsSystemReady()) {
+    if (uh_->mrsSystemReady()) {
       ROS_INFO("[%s]: MRS UAV System is ready", name_.c_str());
       break;
     }
@@ -61,7 +74,7 @@ bool Tester::test() {
   {
     std::string message;
 
-    std::tie(trajectory, message) = getPathSrv(path);
+    std::tie(trajectory, message) = uh_->getPathSrv(path);
 
     if (!trajectory) {
       ROS_ERROR("[%s]: goto failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
@@ -72,7 +85,7 @@ bool Tester::test() {
   // | ------------------ check the trajectory ------------------ |
 
   {
-    bool trajectory_is_fine = checkTrajectory(*trajectory, path, false);
+    bool trajectory_is_fine = this->checkTrajectory(*trajectory, path, false);
 
     if (!trajectory_is_fine) {
       ROS_ERROR("[%s]: trajectory check failed", ros::this_node::getName().c_str());

@@ -11,6 +11,19 @@ public:
 
 bool Tester::test() {
 
+  {
+    auto [uhopt, message] = getUAVHandler(_uav_name_);
+
+    if (!uhopt) {
+      ROS_ERROR("[%s]: Failed obtain handler for '%s': '%s'", ros::this_node::getName().c_str(), _uav_name_.c_str(), message.c_str());
+      return false;
+    }
+
+    uh_ = uhopt.value();
+  }
+
+  // | --------------------- define the path -------------------- |
+
   std::vector<Eigen::Vector4d> points;
 
   points.push_back(Eigen::Vector4d(-5, -5, 5, 1));
@@ -46,7 +59,7 @@ bool Tester::test() {
 
     ROS_INFO_THROTTLE(1.0, "[%s]: waiting for the MRS UAV System", name_.c_str());
 
-    if (mrsSystemReady()) {
+    if (uh_->mrsSystemReady()) {
       ROS_INFO("[%s]: MRS UAV System is ready", name_.c_str());
       break;
     }
@@ -60,7 +73,7 @@ bool Tester::test() {
   // | -------------------- call the service -------------------- |
 
   {
-    auto [success, message] = setPathSrv(path);
+    auto [success, message] = uh_->setPathSrv(path);
 
     if (!success) {
       ROS_ERROR("[%s]: goto failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
@@ -71,7 +84,7 @@ bool Tester::test() {
   // | ------------------------- takeoff ------------------------ |
 
   {
-    auto [success, message] = takeoff();
+    auto [success, message] = uh_->takeoff();
 
     if (!success) {
       ROS_ERROR("[%s]: takeoff failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
@@ -82,7 +95,7 @@ bool Tester::test() {
   // | ----------------------- goto start ----------------------- |
 
   {
-    auto [success, message] = gotoTrajectoryStart();
+    auto [success, message] = uh_->gotoTrajectoryStart();
 
     if (!success) {
       ROS_ERROR("[%s]: goto trajectory start failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
@@ -93,7 +106,7 @@ bool Tester::test() {
   // | ---------------- start trajectory tracking --------------- |
 
   {
-    auto [success, message] = startTrajectoryTracking();
+    auto [success, message] = uh_->startTrajectoryTracking();
 
     if (!success) {
       ROS_ERROR("[%s]: start trajectory tracking failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
@@ -104,7 +117,7 @@ bool Tester::test() {
   // | --------------- check if we pass each point -------------- |
 
   {
-    auto [success, message] = checkPathFlythrough(points);
+    auto [success, message] = this->checkPathFlythrough(points);
 
     if (!success) {
       ROS_ERROR("[%s]: path flythrough failed: '%s'", ros::this_node::getName().c_str(), message.c_str());
@@ -116,7 +129,7 @@ bool Tester::test() {
 
   sleep(5.0);
 
-  if (this->isFlyingNormally()) {
+  if (uh_->isFlyingNormally()) {
     return true;
   } else {
     ROS_ERROR("[%s]: not flying normally", ros::this_node::getName().c_str());

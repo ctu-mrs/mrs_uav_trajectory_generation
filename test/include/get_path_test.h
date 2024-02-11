@@ -13,15 +13,22 @@ using sradians = mrs_lib::geometry::sradians;
 class GetPathTest : public mrs_uav_testing::TestGeneric {
 
 public:
+  GetPathTest();
+
   bool checkTrajectory(const mrs_msgs::TrajectoryReference& trajectory, const mrs_msgs::Path& path, bool starting_from_current_pos);
+
+  std::shared_ptr<mrs_uav_testing::UAVHandler> uh_;
+};
+
+GetPathTest::GetPathTest() : mrs_uav_testing::TestGeneric() {
 };
 
 bool GetPathTest::checkTrajectory(const mrs_msgs::TrajectoryReference& trajectory, const mrs_msgs::Path& path, bool starting_from_current_pos) {
 
   if (starting_from_current_pos) {
 
-    auto pos = this->getTrackerCmd()->position;
-    auto hdg = this->getTrackerCmd()->heading;
+    auto pos = uh_->getTrackerCmd()->position;
+    auto hdg = uh_->getTrackerCmd()->heading;
 
     if (std::hypot(pos.x - trajectory.points[0].position.x, pos.y - trajectory.points[0].position.y, pos.z - trajectory.points[0].position.z) > POS_TOLERANCE) {
       ROS_ERROR("[%s]: trajectories differ at the translation of the initial condition", ros::this_node::getName().c_str());
