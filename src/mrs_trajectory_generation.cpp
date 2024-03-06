@@ -361,7 +361,7 @@ void MrsTrajectoryGeneration::onInit() {
   max_execution_time_ = params_.max_execution_time;
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[MrsTrajectoryGeneration]: could not load all parameters!");
+    ROS_ERROR("[TrajectoryGeneration]: could not load all parameters!");
     ros::shutdown();
   }
 
@@ -386,7 +386,7 @@ void MrsTrajectoryGeneration::onInit() {
 
   // | --------------------- finish the init -------------------- |
 
-  ROS_INFO_ONCE("[MrsTrajectoryGeneration]: initialized");
+  ROS_INFO_ONCE("[TrajectoryGeneration]: initialized");
 
   is_initialized_ = true;
 }
@@ -462,7 +462,7 @@ std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessPath(const std::vecto
       vec3_t last(waypoints_in.at(i).coords[0], waypoints_in.at(i).coords[1], waypoints_in.at(i).coords[2]);
 
       if (mrs_lib::geometry::dist(first, last) < _min_waypoint_distance_) {
-        ROS_INFO("[MrsTrajectoryGeneration]: waypoint #%d too close (< %.3f m) to the previous one (#%d), throwing it away", int(i), _min_waypoint_distance_,
+        ROS_INFO("[TrajectoryGeneration]: waypoint #%d too close (< %.3f m) to the previous one (#%d), throwing it away", int(i), _min_waypoint_distance_,
                  int(last_added_idx));
         continue;
       }
@@ -513,7 +513,7 @@ std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> MrsTrajectoryGene
   // if the desired path starts in the future, more than one MPC step ahead
   if (path_time_offset > 0.2) {
 
-    ROS_INFO("[MrsTrajectoryGeneration]: desired path is from the future by %.2f s", path_time_offset);
+    ROS_INFO("[TrajectoryGeneration]: desired path is from the future by %.2f s", path_time_offset);
 
     // calculate the offset in samples in the predicted trajectory
     // 0.01 is subtracted for the first sample, which is smaller
@@ -522,7 +522,7 @@ std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> MrsTrajectoryGene
 
     if (path_sample_offset > (int(tracker_cmd->full_state_prediction.position.size()) - 1)) {
 
-      ROS_ERROR("[MrsTrajectoryGeneration]: can not extrapolate into the waypoints, using tracker_cmd instead");
+      ROS_ERROR("[TrajectoryGeneration]: can not extrapolate into the waypoints, using tracker_cmd instead");
       initial_condition = *tracker_cmd;
 
     } else {
@@ -542,7 +542,7 @@ std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> MrsTrajectoryGene
       full_state.heading_acceleration = tracker_cmd->full_state_prediction.heading_acceleration[path_sample_offset];
       full_state.heading_jerk         = tracker_cmd->full_state_prediction.heading_jerk[path_sample_offset];
 
-      ROS_INFO("[MrsTrajectoryGeneration]: getting initial condition from the %d-th sample of the MPC prediction", path_sample_offset);
+      ROS_INFO("[TrajectoryGeneration]: getting initial condition from the %d-th sample of the MPC prediction", path_sample_offset);
 
       initial_condition.header = full_state.header;
 
@@ -561,7 +561,7 @@ std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> MrsTrajectoryGene
 
   } else {
 
-    ROS_INFO("[MrsTrajectoryGeneration]: desired path is NOT from the future, using tracker_cmd as the initial condition");
+    ROS_INFO("[TrajectoryGeneration]: desired path is NOT from the future, using tracker_cmd as the initial condition");
 
     initial_condition = *tracker_cmd;
   }
@@ -606,7 +606,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   if (waypoints_in.size() == 0) {
     std::stringstream ss;
     ss << "the path is empty (before postprocessing)";
-    ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
   }
 
@@ -640,7 +640,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   if (waypoints.size() <= 1) {
     std::stringstream ss;
     ss << "the path is empty (after postprocessing)";
-    ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
   }
 
@@ -654,7 +654,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   double sampling_dt = 0;
 
   if (path_from_future) {
-    ROS_INFO("[MrsTrajectoryGeneration]: changing dt = 0.2, cause the path is from the future");
+    ROS_INFO("[TrajectoryGeneration]: changing dt = 0.2, cause the path is from the future");
     sampling_dt = 0.2;
   } else {
     sampling_dt = _sampling_dt_;
@@ -665,16 +665,16 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   auto params = mrs_lib::get_mutexed(mutex_params_, params_);
 
   if (params.enforce_fallback_solver) {
-    ROS_WARN("[MrsTrajectoryGeneration]: fallback sampling enforced");
+    ROS_WARN("[TrajectoryGeneration]: fallback sampling enforced");
     result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
   } else if (fallback_sampling) {
-    ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling");
+    ROS_WARN("[TrajectoryGeneration]: executing fallback sampling");
     result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
   } else if (running_async_planning_) {
-    ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling, the previous async task is still running");
+    ROS_WARN("[TrajectoryGeneration]: executing fallback sampling, the previous async task is still running");
     result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
   } else if (overtime()) {
-    ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling, we are running over time");
+    ROS_WARN("[TrajectoryGeneration]: executing fallback sampling, we are running over time");
     result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
   } else {
 
@@ -686,19 +686,19 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   } else {
     std::stringstream ss;
     ss << "failed to find trajectory";
-    ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
   }
 
   for (int k = 0; k < _trajectory_max_segment_deviation_max_iterations_; k++) {
 
-    ROS_DEBUG("[MrsTrajectoryGeneration]: revalidation cycle #%d", k);
+    ROS_DEBUG("[TrajectoryGeneration]: revalidation cycle #%d", k);
 
     std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectorySpatial(trajectory, waypoints);
 
     if (_trajectory_max_segment_deviation_enabled_ && !safe) {
 
-      ROS_DEBUG("[MrsTrajectoryGeneration]: trajectory is not safe, max deviation %.3f m", max_deviation);
+      ROS_DEBUG("[TrajectoryGeneration]: trajectory is not safe, max deviation %.3f m", max_deviation);
 
       std::vector<Waypoint_t>::iterator waypoint = waypoints.begin();
       std::vector<bool>::iterator       safeness = segment_safeness.begin();
@@ -717,16 +717,16 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
       }
 
       if (params.enforce_fallback_solver) {
-        ROS_WARN("[MrsTrajectoryGeneration]: fallback sampling enforced");
+        ROS_WARN("[TrajectoryGeneration]: fallback sampling enforced");
         result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
       } else if (fallback_sampling) {
-        ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling");
+        ROS_WARN("[TrajectoryGeneration]: executing fallback sampling");
         result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
       } else if (running_async_planning_) {
-        ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling, the previous async task is still running");
+        ROS_WARN("[TrajectoryGeneration]: executing fallback sampling, the previous async task is still running");
         result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
       } else if (overtime()) {
-        ROS_WARN("[MrsTrajectoryGeneration]: executing fallback sampling, we are running over time");
+        ROS_WARN("[TrajectoryGeneration]: executing fallback sampling, we are running over time");
         result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
       } else {
         result = findTrajectoryAsync(waypoints, initial_condition, sampling_dt, relax_heading);
@@ -737,18 +737,18 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
       } else {
         std::stringstream ss;
         ss << "failed to find trajectory";
-        ROS_WARN_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+        ROS_WARN_STREAM("[TrajectoryGeneration]: " << ss.str());
         return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
       }
 
     } else {
-      ROS_DEBUG("[MrsTrajectoryGeneration]: trajectory is safe (%.2f)", max_deviation);
+      ROS_DEBUG("[TrajectoryGeneration]: trajectory is safe (%.2f)", max_deviation);
       safe = true;
       break;
     }
   }
 
-  ROS_INFO("[MrsTrajectoryGeneration]: final max trajectory-path deviation: %.2f m, total trajectory time: %.2fs ", max_deviation,
+  ROS_INFO("[TrajectoryGeneration]: final max trajectory-path deviation: %.2f m, total trajectory time: %.2fs ", max_deviation,
            trajectory.size() * sampling_dt);
 
   // prepare rviz markers
@@ -773,11 +773,11 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     // if there is anything to insert
     if (path_sample_offset > path_sample_offset_2) {
 
-      ROS_INFO("[MrsTrajectoryGeneration]: inserting pre-trajectory from the prediction, idxs %d to %d", path_sample_offset_2, path_sample_offset);
+      ROS_INFO("[TrajectoryGeneration]: inserting pre-trajectory from the prediction, idxs %d to %d", path_sample_offset_2, path_sample_offset);
 
       for (int i = path_sample_offset - 1; i >= 0; i--) {
 
-        ROS_DEBUG("[MrsTrajectoryGeneration]: inserting idx %d", i);
+        ROS_DEBUG("[TrajectoryGeneration]: inserting idx %d", i);
 
         mrs_msgs::ReferenceStamped reference;
 
@@ -793,7 +793,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
         } else {
           std::stringstream ss;
           ss << "could not transform reference to the path frame";
-          ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+          ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
           return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
         }
 
@@ -808,7 +808,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
   std::stringstream ss;
   ss << "trajectory generated";
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: trajectory generated, took %.3f s", (ros::Time::now() - optimize_time_start).toSec());
+  ROS_DEBUG("[TrajectoryGeneration]: trajectory generated, took %.3f s", (ros::Time::now() - optimize_time_start).toSec());
 
   return std::tuple(true, ss.str(), mrs_trajectory);
 }
@@ -825,7 +825,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   mrs_lib::AtomicScopeFlag unset_running(running_async_planning_);
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: findTrajectory() started");
+  ROS_DEBUG("[TrajectoryGeneration]: findTrajectory() started");
 
   ros::Time find_trajectory_time_start = ros::Time::now();
 
@@ -980,11 +980,11 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
       a_max_vertical = override_max_acceleration_vertical_;
       j_max_vertical = override_max_jerk_vertical_;
 
-      ROS_DEBUG("[MrsTrajectoryGeneration]: overriding constraints by a user");
+      ROS_DEBUG("[TrajectoryGeneration]: overriding constraints by a user");
 
     } else {
 
-      ROS_WARN("[MrsTrajectoryGeneration]: overrifing constraints refused due to possible infeasibility");
+      ROS_WARN("[TrajectoryGeneration]: overrifing constraints refused due to possible infeasibility");
     }
   }
 
@@ -1000,10 +1000,10 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     j_max_heading = constraints->heading_jerk;
   }
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: using constraints:");
-  ROS_DEBUG("[MrsTrajectoryGeneration]: horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal, j_max_horizontal);
-  ROS_DEBUG("[MrsTrajectoryGeneration]: vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
-  ROS_DEBUG("[MrsTrajectoryGeneration]: heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_heading, j_max_heading);
+  ROS_DEBUG("[TrajectoryGeneration]: using constraints:");
+  ROS_DEBUG("[TrajectoryGeneration]: horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal, j_max_horizontal);
+  ROS_DEBUG("[TrajectoryGeneration]: vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
+  ROS_DEBUG("[TrajectoryGeneration]: heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_heading, j_max_heading);
 
   std::vector<double> segment_times, segment_times_baca;
   segment_times      = estimateSegmentTimes(vertices, v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical,
@@ -1018,8 +1018,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     initial_total_time_baca += segment_times_baca[i];
   }
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: initial total time (Euclidean): %.2f", initial_total_time);
-  ROS_DEBUG("[MrsTrajectoryGeneration]: initial total time (Baca): %.2f", initial_total_time_baca);
+  ROS_DEBUG("[TrajectoryGeneration]: initial total time (Euclidean): %.2f", initial_total_time);
+  ROS_DEBUG("[TrajectoryGeneration]: initial total time (Baca): %.2f", initial_total_time_baca);
 
   // | --------- create an optimizer object and solve it -------- |
 
@@ -1099,15 +1099,14 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   }
 
   if (opt.getOptimizationInfo().stopping_reason >= 1 && opt.getOptimizationInfo().stopping_reason != 6) {
-    ROS_DEBUG("[MrsTrajectoryGeneration]: optimization finished successfully with code %d, '%s'", opt.getOptimizationInfo().stopping_reason,
-              result_str.c_str());
+    ROS_DEBUG("[TrajectoryGeneration]: optimization finished successfully with code %d, '%s'", opt.getOptimizationInfo().stopping_reason, result_str.c_str());
 
   } else if (opt.getOptimizationInfo().stopping_reason == -1) {
-    ROS_DEBUG("[MrsTrajectoryGeneration]: optimization finished with a generic error code %d, '%s'", opt.getOptimizationInfo().stopping_reason,
+    ROS_DEBUG("[TrajectoryGeneration]: optimization finished with a generic error code %d, '%s'", opt.getOptimizationInfo().stopping_reason,
               result_str.c_str());
 
   } else {
-    ROS_WARN("[MrsTrajectoryGeneration]: optimization failed with code %d, '%s', took %.3f s", opt.getOptimizationInfo().stopping_reason, result_str.c_str(),
+    ROS_WARN("[TrajectoryGeneration]: optimization failed with code %d, '%s', took %.3f s", opt.getOptimizationInfo().stopping_reason, result_str.c_str(),
              (ros::Time::now() - find_trajectory_time_start).toSec());
     return {};
   }
@@ -1128,7 +1127,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   eth_mav_msgs::EigenTrajectoryPoint::Vector states;
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: starting eth sampling with dt = %.2f s ", sampling_dt);
+  ROS_DEBUG("[TrajectoryGeneration]: starting eth sampling with dt = %.2f s ", sampling_dt);
 
   bool success = eth_trajectory_generation::sampleWholeTrajectory(trajectory, sampling_dt, &states);
 
@@ -1140,34 +1139,34 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   // only check this if the trajectory is > 1.0 sec, this check does not make much sense for the short ones
   if ((states.size() * sampling_dt) > 1.0 && (states.size() * sampling_dt) > (_max_trajectory_len_factor_ * initial_total_time_baca)) {
-    ROS_ERROR("[MrsTrajectoryGeneration]: the final trajectory sampling is too long = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
+    ROS_ERROR("[TrajectoryGeneration]: the final trajectory sampling is too long = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
               (states.size() * sampling_dt), initial_total_time_baca, _max_trajectory_len_factor_);
 
     std::stringstream ss;
     ss << "trajectory sampling failed";
-    ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
     return {};
 
   } else if ((states.size() * sampling_dt) > 1.0 && (states.size() * sampling_dt) < (_min_trajectory_len_factor_ * initial_total_time_baca)) {
-    ROS_ERROR("[MrsTrajectoryGeneration]: the final trajectory sampling is too short = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
+    ROS_ERROR("[TrajectoryGeneration]: the final trajectory sampling is too short = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
               (states.size() * sampling_dt), initial_total_time_baca, _min_trajectory_len_factor_);
 
     std::stringstream ss;
     ss << "trajectory sampling failed";
-    ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
     return {};
 
   } else {
-    ROS_DEBUG("[MrsTrajectoryGeneration]: estimated/final trajectory length ratio (final/estimated) %.2f",
+    ROS_DEBUG("[TrajectoryGeneration]: estimated/final trajectory length ratio (final/estimated) %.2f",
               (states.size() * sampling_dt) / initial_total_time_baca);
   }
 
   if (success) {
-    ROS_DEBUG("[MrsTrajectoryGeneration]: eth sampling finished, took %.3f s", (ros::Time::now() - find_trajectory_time_start).toSec());
+    ROS_DEBUG("[TrajectoryGeneration]: eth sampling finished, took %.3f s", (ros::Time::now() - find_trajectory_time_start).toSec());
     return std::optional(states);
 
   } else {
-    ROS_ERROR("[MrsTrajectoryGeneration]: eth could not sample the trajectory, took %.3f s", (ros::Time::now() - find_trajectory_time_start).toSec());
+    ROS_ERROR("[TrajectoryGeneration]: eth could not sample the trajectory, took %.3f s", (ros::Time::now() - find_trajectory_time_start).toSec());
     return {};
   }
 }
@@ -1184,7 +1183,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   ros::Time time_start = ros::Time::now();
 
-  ROS_WARN("[MrsTrajectoryGeneration]: fallback sampling started");
+  ROS_WARN("[TrajectoryGeneration]: fallback sampling started");
 
   auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
   auto constraints = sh_constraints_.getMsg();
@@ -1230,7 +1229,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     a_max_vertical = override_max_acceleration_vertical_;
     j_max_vertical = override_max_jerk_vertical_;
 
-    ROS_DEBUG("[MrsTrajectoryGeneration]: overriding constraints by a user");
+    ROS_DEBUG("[TrajectoryGeneration]: overriding constraints by a user");
   } else {
 
     v_max_horizontal = constraints->horizontal_speed;
@@ -1262,10 +1261,10 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   a_max_horizontal *= _fallback_sampling_accel_factor_;
   a_max_vertical *= _fallback_sampling_accel_factor_;
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: using constraints:");
-  ROS_DEBUG("[MrsTrajectoryGeneration]: horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal, j_max_horizontal);
-  ROS_DEBUG("[MrsTrajectoryGeneration]: vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
-  ROS_DEBUG("[MrsTrajectoryGeneration]: heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_heading, j_max_heading);
+  ROS_DEBUG("[TrajectoryGeneration]: using constraints:");
+  ROS_DEBUG("[TrajectoryGeneration]: horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal, j_max_horizontal);
+  ROS_DEBUG("[TrajectoryGeneration]: vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
+  ROS_DEBUG("[TrajectoryGeneration]: heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_heading, j_max_heading);
 
   std::vector<double> segment_times, segment_times_baca;
   segment_times      = estimateSegmentTimes(vertices, v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical,
@@ -1279,11 +1278,11 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     initial_total_time += segment_times[i];
     initial_total_time_baca += segment_times_baca[i];
 
-    ROS_DEBUG("[MrsTrajectoryGeneration]: segment time [%d] = %.2f", i, segment_times_baca[i]);
+    ROS_DEBUG("[TrajectoryGeneration]: segment time [%d] = %.2f", i, segment_times_baca[i]);
   }
 
-  ROS_WARN("[MrsTrajectoryGeneration]: fallback: initial total time (Euclidean): %.2f", initial_total_time);
-  ROS_WARN("[MrsTrajectoryGeneration]: fallback: initial total time (Baca): %.2f", initial_total_time_baca);
+  ROS_WARN("[TrajectoryGeneration]: fallback: initial total time (Euclidean): %.2f", initial_total_time);
+  ROS_WARN("[TrajectoryGeneration]: fallback: initial total time (Baca): %.2f", initial_total_time_baca);
 
   eth_mav_msgs::EigenTrajectoryPoint::Vector states;
 
@@ -1313,7 +1312,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
       interp_step = 0;
     }
 
-    ROS_DEBUG("[MrsTrajectoryGeneration]: segment n_samples [%lu] = %d", i, n_samples);
+    ROS_DEBUG("[TrajectoryGeneration]: segment n_samples [%lu] = %d", i, n_samples);
 
     // for the last segment, hit the last waypoint completely
     // otherwise, it is hit as the first sample of the following segment
@@ -1346,14 +1345,14 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   bool success = true;
 
-  ROS_WARN("[MrsTrajectoryGeneration]: fallback: sampling finished, took %.3f s", (ros::Time::now() - time_start).toSec());
+  ROS_WARN("[TrajectoryGeneration]: fallback: sampling finished, took %.3f s", (ros::Time::now() - time_start).toSec());
 
   // | --------------- create the trajectory class -------------- |
 
   if (success) {
     return std::optional(states);
   } else {
-    ROS_ERROR("[MrsTrajectoryGeneration]: fallback: sampling failed");
+    ROS_ERROR("[TrajectoryGeneration]: fallback: sampling failed");
     return {};
   }
 }
@@ -1428,7 +1427,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     const std::vector<Waypoint_t>& waypoints, const std::optional<mrs_msgs::TrackerCommand>& initial_state, const double& sampling_dt,
     const bool& relax_heading) {
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: starting the async planning task");
+  ROS_DEBUG("[TrajectoryGeneration]: starting the async planning task");
 
   future_trajectory_result_ =
       std::async(std::launch::async, &MrsTrajectoryGeneration::findTrajectory, this, waypoints, initial_state, sampling_dt, relax_heading);
@@ -1436,12 +1435,12 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   while (ros::ok() && future_trajectory_result_.wait_for(std::chrono::milliseconds(1)) != std::future_status::ready) {
 
     if (overtime()) {
-      ROS_WARN("[MrsTrajectoryGeneration]: async task planning timeout, breaking");
+      ROS_WARN("[TrajectoryGeneration]: async task planning timeout, breaking");
       return {};
     }
   }
 
-  ROS_DEBUG("[MrsTrajectoryGeneration]: async planning task finished successfully");
+  ROS_DEBUG("[TrajectoryGeneration]: async planning task finished successfully");
 
   return future_trajectory_result_.get();
 }
@@ -1572,14 +1571,14 @@ bool MrsTrajectoryGeneration::trajectorySrv(const mrs_msgs::TrajectoryReference&
   if (res) {
 
     if (!srv.response.success) {
-      ROS_WARN("[MrsTrajectoryGeneration]: service call for trajectory_reference returned: '%s'", srv.response.message.c_str());
+      ROS_WARN("[TrajectoryGeneration]: service call for trajectory_reference returned: '%s'", srv.response.message.c_str());
     }
 
     return srv.response.success;
 
   } else {
 
-    ROS_ERROR("[MrsTrajectoryGeneration]: service call for trajectory_reference failed!");
+    ROS_ERROR("[TrajectoryGeneration]: service call for trajectory_reference failed!");
 
     return false;
   }
@@ -1600,7 +1599,7 @@ std::optional<mrs_msgs::Path> MrsTrajectoryGeneration::transformPath(const mrs_m
   auto tf = transformer_->getTransform(path_in.header.frame_id, target_frame, path_in.header.stamp);
 
   if (!tf) {
-    ROS_ERROR("[MrsTrajectoryGeneration]: could not find transform from '%s' to '%s' in time %f", path_in.header.frame_id.c_str(), target_frame.c_str(),
+    ROS_ERROR("[TrajectoryGeneration]: could not find transform from '%s' to '%s' in time %f", path_in.header.frame_id.c_str(), target_frame.c_str(),
               path_in.header.stamp.toSec());
     return {};
   }
@@ -1682,21 +1681,21 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
   if (!sh_constraints_.hasMsg()) {
     std::stringstream ss;
     ss << "missing constraints";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
     return;
   }
 
   if (!sh_control_manager_diag_.hasMsg()) {
     std::stringstream ss;
     ss << "missing control manager diagnostics";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
     return;
   }
 
   if (!sh_uav_state_.hasMsg()) {
     std::stringstream ss;
     ss << "missing UAV state";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
     return;
   }
 
@@ -1720,7 +1719,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
 
     max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, params_.max_execution_time);
 
-    ROS_INFO("[MrsTrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
+    ROS_INFO("[TrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
              path_time_offset);
   } else {
 
@@ -1729,14 +1728,14 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
     max_execution_time_ = params_.max_execution_time;
   }
 
-  ROS_INFO("[MrsTrajectoryGeneration]: got path from message");
+  ROS_INFO("[TrajectoryGeneration]: got path from message");
 
   ph_original_path_.publish(msg);
 
   if (msg->points.empty()) {
     std::stringstream ss;
     ss << "received an empty message";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
     return;
   }
 
@@ -1745,7 +1744,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
   if (!transformed_path) {
     std::stringstream ss;
     ss << "could not transform the path to the current control frame";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
     return;
   }
 
@@ -1799,7 +1798,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
     wp.stop_at = stop_at_waypoints_;
 
     if (!checkNaN(wp)) {
-      ROS_ERROR("[MrsTrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
+      ROS_ERROR("[TrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
       return;
     }
 
@@ -1825,9 +1824,9 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
       break;
     } else {
       if (i < _n_attempts_) {
-        ROS_WARN("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+        ROS_WARN("[TrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
       } else {
-        ROS_WARN("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
+        ROS_WARN("[TrajectoryGeneration]: failed to calculate a feasible trajectory");
       }
     }
   }
@@ -1837,10 +1836,10 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
   auto max_execution_time = mrs_lib::get_mutexed(mutex_max_execution_time_, max_execution_time_);
 
   if (total_time > max_execution_time) {
-    ROS_ERROR("[MrsTrajectoryGeneration]: trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time, max_execution_time,
+    ROS_ERROR("[TrajectoryGeneration]: trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time, max_execution_time,
               total_time - max_execution_time);
   } else {
-    ROS_INFO("[MrsTrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
+    ROS_INFO("[TrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
   }
 
   trajectory.input_id = transformed_path->input_id;
@@ -1851,16 +1850,16 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
 
     if (published) {
 
-      ROS_INFO("[MrsTrajectoryGeneration]: trajectory successfully published");
+      ROS_INFO("[TrajectoryGeneration]: trajectory successfully published");
 
     } else {
 
-      ROS_ERROR("[MrsTrajectoryGeneration]: could not publish the trajectory");
+      ROS_ERROR("[TrajectoryGeneration]: could not publish the trajectory");
     }
 
   } else {
 
-    ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, no publishing a result");
+    ROS_ERROR("[TrajectoryGeneration]: failed to calculate a feasible trajectory, no publishing a result");
   }
 }
 
@@ -1879,7 +1878,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   if (!sh_constraints_.hasMsg()) {
     std::stringstream ss;
     ss << "missing constraints";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -1889,7 +1888,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   if (!sh_control_manager_diag_.hasMsg()) {
     std::stringstream ss;
     ss << "missing control manager diagnostics";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -1899,7 +1898,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   if (!sh_uav_state_.hasMsg()) {
     std::stringstream ss;
     ss << "missing UAV state";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -1926,7 +1925,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
 
     max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, params_.max_execution_time);
 
-    ROS_INFO("[MrsTrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
+    ROS_INFO("[TrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
              path_time_offset);
   } else {
 
@@ -1935,14 +1934,14 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     max_execution_time_ = params_.max_execution_time;
   }
 
-  ROS_INFO("[MrsTrajectoryGeneration]: got path from service");
+  ROS_INFO("[TrajectoryGeneration]: got path from service");
 
   ph_original_path_.publish(req.path);
 
   if (req.path.points.empty()) {
     std::stringstream ss;
     ss << "received an empty message";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -1954,7 +1953,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   if (!transformed_path) {
     std::stringstream ss;
     ss << "could not transform the path to the current control frame";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -2011,7 +2010,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
     wp.stop_at = stop_at_waypoints_;
 
     if (!checkNaN(wp)) {
-      ROS_ERROR("[MrsTrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
+      ROS_ERROR("[TrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
       res.success = false;
       res.message = "invalid path";
       return true;
@@ -2039,9 +2038,9 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
       break;
     } else {
       if (i < _n_attempts_) {
-        ROS_WARN("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+        ROS_WARN("[TrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
       } else {
-        ROS_WARN("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
+        ROS_WARN("[TrajectoryGeneration]: failed to calculate a feasible trajectory");
       }
     }
   }
@@ -2051,10 +2050,10 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   auto max_execution_time = mrs_lib::get_mutexed(mutex_max_execution_time_, max_execution_time_);
 
   if (total_time > max_execution_time) {
-    ROS_ERROR("[MrsTrajectoryGeneration]: trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time, max_execution_time,
+    ROS_ERROR("[TrajectoryGeneration]: trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time, max_execution_time,
               total_time - max_execution_time);
   } else {
-    ROS_INFO("[MrsTrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
+    ROS_INFO("[TrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
   }
 
   trajectory.input_id = transformed_path->input_id;
@@ -2076,12 +2075,12 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
       res.success = false;
       res.message = ss.str();
 
-      ROS_ERROR_STREAM("[MrsTrajectoryGeneration]: " << ss.str());
+      ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
     }
 
   } else {
 
-    ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, not publishing a result");
+    ROS_ERROR("[TrajectoryGeneration]: failed to calculate a feasible trajectory, not publishing a result");
 
     res.success = success;
     res.message = message;
@@ -2105,7 +2104,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   if (!sh_constraints_.hasMsg()) {
     std::stringstream ss;
     ss << "missing constraints";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -2115,7 +2114,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   if (!sh_control_manager_diag_.hasMsg()) {
     std::stringstream ss;
     ss << "missing control manager diagnostics";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -2125,7 +2124,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   if (!sh_uav_state_.hasMsg()) {
     std::stringstream ss;
     ss << "missing UAV state";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -2152,7 +2151,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
 
     max_execution_time_ = FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset;
 
-    ROS_INFO("[MrsTrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
+    ROS_INFO("[TrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
              path_time_offset);
   } else {
 
@@ -2161,14 +2160,14 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     max_execution_time_ = params_.max_execution_time;
   }
 
-  ROS_INFO("[MrsTrajectoryGeneration]: got path from service");
+  ROS_INFO("[TrajectoryGeneration]: got path from service");
 
   ph_original_path_.publish(req.path);
 
   if (req.path.points.empty()) {
     std::stringstream ss;
     ss << "received an empty message";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -2180,7 +2179,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   if (!transformed_path) {
     std::stringstream ss;
     ss << "could not transform the path to the current control frame";
-    ROS_ERROR_STREAM_THROTTLE(1.0, "[MrsTrajectoryGeneration]: " << ss.str());
+    ROS_ERROR_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
 
     res.message = ss.str();
     res.success = false;
@@ -2237,7 +2236,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     wp.stop_at = stop_at_waypoints_;
 
     if (!checkNaN(wp)) {
-      ROS_ERROR("[MrsTrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
+      ROS_ERROR("[TrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
       res.success = false;
       res.message = "invalid path";
       return true;
@@ -2265,9 +2264,9 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
       break;
     } else {
       if (i < _n_attempts_) {
-        ROS_WARN("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+        ROS_WARN("[TrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
       } else {
-        ROS_WARN("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
+        ROS_WARN("[TrajectoryGeneration]: failed to calculate a feasible trajectory");
       }
     }
   }
@@ -2277,10 +2276,10 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   auto max_execution_time = mrs_lib::get_mutexed(mutex_max_execution_time_, max_execution_time_);
 
   if (total_time > max_execution_time) {
-    ROS_ERROR("[MrsTrajectoryGeneration]: trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time, max_execution_time,
+    ROS_ERROR("[TrajectoryGeneration]: trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time, max_execution_time,
               total_time - max_execution_time);
   } else {
-    ROS_INFO("[MrsTrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
+    ROS_INFO("[TrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
   }
 
   if (success) {
@@ -2291,7 +2290,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
 
     if (!tf_traj_state) {
       ss << "could not create TF transformer for the trajectory to the requested frame";
-      ROS_WARN_STREAM_THROTTLE(1.0, "[ControlManager]: " << ss.str());
+      ROS_WARN_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
       res.success = false;
       res.message = ss.str();
     }
@@ -2309,7 +2308,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
       if (!ret) {
 
         ss << "trajectory cannnot be transformed to the requested frame";
-        ROS_WARN_STREAM_THROTTLE(1.0, "[ControlManager]: " << ss.str());
+        ROS_WARN_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
         res.success = false;
         res.message = ss.str();
 
@@ -2326,7 +2325,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
 
   } else {
 
-    ROS_ERROR("[MrsTrajectoryGeneration]: failed to calculate a feasible trajectory");
+    ROS_ERROR("[TrajectoryGeneration]: failed to calculate a feasible trajectory");
 
     res.success = success;
     res.message = message;
@@ -2345,7 +2344,7 @@ void MrsTrajectoryGeneration::callbackUavState(const mrs_msgs::UavState::ConstPt
     return;
   }
 
-  ROS_INFO_ONCE("[MrsTrajectoryGeneration]: getting uav state");
+  ROS_INFO_ONCE("[TrajectoryGeneration]: getting uav state");
 
   transformer_->setDefaultFrame(msg->header.frame_id);
 }
@@ -2364,7 +2363,7 @@ void MrsTrajectoryGeneration::callbackDrs(mrs_uav_trajectory_generation::drsConf
     max_execution_time_ = params.max_execution_time;
   }
 
-  ROS_INFO("[MrsTrajectoryGeneration]: DRS updated");
+  ROS_INFO("[TrajectoryGeneration]: DRS updated");
 }
 
 //}
