@@ -254,6 +254,8 @@ void MrsTrajectoryGeneration::onInit() {
   /* waits for the ROS to publish clock */
   ros::Time::waitForValid();
 
+  ROS_INFO("[MrsTrajectoryGeneration]: coredump test %.2f", 0 / 0);
+
   // | ----------------------- publishers ----------------------- |
 
   ph_original_path_ = mrs_lib::PublisherHandler<mrs_msgs::Path>(nh_, "original_path_out", 1);
