@@ -274,10 +274,10 @@ void PathRandomFlier::timerMain([[maybe_unused]] const ros::TimerEvent& event) {
       auto prediction = sh_tracker_cmd_.getMsg()->full_state_prediction;
 
       new_point.header               = prediction.header;
-      new_point.reference.position.x = prediction.position[prediction_idx].x;
-      new_point.reference.position.y = prediction.position[prediction_idx].y;
-      new_point.reference.position.z = prediction.position[prediction_idx].z;
-      new_point.reference.heading    = prediction.heading[prediction_idx];
+      new_point.reference.position.x = prediction.position.at(prediction_idx).x;
+      new_point.reference.position.y = prediction.position.at(prediction_idx).y;
+      new_point.reference.position.z = prediction.position.at(prediction_idx).z;
+      new_point.reference.heading    = prediction.heading.at(prediction_idx);
 
       auto res = transformer_->transformSingle(new_point, _frame_id_);
 
