@@ -112,6 +112,8 @@ private:
   double _path_straightener_max_deviation_;
   double _path_straightener_max_hdg_deviation_;
 
+  bool _override_heading_atan2_;
+
   // | -------- variable parameters (come with the path) -------- |
 
   std::string frame_id_;
@@ -330,6 +332,8 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam(yaml_prefix + "path_straightener/enabled", _path_straightener_enabled_);
   param_loader.loadParam(yaml_prefix + "path_straightener/max_deviation", _path_straightener_max_deviation_);
   param_loader.loadParam(yaml_prefix + "path_straightener/max_hdg_deviation", _path_straightener_max_hdg_deviation_);
+
+  param_loader.loadParam(yaml_prefix + "override_heading_atan2", _override_heading_atan2_);
 
   param_loader.loadParam(yaml_prefix + "min_waypoint_distance", _min_waypoint_distance_);
 
@@ -783,7 +787,8 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
         reference.header = current_prediction.header;
 
-        reference.reference.heading  = current_prediction.heading.at(i);
+        reference.reference.heading = current_prediction.heading.at(i);
+
         reference.reference.position = current_prediction.position.at(i);
 
         auto res = transformer_->transformSingle(reference, waypoints_header.frame_id);
@@ -1497,11 +1502,16 @@ mrs_msgs::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReference(co
   for (size_t it = 0; it < trajectory.size(); it++) {
 
     mrs_msgs::Reference point;
-    point.heading    = 0;
+
     point.position.x = trajectory.at(it).position_W(0);
     point.position.y = trajectory.at(it).position_W(1);
     point.position.z = trajectory.at(it).position_W(2);
-    point.heading    = trajectory.at(it).getYaw();
+
+    if (_override_heading_atan2_ && it < (trajectory.size() - 1)) {
+      point.heading = atan2(trajectory.at(it+1).position_W(1) - point.position.y, trajectory.at(it+1).position_W(0) - point.position.x);
+    } else {
+      point.heading = trajectory.at(it).getYaw();
+    }
 
     msg.points.push_back(point);
   }

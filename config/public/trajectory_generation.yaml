@@ -38,6 +38,9 @@ mrs_uav_trajectory_generation:
   # how many times to try the plannin + sampling
   n_attempts: 3 # [-]
 
+  # when true, the resulting trajectory will have a heading always pointing tangentially along the trajectory
+  override_heading_atan2: false
+
   # if the generation and sampling fails completely and the result is infeasible
   # should we at least provide a naive constant-velocity solution which will
   # move the drone and therefore avoid potential deadlocks?
