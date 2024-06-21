@@ -1508,7 +1508,17 @@ mrs_msgs::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReference(co
     point.position.z = trajectory.at(it).position_W(2);
 
     if (_override_heading_atan2_ && it < (trajectory.size() - 1)) {
-      point.heading = atan2(trajectory.at(it+1).position_W(1) - point.position.y, trajectory.at(it+1).position_W(0) - point.position.x);
+
+      const double points_dist = std::hypot(trajectory.at(it + 1).position_W(1) - point.position.y, trajectory.at(it + 1).position_W(0) - point.position.x);
+
+      if (points_dist < 0.05 && it > 0) {
+
+        point.heading = msg.points.at(it - 1).heading;
+
+      } else {
+        point.heading = atan2(trajectory.at(it + 1).position_W(1) - point.position.y, trajectory.at(it + 1).position_W(0) - point.position.x);
+      }
+
     } else {
       point.heading = trajectory.at(it).getYaw();
     }
