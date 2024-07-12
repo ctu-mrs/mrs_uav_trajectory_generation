@@ -6,6 +6,10 @@ mrs_uav_managers:
       after_takeoff:
         controller: "Se3Controller"
 
+    landing:
+
+      disarm: false
+
   constraint_manager:
 
     default_constraints:

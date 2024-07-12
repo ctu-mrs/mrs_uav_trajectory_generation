@@ -512,7 +512,7 @@ std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> MrsTrajectoryGene
 
   mrs_msgs::TrackerCommand initial_condition;
 
-  if (!sh_tracker_cmd_.hasMsg()) {
+  if (!sh_tracker_cmd_.hasMsg() || ((ros::Time::now() - sh_tracker_cmd_.lastMsgTime())).toSec() > 1.0) {
 
     auto uav_state = sh_uav_state_.getMsg();
 
