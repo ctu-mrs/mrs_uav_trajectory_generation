@@ -102,6 +102,8 @@ private:
   double _fallback_sampling_stopping_time_;
   bool   _fallback_sampling_first_waypoint_additional_stop_;
 
+  double _takeoff_height_;
+
   std::string _uav_name_;
 
   bool   _trajectory_max_segment_deviation_enabled_;
@@ -292,9 +294,16 @@ void MrsTrajectoryGeneration::onInit() {
 
   std::string custom_config_path;
   std::string platform_config_path;
+  std::string uav_manager_config_path;
 
   param_loader.loadParam("custom_config", custom_config_path);
   param_loader.loadParam("platform_config", platform_config_path);
+  param_loader.loadParam("uav_manager_config", uav_manager_config_path);
+
+  if (uav_manager_config_path == "") {
+    ROS_ERROR("[MrsTrajectoryGeneration]: uav_manager_config param is empty");
+    ros::shutdown();
+  }
 
   if (custom_config_path != "") {
     param_loader.addYamlFile(custom_config_path);
@@ -303,6 +312,8 @@ void MrsTrajectoryGeneration::onInit() {
   if (platform_config_path != "") {
     param_loader.addYamlFile(platform_config_path);
   }
+
+  param_loader.addYamlFile(uav_manager_config_path);
 
   param_loader.addYamlFileFromParam("private_config");
   param_loader.addYamlFileFromParam("public_config");
@@ -336,6 +347,8 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam(yaml_prefix + "override_heading_atan2", _override_heading_atan2_);
 
   param_loader.loadParam(yaml_prefix + "min_waypoint_distance", _min_waypoint_distance_);
+
+  param_loader.loadParam("mrs_uav_managers/uav_manager/takeoff/takeoff_height", _takeoff_height_);
 
   // | --------------------- tf transformer --------------------- |
 
@@ -493,15 +506,24 @@ std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> MrsTrajectoryGene
     return {{}, false, 0};
   }
 
-  if (!sh_tracker_cmd_.hasMsg()) {
-    return {{}, false, 0};
-  }
-
   auto tracker_cmd = sh_tracker_cmd_.getMsg();
 
   // | ------------- prepare the initial conditions ------------- |
 
   mrs_msgs::TrackerCommand initial_condition;
+
+  if (!sh_tracker_cmd_.hasMsg()) {
+
+    auto uav_state = sh_uav_state_.getMsg();
+
+    initial_condition.position = uav_state->pose.position;
+
+    initial_condition.position.z += _takeoff_height_;
+
+    initial_condition.header = uav_state->header;
+
+    return {initial_condition, false, 0};
+  }
 
   bool path_from_future = false;
 

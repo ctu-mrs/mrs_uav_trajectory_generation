@@ -28,11 +28,12 @@
 
   <group ns="$(arg UAV_NAME)">
 
-    <node pkg="nodelet" type="nodelet" name="trajectory_generation" args="$(arg nodelet)  mrs_uav_trajectory_generation/MrsTrajectoryGeneration $(arg nodelet_manager) $(arg bond_suffix)" launch-prefix="$(arg launch_prefix_debug)" respawn="$(arg respawn)" respawn_delay="1" output="screen">
+    <node pkg="nodelet" type="nodelet" name="trajectory_generation" args="$(arg nodelet)  mrs_uav_trajectory_generation/MrsTrajectoryGeneration $(arg nodelet_manager) $(arg bond_suffix)" launch-prefix="$(arg launch_prefix_debug)" output="screen">
 
       <param name="uav_name" type="string" value="$(arg UAV_NAME)" />
 
       <!-- Load default param files -->
+      <param name="uav_manager_config" value="$(find mrs_uav_managers)/config/public/uav_manager.yaml" />
       <param name="private_config" value="$(find mrs_uav_trajectory_generation)/config/private/trajectory_generation.yaml" />
       <param name="public_config" value="$(find mrs_uav_trajectory_generation)/config/public/trajectory_generation.yaml" />
 
