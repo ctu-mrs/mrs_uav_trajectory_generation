@@ -518,6 +518,13 @@ std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> MrsTrajectoryGene
 
     initial_condition.position = uav_state->pose.position;
 
+    try {
+      initial_condition.heading = mrs_lib::AttitudeConverter(uav_state->pose.orientation).getHeading();
+    }
+    catch (...) {
+      ROS_WARN_THROTTLE(1.0, "[MrsTrajectoryGeneration]: could not obtain heading from the UAV State");
+    }
+
     initial_condition.position.z += _takeoff_height_;
 
     initial_condition.header = uav_state->header;

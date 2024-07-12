@@ -81,6 +81,22 @@ bool Tester::test() {
     }
   }
 
+  // | ---------- add the first waypoint after takeoff ---------- |
+
+  {
+    auto uav_pos = uh_->sh_uav_state_.getMsg()->pose.position;
+
+    double heading = mrs_lib::AttitudeConverter(uh_->sh_uav_state_.getMsg()->pose.orientation).getHeading();
+
+    mrs_msgs::Reference reference;
+    reference.position.x = uav_pos.x;
+    reference.position.y = uav_pos.y;
+    reference.position.z = uav_pos.z + 3.0;
+    reference.heading    = heading;
+
+    path.points.insert(path.points.begin(), reference);
+  }
+
   // | ------------------------- takeoff ------------------------ |
 
   {

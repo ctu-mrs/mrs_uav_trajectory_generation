@@ -1,0 +1,7 @@
+mrs_uav_managers:
+
+  uav_manager:
+
+    takeoff:
+
+      takeoff_height: 3.0
