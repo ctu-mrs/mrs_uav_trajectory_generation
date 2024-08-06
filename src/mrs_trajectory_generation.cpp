@@ -2223,6 +2223,11 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     return true;
   }
 
+  // if the path frame_id is latlon_origin, set UTM zone by calling setLatLon for mrs_lib::transformer using the first point in the trajectory
+  if (req.path.header.frame_id == "latlon_origin") {
+    transformer_->setLatLon(req.path.points.front().position.x, req.path.points.front().position.y);
+  }
+
   auto transformed_path = transformPath(req.path, "");
 
   if (!transformed_path) {
@@ -2338,10 +2343,11 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     std::stringstream ss;
 
     if (!tf_traj_state) {
-      ss << "could not create TF transformer for the trajectory to the requested frame";
+      ss << "could not create TF transformer for the trajectory to the requested frame: \"" << req.path.header.frame_id << "\"";
       ROS_WARN_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
       res.success = false;
       res.message = ss.str();
+      return true;
     }
 
     trajectory.header.frame_id = transformer_->frame_to(*tf_traj_state);
@@ -2356,10 +2362,11 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
 
       if (!ret) {
 
-        ss << "trajectory cannnot be transformed to the requested frame";
+        ss << "trajectory cannot be transformed to the requested frame: \"" << req.path.header.frame_id << "\"";
         ROS_WARN_STREAM_THROTTLE(1.0, "[TrajectoryGeneration]: " << ss.str());
         res.success = false;
         res.message = ss.str();
+        return true;
 
       } else {
 
