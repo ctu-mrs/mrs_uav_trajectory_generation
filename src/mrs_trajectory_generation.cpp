@@ -2223,6 +2223,11 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     return true;
   }
 
+  // if the path frame_id is latlon_origin, set UTM zone by calling setLatLon for mrs_lib::transformer using the first point in the trajectory
+  if (req.path.header.frame_id == "latlon_origin") {
+    transformer_->setLatLon(req.path.points.front().position.x, req.path.points.front().position.y);
+  }
+
   auto transformed_path = transformPath(req.path, "");
 
   if (!transformed_path) {
