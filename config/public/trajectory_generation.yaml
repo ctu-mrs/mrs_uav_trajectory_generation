@@ -39,7 +39,9 @@ mrs_uav_trajectory_generation:
   n_attempts: 3 # [-]
 
   # when true, the resulting trajectory will have a heading always pointing tangentially along the trajectory
-  override_heading_atan2: false
+  override_heading_atan2:
+    enabled: true
+    relative_heading: -35.0 # [deg]
 
   # if the generation and sampling fails completely and the result is infeasible
   # should we at least provide a naive constant-velocity solution which will

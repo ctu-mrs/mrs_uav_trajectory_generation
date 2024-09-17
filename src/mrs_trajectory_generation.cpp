@@ -114,7 +114,8 @@ private:
   double _path_straightener_max_deviation_;
   double _path_straightener_max_hdg_deviation_;
 
-  bool _override_heading_atan2_;
+  bool   _override_heading_atan2_;
+  double _override_heading_relative_heading_;
 
   // | -------- variable parameters (come with the path) -------- |
 
@@ -344,7 +345,10 @@ void MrsTrajectoryGeneration::onInit() {
   param_loader.loadParam(yaml_prefix + "path_straightener/max_deviation", _path_straightener_max_deviation_);
   param_loader.loadParam(yaml_prefix + "path_straightener/max_hdg_deviation", _path_straightener_max_hdg_deviation_);
 
-  param_loader.loadParam(yaml_prefix + "override_heading_atan2", _override_heading_atan2_);
+  param_loader.loadParam(yaml_prefix + "override_heading_atan2/enabled", _override_heading_atan2_);
+  param_loader.loadParam(yaml_prefix + "override_heading_atan2/relative_heading", _override_heading_relative_heading_);
+
+  _override_heading_relative_heading_ = (M_PI / 180.0) * _override_heading_relative_heading_;
 
   param_loader.loadParam(yaml_prefix + "min_waypoint_distance", _min_waypoint_distance_);
 
@@ -1545,7 +1549,8 @@ mrs_msgs::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReference(co
         point.heading = msg.points.at(it - 1).heading;
 
       } else {
-        point.heading = atan2(trajectory.at(it + 1).position_W(1) - point.position.y, trajectory.at(it + 1).position_W(0) - point.position.x);
+        point.heading = atan2(trajectory.at(it + 1).position_W(1) - point.position.y, trajectory.at(it + 1).position_W(0) - point.position.x) +
+                        _override_heading_relative_heading_;
       }
 
     } else {
