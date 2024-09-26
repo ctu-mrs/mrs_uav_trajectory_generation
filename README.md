@@ -110,7 +110,7 @@ This package is based upon [ethz-asl/mav_trajectory_generation](https://github.c
 Please, cite the original publications:
 
 C. Richter, A. Bry, and N. Roy, “**Polynomial trajectory planning for aggressive quadrotor flight in dense indoor environments,**” in *International Journal of Robotics Research*, Springer, 2016.
-```
+```bibtex
 @incollection{richter2016polynomial,
   title={Polynomial trajectory planning for aggressive quadrotor flight in dense indoor environments},
   author={Richter, Charles and Bry, Adam and Roy, Nicholas},
@@ -121,7 +121,7 @@ C. Richter, A. Bry, and N. Roy, “**Polynomial trajectory planning for aggressi
 }
 ```
 Michael Burri, Helen Oleynikova, Markus Achtelik, and Roland Siegwart, “**Real-Time Visual-Inertial Mapping, Re-localization and Planning Onboard MAVs in Previously Unknown Environments**”. In *IEEE Int. Conf. on Intelligent Robots and Systems* (IROS), September 2015.
-```
+```bibtex
 @inproceedings{burri2015real-time,
   author={Burri, Michael and Oleynikova, Helen and  and Achtelik, Markus W. and Siegwart, Roland},
   booktitle={2015 IEEE/RSJ International Conference on Intelligent Robots and Systems},
