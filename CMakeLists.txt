@@ -8,7 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   mrs_msgs
   mrs_lib
-  nlopt_ros
+  nlopt
   )
 
 set(CMAKE_CXX_STANDARD 17)
@@ -32,7 +32,7 @@ set(LIBRARIES
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${LIBRARIES}
-  CATKIN_DEPENDS roscpp std_msgs mrs_lib mrs_msgs dynamic_reconfigure nlopt_ros
+  CATKIN_DEPENDS roscpp std_msgs mrs_lib mrs_msgs dynamic_reconfigure nlopt
   DEPENDS Eigen
   )
 
