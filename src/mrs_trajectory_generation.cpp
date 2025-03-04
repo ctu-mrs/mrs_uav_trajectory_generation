@@ -197,6 +197,8 @@ private:
   std::tuple<bool, int, std::vector<bool>, double> validateTrajectorySpatial(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
                                                                              const std::vector<Waypoint_t>&                    waypoints);
 
+  std::vector<int> getWaypointInTrajectoryIdxs(const mrs_msgs::TrajectoryReference& trajectory, const std::vector<Waypoint_t>& waypoints);
+
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&                 waypoints,
                                                                            const std::optional<mrs_msgs::TrackerCommand>& initial_state,
                                                                            const double& sampling_dt, const bool& relax_heading);
@@ -1453,6 +1455,51 @@ std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::valida
 
 //}
 
+/* getWaypointInTrajectoryIdxs() //{ */
+
+std::vector<int> MrsTrajectoryGeneration::getWaypointInTrajectoryIdxs(const mrs_msgs::TrajectoryReference& trajectory,
+                                                                      const std::vector<Waypoint_t>&       waypoints) {
+
+  mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::validateTrajectorySpatial", scope_timer_logger_, scope_timer_enabled_);
+
+  // prepare the output
+
+  std::vector<int> idxs;
+
+  int waypoint_idx = 0;
+
+  for (size_t i = 0; i < trajectory.points.size() - 1; i++) {
+
+    // the trajectory sample
+    const vec3_t sample = vec3_t(trajectory.points.at(i).position.x, trajectory.points.at(i).position.y, trajectory.points.at(i).position.z);
+
+    // next sample
+    const vec3_t next_sample = vec3_t(trajectory.points.at(i + 1).position.x, trajectory.points.at(i + 1).position.y, trajectory.points.at(i + 1).position.z);
+
+    // segment end
+    const vec3_t segment_end =
+        vec3_t(waypoints.at(waypoint_idx + 1).coords(0), waypoints.at(waypoint_idx + 1).coords(1), waypoints.at(waypoint_idx + 1).coords(2));
+
+    const double segment_end_dist = distFromSegment(segment_end, sample, next_sample);
+
+    if (segment_end_dist < 0.1) {
+      ROS_INFO("[MrsTrajectoryGeneration]: waypoint_idx %d %d", waypoint_idx, i);
+      idxs.push_back(i);
+      waypoint_idx++;
+    }
+
+    if (waypoint_idx == int(waypoints.size()-1)) {
+      break;
+    }
+  }
+
+  idxs.push_back(trajectory.points.size()-1);
+
+  return idxs;
+}
+
+//}
+
 // | --------------------- minor routines --------------------- |
 
 /* findTrajectoryAsync() //{ */
@@ -2336,6 +2383,9 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
     ROS_INFO("[TrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
   }
 
+  // locate the waypoint idxs
+  auto waypoint_idxs = getWaypointInTrajectoryIdxs(trajectory, waypoints);
+
   if (success) {
 
     std::optional<geometry_msgs::TransformStamped> tf_traj_state = transformer_->getTransform("", req.path.header.frame_id, ros::Time::now());
@@ -2373,6 +2423,10 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
         // transform the points in the trajectory to the current frame
         trajectory.points.at(i) = ret.value().reference;
       }
+    }
+
+    for (size_t it = 0; it < waypoint_idxs.size(); it++) {
+      res.waypoint_trajectory_idxs.push_back(waypoint_idxs[it]);
     }
 
     res.trajectory = trajectory;

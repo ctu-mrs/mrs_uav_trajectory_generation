@@ -5,7 +5,7 @@ import rosnode
 import random
 import os
 
-from mrs_msgs.srv import PathSrv,PathSrvRequest
+from mrs_msgs.srv import GetPathSrv,GetPathSrvRequest
 from mrs_msgs.msg import Reference
 
 class Goto:
@@ -21,9 +21,9 @@ class Goto:
 
         ## | --------------------- service clients -------------------- |
 
-        self.sc_path = rospy.ServiceProxy('/uav1/trajectory_generation/path', PathSrv)
+        self.sc_path = rospy.ServiceProxy('/uav1/trajectory_generation/get_path', GetPathSrv)
 
-        path_msg = PathSrvRequest()
+        path_msg = GetPathSrvRequest()
 
         path_msg.path.header.frame_id = ""
         path_msg.path.header.stamp = rospy.Time.now()
@@ -47,6 +47,8 @@ class Goto:
 
         try:
             response = self.sc_path.call(path_msg)
+
+            print("response: {}".format(response))
         except:
             rospy.logerr('[SweepingGenerator]: path service not callable')
             pass
