@@ -172,8 +172,9 @@ private:
   ros::ServiceClient service_client_trajectory_reference_;
 
   // solve the whole problem
-  std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> optimize(const std::vector<Waypoint_t>& waypoints_in, const std_msgs::Header& waypoints_stamp,
-                                                                        bool fallback_sampling, const bool relax_heading);
+  std::tuple<bool, std::string, mrs_msgs::TrajectoryReference, bool> optimize(const std::vector<Waypoint_t>& waypoints_in,
+                                                                              const std_msgs::Header& waypoints_stamp, bool fallback_sampling,
+                                                                              const bool relax_heading);
 
   std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> prepareInitialCondition(const ros::Time path_time);
 
@@ -197,7 +198,7 @@ private:
   std::tuple<bool, int, std::vector<bool>, double> validateTrajectorySpatial(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
                                                                              const std::vector<Waypoint_t>&                    waypoints);
 
-  std::vector<int> getWaypointInTrajectoryIdxs(const mrs_msgs::TrajectoryReference& trajectory, const std::vector<Waypoint_t>& waypoints);
+  std::vector<int> getWaypointInTrajectoryIdxs(const mrs_msgs::TrajectoryReference& trajectory, const std::vector<Waypoint_t>& waypoints, bool);
 
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&                 waypoints,
                                                                            const std::optional<mrs_msgs::TrackerCommand>& initial_state,
@@ -616,9 +617,9 @@ std::tuple<std::optional<mrs_msgs::TrackerCommand>, bool, int> MrsTrajectoryGene
 
 /* optimize() //{ */
 
-std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGeneration::optimize(const std::vector<Waypoint_t>& waypoints_in,
-                                                                                               const std_msgs::Header&        waypoints_header,
-                                                                                               const bool fallback_sampling, const bool relax_heading) {
+std::tuple<bool, std::string, mrs_msgs::TrajectoryReference, bool> MrsTrajectoryGeneration::optimize(const std::vector<Waypoint_t>& waypoints_in,
+                                                                                                     const std_msgs::Header&        waypoints_header,
+                                                                                                     const bool fallback_sampling, const bool relax_heading) {
 
   mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::optimize", scope_timer_logger_, scope_timer_enabled_);
 
@@ -642,7 +643,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     std::stringstream ss;
     ss << "the path is empty (before postprocessing)";
     ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
-    return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
+    return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference(), false);
   }
 
   std::vector<Waypoint_t> waypoints_in_with_init = waypoints_in;
@@ -676,7 +677,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     std::stringstream ss;
     ss << "the path is empty (after postprocessing)";
     ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
-    return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
+    return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference(), false);
   }
 
   bool              safe = false;
@@ -722,7 +723,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
     std::stringstream ss;
     ss << "failed to find trajectory";
     ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
-    return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
+    return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference(), false);
   }
 
   for (int k = 0; k < _trajectory_max_segment_deviation_max_iterations_; k++) {
@@ -773,7 +774,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
         std::stringstream ss;
         ss << "failed to find trajectory";
         ROS_WARN_STREAM("[TrajectoryGeneration]: " << ss.str());
-        return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
+        return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference(), false);
       }
 
     } else {
@@ -830,7 +831,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
           std::stringstream ss;
           ss << "could not transform reference to the path frame";
           ROS_ERROR_STREAM("[TrajectoryGeneration]: " << ss.str());
-          return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference());
+          return std::tuple(false, ss.str(), mrs_msgs::TrajectoryReference(), false);
         }
 
         mrs_trajectory.points.insert(mrs_trajectory.points.begin(), reference.reference);
@@ -846,7 +847,7 @@ std::tuple<bool, std::string, mrs_msgs::TrajectoryReference> MrsTrajectoryGenera
 
   ROS_DEBUG("[TrajectoryGeneration]: trajectory generated, took %.3f s", (ros::Time::now() - optimize_time_start).toSec());
 
-  return std::tuple(true, ss.str(), mrs_trajectory);
+  return std::tuple(true, ss.str(), mrs_trajectory, initial_condition.has_value());
 }
 
 //}
@@ -1457,8 +1458,8 @@ std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::valida
 
 /* getWaypointInTrajectoryIdxs() //{ */
 
-std::vector<int> MrsTrajectoryGeneration::getWaypointInTrajectoryIdxs(const mrs_msgs::TrajectoryReference& trajectory,
-                                                                      const std::vector<Waypoint_t>&       waypoints) {
+std::vector<int> MrsTrajectoryGeneration::getWaypointInTrajectoryIdxs(const mrs_msgs::TrajectoryReference& trajectory, const std::vector<Waypoint_t>& waypoints,
+                                                                      const bool initial_condition) {
 
   mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer("MrsTrajectoryGeneration::validateTrajectorySpatial", scope_timer_logger_, scope_timer_enabled_);
 
@@ -1466,7 +1467,12 @@ std::vector<int> MrsTrajectoryGeneration::getWaypointInTrajectoryIdxs(const mrs_
 
   std::vector<int> idxs;
 
+  // skip the first waypoint if initial condition is set
   int waypoint_idx = 0;
+
+  /* if (!initial_condition) { */
+  /*   idxs.push_back(waypoint_idx++); */
+  /* } */
 
   for (size_t i = 0; i < trajectory.points.size() - 1; i++) {
 
@@ -1477,23 +1483,23 @@ std::vector<int> MrsTrajectoryGeneration::getWaypointInTrajectoryIdxs(const mrs_
     const vec3_t next_sample = vec3_t(trajectory.points.at(i + 1).position.x, trajectory.points.at(i + 1).position.y, trajectory.points.at(i + 1).position.z);
 
     // segment end
-    const vec3_t segment_end =
-        vec3_t(waypoints.at(waypoint_idx + 1).coords(0), waypoints.at(waypoint_idx + 1).coords(1), waypoints.at(waypoint_idx + 1).coords(2));
+    const vec3_t waypoint =
+        vec3_t(waypoints.at(waypoint_idx).coords(0), waypoints.at(waypoint_idx).coords(1), waypoints.at(waypoint_idx).coords(2));
 
-    const double segment_end_dist = distFromSegment(segment_end, sample, next_sample);
+    const double waypoint_traj_seg_dist = distFromSegment(waypoint, sample, next_sample);
 
-    if (segment_end_dist < 0.1) {
-      ROS_INFO("[MrsTrajectoryGeneration]: waypoint_idx %d %d", waypoint_idx, i);
+    ROS_INFO("[MrsTrajectoryGeneration]: distance %.3f", waypoint_traj_seg_dist);
+
+    if (waypoint_traj_seg_dist < 0.1) {
+      ROS_INFO("[MrsTrajectoryGeneration]: waypoint_idx=%d, trajectory_idx=%d/%d", waypoint_idx, int(i), int(trajectory.points.size()));
       idxs.push_back(i);
       waypoint_idx++;
     }
 
-    if (waypoint_idx == int(waypoints.size()-1)) {
+    if (waypoint_idx == int(waypoints.size())) {
       break;
     }
   }
-
-  idxs.push_back(trajectory.points.size()-1);
 
   return idxs;
 }
@@ -1908,13 +1914,15 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::Path::ConstPtr msg) {
   bool                          success = false;
   std::string                   message;
   mrs_msgs::TrajectoryReference trajectory;
+  bool                          initial_condition = false;
 
   for (int i = 0; i < _n_attempts_; i++) {
 
     // the last iteration and the fallback sampling is enabled
     bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
 
-    std::tie(success, message, trajectory) = optimize(waypoints, transformed_path->header, fallback_sampling, transformed_path->relax_heading);
+    std::tie(success, message, trajectory, initial_condition) =
+        optimize(waypoints, transformed_path->header, fallback_sampling, transformed_path->relax_heading);
 
     if (success) {
       break;
@@ -2122,13 +2130,15 @@ bool MrsTrajectoryGeneration::callbackPathSrv(mrs_msgs::PathSrv::Request& req, m
   bool                          success = false;
   std::string                   message;
   mrs_msgs::TrajectoryReference trajectory;
+  bool                          initial_condition = false;
 
   for (int i = 0; i < _n_attempts_; i++) {
 
     // the last iteration and the fallback sampling is enabled
     bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
 
-    std::tie(success, message, trajectory) = optimize(waypoints, transformed_path->header, fallback_sampling, transformed_path->relax_heading);
+    std::tie(success, message, trajectory, initial_condition) =
+        optimize(waypoints, transformed_path->header, fallback_sampling, transformed_path->relax_heading);
 
     if (success) {
       break;
@@ -2353,13 +2363,15 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   bool                          success = false;
   std::string                   message;
   mrs_msgs::TrajectoryReference trajectory;
+  bool                          initial_condition = false;
 
   for (int i = 0; i < _n_attempts_; i++) {
 
     // the last iteration and the fallback sampling is enabled
     bool fallback_sampling = (_n_attempts_ > 1) && (i == (_n_attempts_ - 1)) && _fallback_sampling_enabled_;
 
-    std::tie(success, message, trajectory) = optimize(waypoints, transformed_path->header, fallback_sampling, transformed_path->relax_heading);
+    std::tie(success, message, trajectory, initial_condition) =
+        optimize(waypoints, transformed_path->header, fallback_sampling, transformed_path->relax_heading);
 
     if (success) {
       break;
@@ -2384,7 +2396,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(mrs_msgs::GetPathSrv::Request& 
   }
 
   // locate the waypoint idxs
-  auto waypoint_idxs = getWaypointInTrajectoryIdxs(trajectory, waypoints);
+  auto waypoint_idxs = getWaypointInTrajectoryIdxs(trajectory, waypoints, initial_condition);
 
   if (success) {
 

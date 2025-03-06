@@ -70,11 +70,12 @@ bool Tester::test() {
   // | -------------------- call the service -------------------- |
 
   std::optional<mrs_msgs::TrajectoryReference> trajectory;
+  std::optional<Eigen::VectorXd>               waypoint_idxs;
 
   {
     std::string message;
 
-    std::tie(trajectory, message) = uh_->getPathSrv(path);
+    std::tie(trajectory, waypoint_idxs, message) = uh_->getPathSrv(path);
 
     if (!trajectory) {
       ROS_ERROR("[%s]: goto failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
@@ -82,28 +83,14 @@ bool Tester::test() {
     }
   }
 
-  // | ---------- add the first waypoint after takeoff ---------- |
-
-  {
-    auto uav_pos = uh_->sh_uav_state_.getMsg()->pose.position;
-
-    double heading = mrs_lib::AttitudeConverter(uh_->sh_uav_state_.getMsg()->pose.orientation).getHeading();
-
-    mrs_msgs::Reference reference;
-    reference.position.x = uav_pos.x;
-    reference.position.y = uav_pos.y;
-    reference.position.z = uav_pos.z + 3.0;
-    reference.heading    = heading;
-
-    path.points.insert(path.points.begin(), reference);
-  }
-
   // | ------------------ check the trajectory ------------------ |
 
   {
     bool trajectory_is_fine = this->checkTrajectory(*trajectory, path, false);
 
-    if (!trajectory_is_fine) {
+    bool waypoints_are_fine = this->checkWaypintIdxs(*waypoint_idxs, path);
+
+    if (!trajectory_is_fine || !waypoints_are_fine) {
       ROS_ERROR("[%s]: trajectory check failed", ros::this_node::getName().c_str());
       return false;
     } else {

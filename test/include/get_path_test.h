@@ -17,11 +17,12 @@ public:
 
   bool checkTrajectory(const mrs_msgs::TrajectoryReference& trajectory, const mrs_msgs::Path& path, bool starting_from_current_pos);
 
+  bool checkWaypintIdxs(const Eigen::VectorXd& idxs, const mrs_msgs::Path& path);
+
   std::shared_ptr<mrs_uav_testing::UAVHandler> uh_;
 };
 
-GetPathTest::GetPathTest() : mrs_uav_testing::TestGeneric() {
-};
+GetPathTest::GetPathTest() : mrs_uav_testing::TestGeneric(){};
 
 bool GetPathTest::checkTrajectory(const mrs_msgs::TrajectoryReference& trajectory, const mrs_msgs::Path& path, bool starting_from_current_pos) {
 
@@ -65,6 +66,24 @@ bool GetPathTest::checkTrajectory(const mrs_msgs::TrajectoryReference& trajector
   }
 
   return false;
+}
+
+bool GetPathTest::checkWaypintIdxs(const Eigen::VectorXd& idxs, const mrs_msgs::Path& path) {
+
+  if (int(idxs.size()) != int(path.points.size())) {
+    ROS_ERROR("[%s]: the original path length (%d) is different than the number of idxs in the list (%d)", ros::this_node::getName().c_str(),
+              int(path.points.size()), int(idxs.size()));
+    return false;
+  }
+
+  for (int i = 0; i < idxs.size(); i++) {
+    if (idxs[i] == 0) {
+      ROS_ERROR("[%s]: idxs[%d] == 0", ros::this_node::getName().c_str(), i);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 #endif  // GET_PATH_TEST_H
