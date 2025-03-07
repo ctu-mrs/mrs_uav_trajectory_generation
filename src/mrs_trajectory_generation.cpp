@@ -1484,7 +1484,7 @@ std::vector<int> MrsTrajectoryGeneration::getWaypointInTrajectoryIdxs(const mrs_
 
     ROS_DEBUG("[MrsTrajectoryGeneration]: distance %.3f", waypoint_traj_seg_dist);
 
-    if (waypoint_traj_seg_dist < 0.01) {
+    if (waypoint_traj_seg_dist < 0.1) {
       ROS_DEBUG("[MrsTrajectoryGeneration]: waypoint_idx=%d, trajectory_idx=%d/%d", waypoint_idx, int(i), int(trajectory.points.size()));
       idxs.push_back(i);
       waypoint_idx++;
