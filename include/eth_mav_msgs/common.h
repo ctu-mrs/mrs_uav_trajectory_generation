@@ -23,11 +23,12 @@
 #ifndef ETH_MAV_MSGS_COMMON_H
 #define ETH_MAV_MSGS_COMMON_H
 
-#include <geometry_msgs/Point.h>
-#include <geometry_msgs/Quaternion.h>
-#include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/quaternion.hpp>
+#include <geometry_msgs/msg/vector3.hpp>
 #include <Eigen/Geometry>
 #include <boost/algorithm/clamp.hpp>
+#include <iostream>
 
 namespace eth_mav_msgs
 {
@@ -55,7 +56,7 @@ inline double MagnitudeOfGravity(const double height, const double latitude_radi
 
 /* vector3FromMsg() //{ */
 
-inline Eigen::Vector3d vector3FromMsg(const geometry_msgs::Vector3& msg) {
+inline Eigen::Vector3d vector3FromMsg(const geometry_msgs::msg::Vector3& msg) {
   return Eigen::Vector3d(msg.x, msg.y, msg.z);
 }
 
@@ -63,7 +64,7 @@ inline Eigen::Vector3d vector3FromMsg(const geometry_msgs::Vector3& msg) {
 
 /* vector3FromPointMsg() //{ */
 
-inline Eigen::Vector3d vector3FromPointMsg(const geometry_msgs::Point& msg) {
+inline Eigen::Vector3d vector3FromPointMsg(const geometry_msgs::msg::Point& msg) {
   return Eigen::Vector3d(msg.x, msg.y, msg.z);
 }
 
@@ -71,7 +72,7 @@ inline Eigen::Vector3d vector3FromPointMsg(const geometry_msgs::Point& msg) {
 
 /* quaternionFromMsg() //{ */
 
-inline Eigen::Quaterniond quaternionFromMsg(const geometry_msgs::Quaternion& msg) {
+inline Eigen::Quaterniond quaternionFromMsg(const geometry_msgs::msg::Quaternion& msg) {
   // Make sure this always returns a valid Quaternion, even if the message was
   // uninitialized or only approximately set.
   Eigen::Quaterniond quaternion(msg.w, msg.x, msg.y, msg.z);
@@ -87,7 +88,7 @@ inline Eigen::Quaterniond quaternionFromMsg(const geometry_msgs::Quaternion& msg
 
 /* vectorEigenToMsg() //{ */
 
-inline void vectorEigenToMsg(const Eigen::Vector3d& eigen, geometry_msgs::Vector3* msg) {
+inline void vectorEigenToMsg(const Eigen::Vector3d& eigen, geometry_msgs::msg::Vector3* msg) {
   assert(msg != NULL);
   msg->x = eigen.x();
   msg->y = eigen.y();
@@ -98,7 +99,7 @@ inline void vectorEigenToMsg(const Eigen::Vector3d& eigen, geometry_msgs::Vector
 
 /* pointEigenToMsg() //{ */
 
-inline void pointEigenToMsg(const Eigen::Vector3d& eigen, geometry_msgs::Point* msg) {
+inline void pointEigenToMsg(const Eigen::Vector3d& eigen, geometry_msgs::msg::Point* msg) {
   assert(msg != NULL);
   msg->x = eigen.x();
   msg->y = eigen.y();
@@ -109,7 +110,7 @@ inline void pointEigenToMsg(const Eigen::Vector3d& eigen, geometry_msgs::Point* 
 
 /* quaternionEigenToMsg() //{ */
 
-inline void quaternionEigenToMsg(const Eigen::Quaterniond& eigen, geometry_msgs::Quaternion* msg) {
+inline void quaternionEigenToMsg(const Eigen::Quaterniond& eigen, geometry_msgs::msg::Quaternion* msg) {
   assert(msg != NULL);
   msg->x = eigen.x();
   msg->y = eigen.y();
@@ -143,7 +144,7 @@ inline Eigen::Quaterniond quaternionFromYaw(double yaw) {
 
 /* setQuaternionMsgFromYaw() //{ */
 
-inline void setQuaternionMsgFromYaw(double yaw, geometry_msgs::Quaternion* msg) {
+inline void setQuaternionMsgFromYaw(double yaw, geometry_msgs::msg::Quaternion* msg) {
   assert(msg != NULL);
   Eigen::Quaterniond q_yaw = quaternionFromYaw(yaw);
   msg->x                   = q_yaw.x();
@@ -156,7 +157,7 @@ inline void setQuaternionMsgFromYaw(double yaw, geometry_msgs::Quaternion* msg) 
 
 /* setAngularVelocityMsgFromYawRate() //{ */
 
-inline void setAngularVelocityMsgFromYawRate(double yaw_rate, geometry_msgs::Vector3* msg) {
+inline void setAngularVelocityMsgFromYawRate(double yaw_rate, geometry_msgs::msg::Vector3* msg) {
   assert(msg != NULL);
   msg->x = 0.0;
   msg->y = 0.0;
@@ -171,8 +172,7 @@ inline void getEulerAnglesFromQuaternion(const Eigen::Quaternion<double>& q, Eig
   {
     assert(euler_angles != NULL);
 
-    *euler_angles << std::atan2(2.0 * (q.w() * q.x() + q.y() * q.z()), 1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y())),
-        std::asin(2.0 * (q.w() * q.y() - q.z() * q.x())), std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()), 1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
+    *euler_angles << std::atan2(2.0 * (q.w() * q.x() + q.y() * q.z()), 1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y())), std::asin(2.0 * (q.w() * q.y() - q.z() * q.x())), std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()), 1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
   }
 }
 
@@ -341,9 +341,7 @@ inline Eigen::Vector3d omegaDotFromRotationVector(const Eigen::Vector3d& rot_vec
   // Set up matrices to calculate omega dot
   Eigen::Matrix3d W_vel;
   Eigen::Matrix3d W_acc;
-  W_vel = phi_skew * (phi * std::sin(phi) - 2.0f + 2.0f * std::cos(phi)) * phi_dot * phi_3_inv +
-          phi_skew * phi_skew * (-2.0f * phi - phi * std::cos(phi) + 3.0f * std::sin(phi)) * phi_dot * phi_4_inv +
-          phi_dot_skew * phi_skew * (phi - std::sin(phi)) * phi_3_inv;
+  W_vel = phi_skew * (phi * std::sin(phi) - 2.0f + 2.0f * std::cos(phi)) * phi_dot * phi_3_inv + phi_skew * phi_skew * (-2.0f * phi - phi * std::cos(phi) + 3.0f * std::sin(phi)) * phi_dot * phi_4_inv + phi_dot_skew * phi_skew * (phi - std::sin(phi)) * phi_3_inv;
 
   W_acc = Eigen::MatrixXd::Identity(3, 3) + phi_skew * (1.0f - std::cos(phi)) * phi_2_inv + phi_skew * phi_skew * (phi - std::sin(phi)) * phi_3_inv;
 
@@ -377,9 +375,7 @@ inline Eigen::Vector3d omegaDotFromRotationVector(const Eigen::Vector3d& rot_vec
 //
 // The inverse can be computed computationally efficient:
 // A^-1 \approx B^pseudo * K^-1
-inline void getSquaredRotorSpeedsFromAllocationAndState(const Eigen::MatrixXd& allocation_inv, const Eigen::Vector3d& inertia, double mass,
-                                                        const Eigen::Vector3d& angular_velocity_B, const Eigen::Vector3d& angular_acceleration_B,
-                                                        const Eigen::Vector3d& acceleration_B, Eigen::VectorXd* rotor_rates_squared) {
+inline void getSquaredRotorSpeedsFromAllocationAndState(const Eigen::MatrixXd& allocation_inv, const Eigen::Vector3d& inertia, double mass, const Eigen::Vector3d& angular_velocity_B, const Eigen::Vector3d& angular_acceleration_B, const Eigen::Vector3d& acceleration_B, Eigen::VectorXd* rotor_rates_squared) {
   const Eigen::Vector3d torque       = inertia.asDiagonal() * angular_acceleration_B + angular_velocity_B.cross(inertia.asDiagonal() * angular_velocity_B);
   const double          thrust_force = mass * acceleration_B.norm();
   Eigen::Vector4d       input;

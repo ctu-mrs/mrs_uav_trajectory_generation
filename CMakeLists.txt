@@ -1,14 +1,28 @@
 cmake_minimum_required(VERSION 3.5)
 project(mrs_uav_trajectory_generation)
 
-set(CMAKE_CXX_STANDARD 17)
+# set the correct standards
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_definitions(-Wall)
-add_definitions(-Wextra)
+# 1 == use rclcpp::Timer implementation
+# 0 == use MRS's thread timer implementation
+set(USE_ROS_TIMER 0)
 
-if(NOT MRS_ENABLE_TESTING)
-  add_definitions(-O3)
+if(${USE_ROS_TIMER})
+  MESSAGE(WARNING "[mrs_uav_autostart]: Compiling with ROS Timers. This can cause high CPU load in runtime.")
+endif()
+
+# set the compile options to show code warnings
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra)
+endif()
+
+if(MRS_ENABLE_TESTING)
+  message(WARNING "Setting optimizaton levels for tests")
+  add_definitions("-O0")
+  add_definitions("-g")
 endif()
 
 if(COVERAGE)
@@ -17,45 +31,40 @@ if(COVERAGE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
 endif()
 
-set(CATKIN_DEPENDENCIES
-  cmake_modules
-  roscpp
-  rospy
-  nodelet
-  dynamic_reconfigure
-  std_msgs
+set(DEPENDENCIES
+  rclcpp
+  rclcpp_components
   mrs_msgs
   mrs_lib
+  std_msgs
+  std_srvs
   nlopt
-  mrs_uav_testing
   )
-
-find_package(catkin REQUIRED COMPONENTS
-  ${CATKIN_DEPENDENCIES}
-  )
-
-generate_dynamic_reconfigure_options(
-  config/drs.cfg
-  )
-
-find_package(Eigen3 REQUIRED)
-set(Eigen_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
-set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 
 set(LIBRARIES
   MrsUavTrajectoryGeneration_EthTrajectoryGeneration
   MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
-  MrsUavTrajectoryGeneration_PathRandomFlier
+  # MrsUavTrajectoryGeneration_PathRandomFlier
   )
 
-catkin_package(
-  INCLUDE_DIRS include test/include
-  LIBRARIES ${LIBRARIES}
-  CATKIN_DEPENDS ${CATKIN_DEPENDENCIES}
-  DEPENDS Eigen
+foreach(DEP IN LISTS DEPENDENCIES)
+  find_package(${DEP} REQUIRED)
+endforeach()
+
+include_directories(
+  include
+  ${rclcpp_INCLUDE_DIRS}
+  ${mrs_lib_INCLUDE_DIRS}
+  ${nlopt_INCLUDE_DIRS}
   )
 
-add_library(MrsUavTrajectoryGeneration_EthTrajectoryGeneration
+## --------------------------------------------------------------
+## |                           Compile                          |
+## --------------------------------------------------------------
+
+# ETH Trajectory Generation
+
+add_library(MrsUavTrajectoryGeneration_EthTrajectoryGeneration SHARED
   src/eth_trajectory_generation/motion_defines.cpp
   src/eth_trajectory_generation/polynomial.cpp
   src/eth_trajectory_generation/segment.cpp
@@ -66,75 +75,80 @@ add_library(MrsUavTrajectoryGeneration_EthTrajectoryGeneration
   src/eth_trajectory_generation/rpoly/rpoly_ak1.cpp
   )
 
-add_library(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
-  src/mrs_trajectory_generation.cpp
+ament_target_dependencies(MrsUavTrajectoryGeneration_EthTrajectoryGeneration
+  ${DEPENDENCIES}
   )
 
-include_directories(
-  include
-  test/include
-  ${catkin_INCLUDE_DIRS}
-  ${Eigen_INCLUDE_DIRS}
-  ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
+# MRS Trajectory Generation
+
+add_library(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration SHARED
+  src/mrs_trajectory_generation.cpp
   )
 
 target_link_libraries(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
   MrsUavTrajectoryGeneration_EthTrajectoryGeneration
-  ${catkin_LIBRARIES}
-  ${Eigen_LIBRARIES}
   )
+
+ament_target_dependencies(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
+  ${DEPENDENCIES}
+  )
+
+target_compile_definitions(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
+
+rclcpp_components_register_nodes(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration PLUGIN "mrs_uav_trajectory_generation::MrsTrajectoryGeneration" EXECUTABLE MrsUavTrajectoryGeneration_MrsTrajectoryGeneration)
 
 ## | -------------------- path random flier ------------------- |
 
-add_library(MrsUavTrajectoryGeneration_PathRandomFlier
-  src/path_random_flier.cpp
-  )
+# add_library(MrsUavTrajectoryGeneration_PathRandomFlier SHARED
+#   src/path_random_flier.cpp
+#   )
 
-add_dependencies(MrsUavTrajectoryGeneration_PathRandomFlier
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-  )
+# ament_target_dependencies(MrsUavTrajectoryGeneration_PathRandomFlier
+#   ${DEPENDENCIES}
+#   )
 
-target_link_libraries(MrsUavTrajectoryGeneration_PathRandomFlier
-  ${catkin_LIBRARIES}
-  )
+# target_compile_definitions(MrsUavTrajectoryGeneration_PathRandomFlier PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
-## --------------------------------------------------------------
-## |                           Testing                          |
-## --------------------------------------------------------------
-
-if(CATKIN_ENABLE_TESTING AND MRS_ENABLE_TESTING)
-
-  message(WARNING "Testing enabled.")
-
-  add_subdirectory(test)
-
-endif()
+# rclcpp_components_register_nodes(MrsUavTrajectoryGeneration_PathRandomFlier PLUGIN "mrs_uav_trajectory_generation::PathRandomFlier" EXECUTABLE MrsUavTrajectoryGeneration_PathRandomFlier)
 
 ## --------------------------------------------------------------
-## |                           Install                          |
+## |                           install                          |
 ## --------------------------------------------------------------
 
-install(TARGETS ${LIBRARIES}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+ament_export_libraries(
+  ${LIBRARIES}
   )
 
-install(DIRECTORY launch config
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+install(
+  TARGETS ${LIBRARIES}
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
   )
 
-install(DIRECTORY scripts/
+install(
+  DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+  )
+
+install(
+  DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}
+  )
+
+install(
+  DIRECTORY scripts
   USE_SOURCE_PERMISSIONS
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  DESTINATION share/${PROJECT_NAME}
   )
 
-install(DIRECTORY scripts
-  USE_SOURCE_PERMISSIONS
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+ament_export_targets(
+  export_${PROJECT_NAME} HAS_LIBRARY_TARGET
   )
 
-install(FILES nodelets.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+ament_export_dependencies(
+  ${DEPENDENCIES}
   )
+
+ament_package()

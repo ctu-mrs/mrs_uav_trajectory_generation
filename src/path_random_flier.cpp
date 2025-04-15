@@ -1,22 +1,20 @@
 /* includes //{ */
 
-#include <ros/ros.h>
-#include <nodelet/nodelet.h>
+#include <rclcpp/rclcpp.hpp>
 
-#include <stdio.h>
 #include <stdlib.h>
 
-#include <mrs_msgs/PathSrv.h>
-#include <mrs_msgs/Reference.h>
-#include <mrs_msgs/ValidateReference.h>
-#include <mrs_msgs/ControlManagerDiagnostics.h>
+#include <mrs_msgs/srv/path_srv.hpp>
+#include <mrs_msgs/msg/reference.hpp>
+#include <mrs_msgs/srv/validate_reference.hpp>
+#include <mrs_msgs/msg/control_manager_diagnostics.hpp>
 
 #include <mrs_lib/param_loader.h>
-#include <mrs_lib/subscribe_handler.h>
+#include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/msg_extractor.h>
 #include <mrs_lib/transformer.h>
 
-#include <std_srvs/Trigger.h>
+#include <std_srvs/srv/trigger.hpp>
 
 #include <random>
 
@@ -27,7 +25,7 @@ namespace mrs_uav_trajectory_generation
 
 /* class PathRandomFlier //{ */
 
-class PathRandomFlier : public nodelet::Nodelet {
+class PathRandomFlier : public rclcpp::Node {
 
 public:
   virtual void onInit();
