@@ -116,17 +116,17 @@ def generate_launch_description():
 
     # #} end of platform_config
 
-    # #{ env-based params
+    # #{ use_sim_time
 
-    run_type=os.getenv('RUN_TYPE', "realworld")
-    use_sim_time=os.getenv('USE_SIM_TIME', "false") == "true"
+    use_sim_time = LaunchConfiguration('use_sim_time')
 
-    if run_type == "simulation":
-        simulation = True
-    else:
-        simulation = False
+    ld.add_action(DeclareLaunchArgument(
+        'use_sim_time',
+        default_value=os.getenv('USE_SIM_TIME', "false"),
+        description="Should the node subscribe to sim time?",
+    ))
 
-    # #} end of env-based params
+    # #} end of custom_config
 
     # #{ log_level
 
@@ -145,9 +145,8 @@ def generate_launch_description():
 
         parameters=[
             {"uav_name": uav_name},
-            {"simulation": simulation},
-            {"enable_profiler": False},
             {"use_sim_time": use_sim_time},
+            {"enable_profiler": False},
             {'private_config': this_pkg_path + '/config/private/trajectory_generation.yaml'},
             {'public_config': this_pkg_path + '/config/public/trajectory_generation.yaml'},
             {'uav_manager_config': get_package_share_directory("mrs_uav_managers") + "/config/public/uav_manager.yaml"},
