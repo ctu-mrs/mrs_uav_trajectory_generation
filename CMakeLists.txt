@@ -36,6 +36,8 @@ set(DEPENDENCIES
   mrs_lib
   std_msgs
   std_srvs
+  mrs_uav_testing
+  backward_ros
   nlopt
   )
 
@@ -51,6 +53,7 @@ endforeach()
 
 include_directories(
   include
+  test/include
   ${rclcpp_INCLUDE_DIRS}
   ${mrs_lib_INCLUDE_DIRS}
   ${nlopt_INCLUDE_DIRS}
@@ -94,6 +97,16 @@ ament_target_dependencies(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
 target_compile_definitions(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
 rclcpp_components_register_nodes(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration PLUGIN "mrs_uav_trajectory_generation::MrsTrajectoryGeneration" EXECUTABLE MrsUavTrajectoryGeneration_MrsTrajectoryGeneration)
+
+## --------------------------------------------------------------
+## |                           testing                          |
+## --------------------------------------------------------------
+
+if(ENABLE_TESTS)
+
+  add_subdirectory(test)
+
+endif()
 
 ## | -------------------- path random flier ------------------- |
 

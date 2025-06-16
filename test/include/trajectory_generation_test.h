@@ -22,7 +22,7 @@ std::tuple<bool, std::string> TrajectoryGenerationTest::checkPathFlythrough(cons
 
   while (true) {
 
-    if (!ros::ok()) {
+    if (!rclcpp::ok()) {
       return {false, "terminated form outside"};
     }
 
