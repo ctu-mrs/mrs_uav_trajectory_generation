@@ -108,6 +108,7 @@ def generate_test_description():
                 output="screen",
                 parameters=[
                         {'test_name': test_name},
+                        {'use_sim_time': True},
                 ],
             )
         )
@@ -169,7 +170,7 @@ class PublisherHandlerTest(unittest.TestCase):
         finally:
             self.node.destroy_subscription(sub)
 
-# #} end of 
+# #} end of
 
 # #{ Post-shutdown tests
 

@@ -1,4 +1,7 @@
 *.swp
 *.swo
 
+*.pyc
+**/*pycache*/* 
+
 .gitman
