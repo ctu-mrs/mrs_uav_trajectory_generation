@@ -8,3 +8,7 @@ function(add_ros_isolated_launch_test path)
 endfunction()
 
 add_subdirectory(./topic_fly_now)
+
+add_subdirectory(./service_fly_now)
+
+add_subdirectory(./fallback_sampling)

@@ -62,7 +62,7 @@ bool Tester::test(void) {
     path.points.push_back(reference);
   }
 
-  // | -------------------- call the service -------------------- |
+  // | -------------------- publish the path -------------------- |
 
   {
     auto [success, message] = uh_->setPathTopic(path);
