@@ -1,21 +1,23 @@
-#include <gtest/gtest.h>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/time.hpp>
 
-// include the generic test customized for this package
 #include <trajectory_generation_test.h>
+
+using namespace std::chrono_literals;
 
 class Tester : public TrajectoryGenerationTest {
 
 public:
-  bool test();
+  bool test(void);
 };
 
-bool Tester::test() {
+bool Tester::test(void) {
 
   {
-    auto [uhopt, message] = getUAVHandler(_uav_name_);
+    auto [uhopt, message] = getUAVHandler("uav1");
 
     if (!uhopt) {
-      ROS_ERROR("[%s]: Failed obtain handler for '%s': '%s'", ros::this_node::getName().c_str(), _uav_name_.c_str(), message.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "Failed obtain handler for '%s': '%s'", "uav1", message.c_str());
       return false;
     }
 
@@ -33,14 +35,14 @@ bool Tester::test() {
 
   // | ---------------- prepare the path message ---------------- |
 
-  mrs_msgs::Path path;
+  mrs_msgs::msg::Path path;
 
   path.fly_now     = true;
   path.use_heading = true;
 
   for (Eigen::Vector4d point : points) {
 
-    mrs_msgs::Reference reference;
+    mrs_msgs::msg::Reference reference;
     reference.position.x = point[0];
     reference.position.y = point[1];
     reference.position.z = point[2];
@@ -53,22 +55,22 @@ bool Tester::test() {
 
   while (true) {
 
-    if (!ros::ok()) {
+    if (!rclcpp::ok()) {
       return false;
     }
 
-    ROS_INFO_THROTTLE(1.0, "[%s]: waiting for the MRS UAV System", name_.c_str());
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "waiting for the MRS UAV System");
 
     if (uh_->mrsSystemReady()) {
-      ROS_INFO("[%s]: MRS UAV System is ready", name_.c_str());
+      RCLCPP_INFO(node_->get_logger(), "MRS UAV System is ready");
       break;
     }
 
     sleep(0.01);
   }
 
-  // TODO we are not waiting for trajectory generaiton diagnostics to be ready
-  sleep(10.0);
+  // TODO we are not waiting for trajectory generation diagnostics to be ready
+  sleep(3.0);
 
   // | -------------------- call the service -------------------- |
 
@@ -76,7 +78,7 @@ bool Tester::test() {
     auto [success, message] = uh_->setPathSrv(path);
 
     if (!success) {
-      ROS_ERROR("[%s]: goto failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "goto failed with message: '%s'", message.c_str());
       return false;
     }
   }
@@ -88,7 +90,7 @@ bool Tester::test() {
 
     double heading = mrs_lib::AttitudeConverter(uh_->sh_uav_state_.getMsg()->pose.orientation).getHeading();
 
-    mrs_msgs::Reference reference;
+    mrs_msgs::msg::Reference reference;
     reference.position.x = uav_pos.x;
     reference.position.y = uav_pos.y;
     reference.position.z = uav_pos.z + 3.0;
@@ -103,7 +105,7 @@ bool Tester::test() {
     auto [success, message] = uh_->takeoff();
 
     if (!success) {
-      ROS_ERROR("[%s]: takeoff failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "takeoff failed with message: '%s'", message.c_str());
       return false;
     }
   }
@@ -114,7 +116,7 @@ bool Tester::test() {
     auto [success, message] = uh_->gotoTrajectoryStart();
 
     if (!success) {
-      ROS_ERROR("[%s]: goto trajectory start failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "goto trajectory start failed with message: '%s'", message.c_str());
       return false;
     }
   }
@@ -125,7 +127,7 @@ bool Tester::test() {
     auto [success, message] = uh_->startTrajectoryTracking();
 
     if (!success) {
-      ROS_ERROR("[%s]: start trajectory tracking failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "start trajectory tracking failed with message: '%s'", message.c_str());
       return false;
     }
   }
@@ -136,7 +138,7 @@ bool Tester::test() {
     auto [success, message] = this->checkPathFlythrough(points);
 
     if (!success) {
-      ROS_ERROR("[%s]: path flythrough failed: '%s'", ros::this_node::getName().c_str(), message.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "path flythrough failed: '%s'", message.c_str());
       return false;
     }
   }
@@ -148,34 +150,30 @@ bool Tester::test() {
   if (uh_->isFlyingNormally()) {
     return true;
   } else {
-    ROS_ERROR("[%s]: not flying normally", ros::this_node::getName().c_str());
+    RCLCPP_ERROR(node_->get_logger(), "not flying normally");
     return false;
   }
 
-  ROS_ERROR("[%s]: reached the end of the test methd without assertion", ros::this_node::getName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "reached the end of the test methd without assertion");
 
   return false;
 }
 
+int main(int argc, char* argv[]) {
 
-TEST(TESTSuite, test) {
+  rclcpp::init(argc, argv);
+
+  bool test_result = true;
 
   Tester tester;
 
-  bool result = tester.test();
+  test_result &= tester.test();
 
-  if (result) {
-    GTEST_SUCCEED();
-  } else {
-    GTEST_FAIL();
-  }
-}
+  tester.sleep(2.0);
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
+  std::cout << "Test: reporting test results" << std::endl;
 
-  ros::init(argc, argv, "test");
+  tester.reportTestResult(test_result);
 
-  testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
+  tester.join();
 }

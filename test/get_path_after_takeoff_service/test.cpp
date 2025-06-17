@@ -1,21 +1,23 @@
-#include <gtest/gtest.h>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/time.hpp>
 
-// include the generic test customized for this package
 #include <get_path_test.h>
+
+using namespace std::chrono_literals;
 
 class Tester : public GetPathTest {
 
 public:
-  bool test();
+  bool test(void);
 };
 
-bool Tester::test() {
+bool Tester::test(void) {
 
   {
-    auto [uhopt, message] = getUAVHandler(_uav_name_);
+    auto [uhopt, message] = getUAVHandler("uav1");
 
     if (!uhopt) {
-      ROS_ERROR("[%s]: Failed obtain handler for '%s': '%s'", ros::this_node::getName().c_str(), _uav_name_.c_str(), message.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "Failed obtain handler for '%s': '%s'", "uav1", message.c_str());
       return false;
     }
 
@@ -33,14 +35,14 @@ bool Tester::test() {
 
   // | ---------------- prepare the path message ---------------- |
 
-  mrs_msgs::Path path;
+  mrs_msgs::msg::Path path;
 
   path.fly_now     = true;
   path.use_heading = true;
 
   for (Eigen::Vector4d point : points) {
 
-    mrs_msgs::Reference reference;
+    mrs_msgs::msg::Reference reference;
     reference.position.x = point[0];
     reference.position.y = point[1];
     reference.position.z = point[2];
@@ -49,28 +51,21 @@ bool Tester::test() {
     path.points.push_back(reference);
   }
 
-  // | ---------------- wait for ready to takeoff --------------- |
+  // | ------------------------- takeoff ------------------------ |
 
-  while (true) {
+  {
+    auto [success, message] = uh_->takeoff();
 
-    if (!ros::ok()) {
+    if (!success) {
+      RCLCPP_ERROR(node_->get_logger(), "takeoff failed with message: '%s'", message.c_str());
       return false;
     }
-
-    ROS_INFO_THROTTLE(1.0, "[%s]: waiting for the MRS UAV System", name_.c_str());
-
-    if (uh_->mrsSystemReady()) {
-      ROS_INFO("[%s]: MRS UAV System is ready", name_.c_str());
-      break;
-    }
-
-    sleep(0.01);
   }
 
   // | -------------------- call the service -------------------- |
 
-  std::optional<mrs_msgs::TrajectoryReference> trajectory;
-  std::optional<Eigen::VectorXd>               waypoint_idxs;
+  std::optional<mrs_msgs::msg::TrajectoryReference> trajectory;
+  std::optional<Eigen::VectorXd>                    waypoint_idxs;
 
   {
     std::string message;
@@ -78,7 +73,7 @@ bool Tester::test() {
     std::tie(trajectory, waypoint_idxs, message) = uh_->getPathSrv(path);
 
     if (!trajectory) {
-      ROS_ERROR("[%s]: goto failed with message: '%s'", ros::this_node::getName().c_str(), message.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "goto failed with message: '%s'", message.c_str());
       return false;
     }
   }
@@ -91,37 +86,33 @@ bool Tester::test() {
     bool waypoints_are_fine = this->checkWaypintIdxs(*waypoint_idxs, path);
 
     if (!trajectory_is_fine || !waypoints_are_fine) {
-      ROS_ERROR("[%s]: trajectory check failed", ros::this_node::getName().c_str());
+      RCLCPP_ERROR(node_->get_logger(), "trajectory check failed");
       return false;
     } else {
       return true;
     }
   }
 
-  ROS_ERROR("[%s]: reached the end of the test without assertion", ros::this_node::getName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "reached the end of the test without assertion");
 
   return false;
 }
 
+int main(int argc, char* argv[]) {
 
-TEST(TESTSuite, test) {
+  rclcpp::init(argc, argv);
+
+  bool test_result = true;
 
   Tester tester;
 
-  bool result = tester.test();
+  test_result &= tester.test();
 
-  if (result) {
-    GTEST_SUCCEED();
-  } else {
-    GTEST_FAIL();
-  }
-}
+  tester.sleep(2.0);
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
+  std::cout << "Test: reporting test results" << std::endl;
 
-  ros::init(argc, argv, "test");
+  tester.reportTestResult(test_result);
 
-  testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
+  tester.join();
 }

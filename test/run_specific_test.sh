@@ -11,6 +11,6 @@ done
 
 colcon test-result --delete-yes
 
-colcon test --packages-select mrs_uav_trajectory_generation --ctest-args -R 'fallback_sampling' --event-handlers console_direct+ console_stderr- console_start_end-
+colcon test --packages-select mrs_uav_trajectory_generation --ctest-args -R 'get_path_after_takeoff_service' --event-handlers console_direct+ console_stderr- console_start_end-
 
 colcon test-result --all --verbose
