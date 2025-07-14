@@ -408,7 +408,7 @@ void MrsTrajectoryGeneration::initialize(void) {
   // | ------------------- scope timer logger ------------------- |
 
   param_loader.loadParam(yaml_prefix + "scope_timer/enabled", scope_timer_enabled_);
-  const std::string scope_timer_log_filename = param_loader.loadParam2("scope_timer/log_filename", std::string(""));
+  const std::string scope_timer_log_filename = param_loader.loadParam2(yaml_prefix + "scope_timer/log_filename", std::string(""));
   scope_timer_logger_                        = std::make_shared<mrs_lib::ScopeTimerLogger>(node_, scope_timer_log_filename, scope_timer_enabled_);
 
   // | --------------------- service clients -------------------- |
