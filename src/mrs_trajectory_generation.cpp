@@ -230,15 +230,7 @@ private:
 
   // | --------------- dynamic reconfigure server --------------- |
 
-  // old ROS1 drs
-
-  /* boost::recursive_mutex                           mutex_drs_; */
-  /* typedef mrs_uav_trajectory_generation::drsConfig DrsParams_t; */
-  /* typedef dynamic_reconfigure::Server<DrsParams_t> Drs_t; */
-  /* boost::shared_ptr<Drs_t>                         drs_; */
-  /* void                                             callbackDrs(mrs_uav_trajectory_generation::drsConfig& params, uint32_t level); */
-  /* DrsParams_t                                      params_; */
-  /* std::mutex                                       mutex_params_; */
+  std::shared_ptr<mrs_lib::DynparamMgr> dynparam_mgr_;
 
   struct Params_t
   {
@@ -255,8 +247,8 @@ private:
     double soft_constraints_weight;
   };
 
-  Params_t   params_;
-  std::mutex mutex_params_;
+  Params_t   drs_params_;
+  std::mutex mutex_drs_params_;
 
   // | ------------ Republisher for the desired path ------------ |
 
@@ -304,6 +296,8 @@ void MrsTrajectoryGeneration::timerPreInitialization() {
 /* initialize() //{ */
 
 void MrsTrajectoryGeneration::initialize(void) {
+
+  dynparam_mgr_ = std::make_shared<mrs_lib::DynparamMgr>(node_, mutex_drs_params_);
 
   // | ----------------------- publishers ----------------------- |
 
@@ -356,16 +350,26 @@ void MrsTrajectoryGeneration::initialize(void) {
 
   if (custom_config_path != "") {
     param_loader.addYamlFile(custom_config_path);
+    dynparam_mgr_->get_param_provider().addYamlFile(custom_config_path);
   }
 
   if (platform_config_path != "") {
     param_loader.addYamlFile(platform_config_path);
+    dynparam_mgr_->get_param_provider().addYamlFile(platform_config_path);
   }
 
   param_loader.addYamlFile(uav_manager_config_path);
+  dynparam_mgr_->get_param_provider().addYamlFile(uav_manager_config_path);
 
-  param_loader.addYamlFileFromParam("private_config");
-  param_loader.addYamlFileFromParam("public_config");
+  std::string private_config, public_config;
+  param_loader.loadParam("private_config", private_config);
+  param_loader.loadParam("public_config", public_config);
+
+  param_loader.addYamlFile(private_config);
+  param_loader.addYamlFile(public_config);
+
+  dynparam_mgr_->get_param_provider().addYamlFile(private_config);
+  dynparam_mgr_->get_param_provider().addYamlFile(public_config);
 
   const std::string yaml_prefix = "mrs_uav_trajectory_generation/";
 
@@ -373,7 +377,7 @@ void MrsTrajectoryGeneration::initialize(void) {
 
   param_loader.loadParam(yaml_prefix + "sampling_dt", _sampling_dt_);
 
-  param_loader.loadParam(yaml_prefix + "enforce_fallback_solver", params_.enforce_fallback_solver);
+  dynparam_mgr_->register_param(yaml_prefix + "enforce_fallback_solver", &drs_params_.enforce_fallback_solver);
 
   param_loader.loadParam(yaml_prefix + "max_trajectory_len_factor", _max_trajectory_len_factor_);
   param_loader.loadParam(yaml_prefix + "min_trajectory_len_factor", _min_trajectory_len_factor_);
@@ -386,7 +390,7 @@ void MrsTrajectoryGeneration::initialize(void) {
   param_loader.loadParam(yaml_prefix + "fallback_sampling/first_waypoint_additional_stop", _fallback_sampling_first_waypoint_additional_stop_);
 
   param_loader.loadParam(yaml_prefix + "check_trajectory_deviation/enabled", _trajectory_max_segment_deviation_enabled_);
-  param_loader.loadParam(yaml_prefix + "check_trajectory_deviation/max_deviation", params_.max_deviation);
+  dynparam_mgr_->register_param(yaml_prefix + "check_trajectory_deviation/max_deviation", &drs_params_.max_deviation, mrs_lib::DynparamMgr::range_t<double>(0.0, 100.0));
   param_loader.loadParam(yaml_prefix + "check_trajectory_deviation/max_iterations", _trajectory_max_segment_deviation_max_iterations_);
 
   param_loader.loadParam(yaml_prefix + "path_straightener/enabled", _path_straightener_enabled_);
@@ -399,38 +403,36 @@ void MrsTrajectoryGeneration::initialize(void) {
 
   param_loader.loadParam("mrs_uav_managers/uav_manager/takeoff/takeoff_height", _takeoff_height_);
 
-  // | --------------------- tf transformer --------------------- |
-
-  transformer_ = std::make_shared<mrs_lib::Transformer>(node_);
-  transformer_->setDefaultPrefix(_uav_name_);
-  transformer_->retryLookupNewest(true);
-
   // | ------------------- scope timer logger ------------------- |
 
   param_loader.loadParam(yaml_prefix + "scope_timer/enabled", scope_timer_enabled_);
   const std::string scope_timer_log_filename = param_loader.loadParam2(yaml_prefix + "scope_timer/log_filename", std::string(""));
   scope_timer_logger_                        = std::make_shared<mrs_lib::ScopeTimerLogger>(node_, scope_timer_log_filename, scope_timer_enabled_);
 
-  // | --------------------- service clients -------------------- |
+  param_loader.loadParam(yaml_prefix + "time_penalty", drs_params_.time_penalty);
+  param_loader.loadParam(yaml_prefix + "soft_constraints_enabled", drs_params_.soft_constraints_enabled);
+  param_loader.loadParam(yaml_prefix + "soft_constraints_weight", drs_params_.soft_constraints_weight);
+  param_loader.loadParam(yaml_prefix + "time_allocation", drs_params_.time_allocation);
+  param_loader.loadParam(yaml_prefix + "equality_constraint_tolerance", drs_params_.equality_constraint_tolerance);
+  param_loader.loadParam(yaml_prefix + "inequality_constraint_tolerance", drs_params_.inequality_constraint_tolerance);
+  param_loader.loadParam(yaml_prefix + "max_iterations", drs_params_.max_iterations);
+  param_loader.loadParam(yaml_prefix + "derivative_to_optimize", drs_params_.derivative_to_optimize);
 
-  param_loader.loadParam(yaml_prefix + "time_penalty", params_.time_penalty);
-  param_loader.loadParam(yaml_prefix + "soft_constraints_enabled", params_.soft_constraints_enabled);
-  param_loader.loadParam(yaml_prefix + "soft_constraints_weight", params_.soft_constraints_weight);
-  param_loader.loadParam(yaml_prefix + "time_allocation", params_.time_allocation);
-  param_loader.loadParam(yaml_prefix + "equality_constraint_tolerance", params_.equality_constraint_tolerance);
-  param_loader.loadParam(yaml_prefix + "inequality_constraint_tolerance", params_.inequality_constraint_tolerance);
-  param_loader.loadParam(yaml_prefix + "max_iterations", params_.max_iterations);
-  param_loader.loadParam(yaml_prefix + "derivative_to_optimize", params_.derivative_to_optimize);
+  dynparam_mgr_->register_param(yaml_prefix + "max_time", &drs_params_.max_execution_time, mrs_lib::DynparamMgr::range_t<double>(0.0, 10.0));
 
-  param_loader.loadParam(yaml_prefix + "max_time", params_.max_execution_time);
-
-  max_execution_time_ = params_.max_execution_time;
+  max_execution_time_ = drs_params_.max_execution_time;
 
   if (!param_loader.loadedSuccessfully()) {
     RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: could not load all parameters!");
     rclcpp::shutdown();
     exit(1);
   }
+
+  // | --------------------- tf transformer --------------------- |
+
+  transformer_ = std::make_shared<mrs_lib::Transformer>(node_);
+  transformer_->setDefaultPrefix(_uav_name_);
+  transformer_->retryLookupNewest(true);
 
   // | -------------------- batch visualizer -------------------- |
 
@@ -733,7 +735,7 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
 
   std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> result;
 
-  auto params = mrs_lib::get_mutexed(mutex_params_, params_);
+  auto params = mrs_lib::get_mutexed(mutex_drs_params_, drs_params_);
 
   if (params.enforce_fallback_solver) {
     RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: fallback sampling enforced");
@@ -898,7 +900,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   rclcpp::Time find_trajectory_time_start = clock_->now();
 
-  auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
+  auto params      = mrs_lib::get_mutexed(mutex_drs_params_, drs_params_);
   auto constraints = sh_constraints_.getMsg();
 
   auto control_manager_diag = sh_control_manager_diag_.getMsg();
@@ -1238,7 +1240,6 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: fallback sampling started");
 
-  auto params      = mrs_lib::get_mutexed(mutex_params_, params_);
   auto constraints = sh_constraints_.getMsg();
 
   eth_trajectory_generation::Vertex::Vector vertices;
@@ -1819,14 +1820,14 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstShare
 
     std::scoped_lock lock(mutex_max_execution_time_);
 
-    max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, params_.max_execution_time);
+    max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, drs_params_.max_execution_time);
 
     RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR, path_time_offset);
   } else {
 
-    std::scoped_lock lock(mutex_max_execution_time_, mutex_params_);
+    std::scoped_lock lock(mutex_max_execution_time_, mutex_drs_params_);
 
-    max_execution_time_ = params_.max_execution_time;
+    max_execution_time_ = drs_params_.max_execution_time;
   }
 
   RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: got path from message");
@@ -1862,7 +1863,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstShare
   override_max_jerk_vertical_           = transformed_path->override_max_jerk_horizontal;
   stop_at_waypoints_                    = transformed_path->stop_at_waypoints;
 
-  auto params = mrs_lib::get_mutexed(mutex_params_, params_);
+  auto params = mrs_lib::get_mutexed(mutex_drs_params_, drs_params_);
 
   if (transformed_path->max_execution_time > 0) {
 
@@ -2024,14 +2025,14 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
 
     std::scoped_lock lock(mutex_max_execution_time_);
 
-    max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, params_.max_execution_time);
+    max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, drs_params_.max_execution_time);
 
     RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR, path_time_offset);
   } else {
 
-    std::scoped_lock lock(mutex_max_execution_time_, mutex_params_);
+    std::scoped_lock lock(mutex_max_execution_time_, mutex_drs_params_);
 
-    max_execution_time_ = params_.max_execution_time;
+    max_execution_time_ = drs_params_.max_execution_time;
   }
 
   RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: got path from service");
@@ -2075,7 +2076,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
   override_max_jerk_vertical_           = transformed_path->override_max_jerk_horizontal;
   stop_at_waypoints_                    = transformed_path->stop_at_waypoints;
 
-  auto params = mrs_lib::get_mutexed(mutex_params_, params_);
+  auto params = mrs_lib::get_mutexed(mutex_drs_params_, drs_params_);
 
   if (transformed_path->max_execution_time > 0) {
 
@@ -2256,9 +2257,9 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
     RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR, path_time_offset);
   } else {
 
-    std::scoped_lock lock(mutex_max_execution_time_, mutex_params_);
+    std::scoped_lock lock(mutex_max_execution_time_, mutex_drs_params_);
 
-    max_execution_time_ = params_.max_execution_time;
+    max_execution_time_ = drs_params_.max_execution_time;
   }
 
   RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: got path from service");
@@ -2307,7 +2308,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
   override_max_jerk_vertical_           = transformed_path->override_max_jerk_horizontal;
   stop_at_waypoints_                    = transformed_path->stop_at_waypoints;
 
-  auto params = mrs_lib::get_mutexed(mutex_params_, params_);
+  auto params = mrs_lib::get_mutexed(mutex_drs_params_, drs_params_);
 
   if (transformed_path->max_execution_time > 0) {
 
