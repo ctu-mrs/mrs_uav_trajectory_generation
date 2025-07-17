@@ -297,8 +297,6 @@ void MrsTrajectoryGeneration::timerPreInitialization() {
 
 void MrsTrajectoryGeneration::initialize(void) {
 
-  dynparam_mgr_ = std::make_shared<mrs_lib::DynparamMgr>(node_, mutex_drs_params_);
-
   // | ----------------------- publishers ----------------------- |
 
   ph_original_path_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Path>(node_, "~/original_path_out");
@@ -330,9 +328,13 @@ void MrsTrajectoryGeneration::initialize(void) {
 
   service_client_trajectory_reference_ = mrs_lib::ServiceClientHandler<mrs_msgs::srv::TrajectoryReferenceSrv>(node_, "~/trajectory_reference_out", cbkgrp_sc_);
 
-  // | ----------------------- parameters ----------------------- |
+  // | ------------------- parameter wrappers ------------------- |
 
   mrs_lib::ParamLoader param_loader(node_, "TrajectoryGeneration");
+
+  dynparam_mgr_ = std::make_shared<mrs_lib::DynparamMgr>(node_, mutex_drs_params_);
+
+  // | ------------------ load parameter files ------------------ |
 
   std::string custom_config_path;
   std::string platform_config_path;
@@ -350,26 +352,20 @@ void MrsTrajectoryGeneration::initialize(void) {
 
   if (custom_config_path != "") {
     param_loader.addYamlFile(custom_config_path);
-    dynparam_mgr_->get_param_provider().addYamlFile(custom_config_path);
   }
 
   if (platform_config_path != "") {
     param_loader.addYamlFile(platform_config_path);
-    dynparam_mgr_->get_param_provider().addYamlFile(platform_config_path);
   }
 
   param_loader.addYamlFile(uav_manager_config_path);
-  dynparam_mgr_->get_param_provider().addYamlFile(uav_manager_config_path);
 
-  std::string private_config, public_config;
-  param_loader.loadParam("private_config", private_config);
-  param_loader.loadParam("public_config", public_config);
+  param_loader.addYamlFileFromParam("private_config");
+  param_loader.addYamlFileFromParam("public_config");
 
-  param_loader.addYamlFile(private_config);
-  param_loader.addYamlFile(public_config);
+  dynparam_mgr_->get_param_provider().copyYamls(param_loader.getParamProvider());
 
-  dynparam_mgr_->get_param_provider().addYamlFile(private_config);
-  dynparam_mgr_->get_param_provider().addYamlFile(public_config);
+  // | --------------------- load parameters -------------------- |
 
   const std::string yaml_prefix = "mrs_uav_trajectory_generation/";
 
@@ -422,7 +418,7 @@ void MrsTrajectoryGeneration::initialize(void) {
 
   max_execution_time_ = drs_params_.max_execution_time;
 
-  if (!param_loader.loadedSuccessfully()) {
+  if (!param_loader.loadedSuccessfully() || !dynparam_mgr_->loaded_successfully()) {
     RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: could not load all parameters!");
     rclcpp::shutdown();
     exit(1);
