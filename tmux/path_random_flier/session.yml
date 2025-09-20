@@ -19,15 +19,15 @@ windows:
   - simulator:
       layout: tiled
       panes:
-        - ros2 launch mrs_multirotor_simulator multirotor_simulator.py custom_config:=./config/simulator.yaml
+        - ros2 launch mrs_multirotor_simulator multirotor_simulator.launch.py custom_config:=./config/simulator.yaml
   - hw_api:
       layout: tiled
       panes:
-        - ros2 launch mrs_multirotor_simulator hw_api.py
+        - ros2 launch mrs_multirotor_simulator hw_api.launch.py
   - core:
       layout: tiled
       panes:
-        - ros2 launch mrs_uav_core core.py
+        - ros2 launch mrs_uav_core core.launch.py
           platform_config:=$PLATFORM_CONFIG
           world_config:=./config/world_config.yaml
           custom_config:=./config/custom_config.yaml
@@ -39,7 +39,7 @@ windows:
   - takeoff:
       layout: tiled
       panes:
-        - ros2 launch mrs_uav_autostart automatic_start.py custom_config:=./config/automatic_start.yaml
+        - ros2 launch mrs_uav_autostart automatic_start.launch.py custom_config:=./config/automatic_start.yaml
         - waitForCore && ./takeoff.sh
   - commands:
       layout: tiled
