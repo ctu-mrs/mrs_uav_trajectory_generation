@@ -20,8 +20,8 @@ future_stamp:
   max: 3.0 # [s]
 
 replanning_time:
-  min: 5.0 # [s]
-  max: 10.0 # [s]
+  min: 2.0 # [s]
+  max: 5.0 # [s]
 
 override_constraints:
   enabled: false

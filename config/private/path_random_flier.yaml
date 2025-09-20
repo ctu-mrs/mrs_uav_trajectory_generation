@@ -1,5 +1,5 @@
 active: true
-main_timer_rate: 100 # [Hz]
+main_timer_rate: 100.0 # [Hz]
 
 frame_id: "world_origin"
 

@@ -44,7 +44,7 @@ set(DEPENDENCIES
 set(LIBRARIES
   MrsUavTrajectoryGeneration_EthTrajectoryGeneration
   MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
-  # MrsUavTrajectoryGeneration_PathRandomFlier
+  MrsUavTrajectoryGeneration_PathRandomFlier
   )
 
 foreach(DEP IN LISTS DEPENDENCIES)
@@ -110,17 +110,17 @@ endif()
 
 ## | -------------------- path random flier ------------------- |
 
-# add_library(MrsUavTrajectoryGeneration_PathRandomFlier SHARED
-#   src/path_random_flier.cpp
-#   )
+add_library(MrsUavTrajectoryGeneration_PathRandomFlier SHARED
+  src/path_random_flier.cpp
+  )
 
-# ament_target_dependencies(MrsUavTrajectoryGeneration_PathRandomFlier
-#   ${DEPENDENCIES}
-#   )
+ament_target_dependencies(MrsUavTrajectoryGeneration_PathRandomFlier
+  ${DEPENDENCIES}
+  )
 
-# target_compile_definitions(MrsUavTrajectoryGeneration_PathRandomFlier PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
+target_compile_definitions(MrsUavTrajectoryGeneration_PathRandomFlier PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
-# rclcpp_components_register_nodes(MrsUavTrajectoryGeneration_PathRandomFlier PLUGIN "mrs_uav_trajectory_generation::PathRandomFlier" EXECUTABLE MrsUavTrajectoryGeneration_PathRandomFlier)
+rclcpp_components_register_nodes(MrsUavTrajectoryGeneration_PathRandomFlier PLUGIN "mrs_uav_trajectory_generation::PathRandomFlier" EXECUTABLE MrsUavTrajectoryGeneration_PathRandomFlier)
 
 ## --------------------------------------------------------------
 ## |                           install                          |
@@ -153,6 +153,12 @@ install(
   USE_SOURCE_PERMISSIONS
   DESTINATION lib/${PROJECT_NAME}
   )
+
+install(
+  DIRECTORY tmux
+  USE_SOURCE_PERMISSIONS
+  DESTINATION share/${PROJECT_NAME}
+)
 
 ament_export_targets(
   export_${PROJECT_NAME} HAS_LIBRARY_TARGET
