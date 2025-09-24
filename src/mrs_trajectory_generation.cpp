@@ -1763,7 +1763,12 @@ std::optional<mrs_msgs::msg::Path> MrsTrajectoryGeneration::transformPath(const 
 
   mrs_msgs::msg::Path path_out = path_in;
 
-  path_out.header.stamp    = tf.value().header.stamp;
+  if ((rclcpp::Time(path_in.header.stamp) - clock_->now()).seconds() > 0) {
+    path_out.header.stamp = path_in.header.stamp;
+  } else {
+    path_out.header.stamp = tf.value().header.stamp;
+  }
+
   path_out.header.frame_id = transformer_->frame_to(tf.value());
 
   for (size_t i = 0; i < path_in.points.size(); i++) {
