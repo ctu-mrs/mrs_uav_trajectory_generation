@@ -80,6 +80,7 @@ public:
   MrsTrajectoryGeneration(rclcpp::NodeOptions options);
 
 private:
+  rclcpp::Node::SharedPtr  node_;
   rclcpp::Clock::SharedPtr clock_;
 
   rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
@@ -285,6 +286,7 @@ MrsTrajectoryGeneration::MrsTrajectoryGeneration(rclcpp::NodeOptions options) : 
 
 void MrsTrajectoryGeneration::initialize(void) {
 
+  node_  = this_node_ptr();
   clock_ = node_->get_clock();
 
   cbkgrp_subs_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
