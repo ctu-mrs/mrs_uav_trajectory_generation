@@ -23,6 +23,7 @@
 #include <eth_trajectory_generation/trajectory.h>
 #include <eth_trajectory_generation/trajectory_sampling.h>
 
+#include <mrs_lib/node.h>
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/geometry/cyclic.h>
 #include <mrs_lib/geometry/misc.h>
@@ -72,21 +73,18 @@ namespace mrs_uav_trajectory_generation
 {
 
 /* class MrsTrajectoryGeneration //{ */
-class MrsTrajectoryGeneration : public rclcpp::Node {
+
+class MrsTrajectoryGeneration : public mrs_lib::Node {
 
 public:
   MrsTrajectoryGeneration(rclcpp::NodeOptions options);
 
 private:
-  rclcpp::Node::SharedPtr  node_;
   rclcpp::Clock::SharedPtr clock_;
 
   rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
   rclcpp::CallbackGroup::SharedPtr cbkgrp_ss_;
   rclcpp::CallbackGroup::SharedPtr cbkgrp_sc_;
-
-  rclcpp::TimerBase::SharedPtr timer_preinitialization_;
-  void                         timerPreInitialization();
 
   void initialize(void);
 
@@ -274,29 +272,11 @@ private:
 
 //}
 
-/* MrsTrajectoryGeneration::MrsTrajectoryGeneration() //{ */
+/* MrsTrajectoryGeneration() //{ */
 
-MrsTrajectoryGeneration::MrsTrajectoryGeneration(rclcpp::NodeOptions options) : Node("trajectory_generation", options) {
+MrsTrajectoryGeneration::MrsTrajectoryGeneration(rclcpp::NodeOptions options) : mrs_lib::Node("trajectory_generation", options) {
 
-  timer_preinitialization_ = create_wall_timer(std::chrono::duration<double>(1.0), std::bind(&MrsTrajectoryGeneration::timerPreInitialization, this));
-}
-
-//}
-
-/* timerPreInitialization() //{ */
-
-void MrsTrajectoryGeneration::timerPreInitialization() {
-
-  node_  = this->shared_from_this();
-  clock_ = node_->get_clock();
-
-  cbkgrp_subs_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  cbkgrp_ss_   = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  cbkgrp_sc_   = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-
-  initialize();
-
-  timer_preinitialization_->cancel();
+  this->initialize();
 }
 
 //}
@@ -304,6 +284,12 @@ void MrsTrajectoryGeneration::timerPreInitialization() {
 /* initialize() //{ */
 
 void MrsTrajectoryGeneration::initialize(void) {
+
+  clock_ = node_->get_clock();
+
+  cbkgrp_subs_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  cbkgrp_ss_   = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  cbkgrp_sc_   = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
   // | ----------------------- publishers ----------------------- |
 
@@ -357,7 +343,7 @@ void MrsTrajectoryGeneration::initialize(void) {
   param_loader.loadParam("uav_manager_config", uav_manager_config_path);
 
   if (uav_manager_config_path == "") {
-    RCLCPP_ERROR(node_->get_logger(), "[MrsTrajectoryGeneration]: uav_manager_config param is empty");
+    RCLCPP_ERROR(node_->get_logger(), "uav_manager_config param is empty");
     rclcpp::shutdown();
     exit(1);
   }
@@ -432,7 +418,7 @@ void MrsTrajectoryGeneration::initialize(void) {
   max_execution_time_ = drs_params_.max_execution_time;
 
   if (!param_loader.loadedSuccessfully() || !dynparam_mgr_->loaded_successfully()) {
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: could not load all parameters!");
+    RCLCPP_ERROR(node_->get_logger(), "could not load all parameters!");
     rclcpp::shutdown();
     exit(1);
   }
@@ -457,7 +443,7 @@ void MrsTrajectoryGeneration::initialize(void) {
 
   // | --------------------- finish the init -------------------- |
 
-  RCLCPP_INFO_ONCE(node_->get_logger(), "[TrajectoryGeneration]: initialized");
+  RCLCPP_INFO_ONCE(node_->get_logger(), "initialized");
 
   is_initialized_ = true;
 }
@@ -533,8 +519,8 @@ std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessPath(const std::vecto
       vec3_t last(waypoints_in.at(i).coords(0), waypoints_in.at(i).coords(1), waypoints_in.at(i).coords(2));
 
       if (mrs_lib::geometry::dist(first, last) < _min_waypoint_distance_) {
-        RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: waypoint #%d too close (< %.3f m) to the previous one (#%d), throwing it away", int(i),
-                    _min_waypoint_distance_, int(last_added_idx));
+        RCLCPP_INFO(node_->get_logger(), "waypoint #%d too close (< %.3f m) to the previous one (#%d), throwing it away", int(i), _min_waypoint_distance_,
+                    int(last_added_idx));
         continue;
       }
     }
@@ -576,7 +562,7 @@ std::tuple<std::optional<mrs_msgs::msg::TrackerCommand>, bool, int> MrsTrajector
       initial_condition.heading = mrs_lib::AttitudeConverter(uav_state->pose.orientation).getHeading();
     }
     catch (...) {
-      RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[MrsTrajectoryGeneration]: could not obtain heading from the UAV State");
+      RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not obtain heading from the UAV State");
     }
 
     initial_condition.position.z += _takeoff_height_;
@@ -600,7 +586,7 @@ std::tuple<std::optional<mrs_msgs::msg::TrackerCommand>, bool, int> MrsTrajector
   // if the desired path starts in the future, more than one MPC step ahead
   if (path_time_offset > 0.2) {
 
-    RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: desired path is from the future by %.2f s", path_time_offset);
+    RCLCPP_INFO(node_->get_logger(), "desired path is from the future by %.2f s", path_time_offset);
 
     // calculate the offset in samples in the predicted trajectory
     // 0.01 is subtracted for the first sample, which is smaller
@@ -609,7 +595,7 @@ std::tuple<std::optional<mrs_msgs::msg::TrackerCommand>, bool, int> MrsTrajector
 
     if (path_sample_offset > (int(tracker_cmd->full_state_prediction.position.size()) - 1)) {
 
-      RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: can not extrapolate into the waypoints, using tracker_cmd instead");
+      RCLCPP_ERROR(node_->get_logger(), "can not extrapolate into the waypoints, using tracker_cmd instead");
       initial_condition = *tracker_cmd;
 
     } else {
@@ -629,7 +615,7 @@ std::tuple<std::optional<mrs_msgs::msg::TrackerCommand>, bool, int> MrsTrajector
       full_state.heading_acceleration = tracker_cmd->full_state_prediction.heading_acceleration.at(path_sample_offset);
       full_state.heading_jerk         = tracker_cmd->full_state_prediction.heading_jerk.at(path_sample_offset);
 
-      RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: getting initial condition from the %d-th sample of the MPC prediction", path_sample_offset);
+      RCLCPP_INFO(node_->get_logger(), "getting initial condition from the %d-th sample of the MPC prediction", path_sample_offset);
 
       initial_condition.header = full_state.header;
 
@@ -648,7 +634,7 @@ std::tuple<std::optional<mrs_msgs::msg::TrackerCommand>, bool, int> MrsTrajector
 
   } else {
 
-    RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: desired path is NOT from the future, using tracker_cmd as the initial condition");
+    RCLCPP_INFO(node_->get_logger(), "desired path is NOT from the future, using tracker_cmd as the initial condition");
 
     initial_condition = *tracker_cmd;
   }
@@ -694,7 +680,7 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
   if (waypoints_in.size() == 0) {
     std::stringstream ss;
     ss << "the path is empty (before postprocessing)";
-    RCLCPP_ERROR_STREAM(node_->get_logger(), "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM(node_->get_logger(), "" << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::msg::TrajectoryReference(), false);
   }
 
@@ -728,7 +714,7 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
   if (waypoints.size() <= 1) {
     std::stringstream ss;
     ss << "the path is empty (after postprocessing)";
-    RCLCPP_ERROR_STREAM(node_->get_logger(), "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM(node_->get_logger(), "" << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::msg::TrajectoryReference(), false);
   }
 
@@ -742,7 +728,7 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
   double sampling_dt = 0;
 
   if (path_from_future) {
-    RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: changing dt = 0.2, cause the path is from the future");
+    RCLCPP_INFO(node_->get_logger(), "changing dt = 0.2, cause the path is from the future");
     sampling_dt = 0.2;
   } else {
     sampling_dt = _sampling_dt_;
@@ -753,16 +739,16 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
   auto params = mrs_lib::get_mutexed(mutex_drs_params_, drs_params_);
 
   if (params.enforce_fallback_solver) {
-    RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: fallback sampling enforced");
+    RCLCPP_WARN(node_->get_logger(), "fallback sampling enforced");
     result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
   } else if (fallback_sampling) {
-    RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: executing fallback sampling");
+    RCLCPP_WARN(node_->get_logger(), "executing fallback sampling");
     result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
   } else if (running_async_planning_) {
-    RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: executing fallback sampling, the previous async task is still running");
+    RCLCPP_WARN(node_->get_logger(), "executing fallback sampling, the previous async task is still running");
     result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
   } else if (overtime()) {
-    RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: executing fallback sampling, we are running over time");
+    RCLCPP_WARN(node_->get_logger(), "executing fallback sampling, we are running over time");
     result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
   } else {
 
@@ -774,19 +760,19 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
   } else {
     std::stringstream ss;
     ss << "failed to find trajectory";
-    RCLCPP_ERROR_STREAM(node_->get_logger(), "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM(node_->get_logger(), "" << ss.str());
     return std::tuple(false, ss.str(), mrs_msgs::msg::TrajectoryReference(), false);
   }
 
   for (int k = 0; k < _trajectory_max_segment_deviation_max_iterations_; k++) {
 
-    RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: revalidation cycle #%d", k);
+    RCLCPP_DEBUG(node_->get_logger(), "revalidation cycle #%d", k);
 
     std::tie(safe, traj_idx, segment_safeness, max_deviation) = validateTrajectorySpatial(trajectory, waypoints);
 
     if (_trajectory_max_segment_deviation_enabled_ && !safe) {
 
-      RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: trajectory is not safe, max deviation %.3f m", max_deviation);
+      RCLCPP_DEBUG(node_->get_logger(), "trajectory is not safe, max deviation %.3f m", max_deviation);
 
       std::vector<Waypoint_t>::iterator waypoint = waypoints.begin();
       std::vector<bool>::iterator       safeness = segment_safeness.begin();
@@ -805,16 +791,16 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
       }
 
       if (params.enforce_fallback_solver) {
-        RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: fallback sampling enforced");
+        RCLCPP_WARN(node_->get_logger(), "fallback sampling enforced");
         result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
       } else if (fallback_sampling) {
-        RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: executing fallback sampling");
+        RCLCPP_WARN(node_->get_logger(), "executing fallback sampling");
         result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
       } else if (running_async_planning_) {
-        RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: executing fallback sampling, the previous async task is still running");
+        RCLCPP_WARN(node_->get_logger(), "executing fallback sampling, the previous async task is still running");
         result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
       } else if (overtime()) {
-        RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: executing fallback sampling, we are running over time");
+        RCLCPP_WARN(node_->get_logger(), "executing fallback sampling, we are running over time");
         result = findTrajectoryFallback(waypoints, sampling_dt, relax_heading);
       } else {
         result = findTrajectoryAsync(waypoints, initial_condition, sampling_dt, relax_heading);
@@ -825,18 +811,18 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
       } else {
         std::stringstream ss;
         ss << "failed to find trajectory";
-        RCLCPP_WARN_STREAM(node_->get_logger(), "[TrajectoryGeneration]: " << ss.str());
+        RCLCPP_WARN_STREAM(node_->get_logger(), "" << ss.str());
         return std::tuple(false, ss.str(), mrs_msgs::msg::TrajectoryReference(), false);
       }
 
     } else {
-      RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: trajectory is safe (%.2f)", max_deviation);
+      RCLCPP_DEBUG(node_->get_logger(), "trajectory is safe (%.2f)", max_deviation);
       safe = true;
       break;
     }
   }
 
-  RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: final max trajectory-path deviation: %.2f m, total trajectory time: %.2fs ", max_deviation,
+  RCLCPP_INFO(node_->get_logger(), "final max trajectory-path deviation: %.2f m, total trajectory time: %.2fs ", max_deviation,
               trajectory.size() * sampling_dt);
 
   // prepare rviz markers
@@ -861,12 +847,11 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
     // if there is anything to insert
     if (path_sample_offset > path_sample_offset_2) {
 
-      RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: inserting pre-trajectory from the prediction, idxs %d to %d", path_sample_offset_2,
-                  path_sample_offset);
+      RCLCPP_INFO(node_->get_logger(), "inserting pre-trajectory from the prediction, idxs %d to %d", path_sample_offset_2, path_sample_offset);
 
       for (int i = path_sample_offset - 1; i >= 0; i--) {
 
-        RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: inserting idx %d", i);
+        RCLCPP_DEBUG(node_->get_logger(), "inserting idx %d", i);
 
         mrs_msgs::msg::ReferenceStamped reference;
 
@@ -883,7 +868,7 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
         } else {
           std::stringstream ss;
           ss << "could not transform reference to the path frame";
-          RCLCPP_ERROR_STREAM(node_->get_logger(), "[TrajectoryGeneration]: " << ss.str());
+          RCLCPP_ERROR_STREAM(node_->get_logger(), "" << ss.str());
           return std::tuple(false, ss.str(), mrs_msgs::msg::TrajectoryReference(), false);
         }
 
@@ -898,7 +883,7 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
   std::stringstream ss;
   ss << "trajectory generated";
 
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: trajectory generated, took %.3f s", (clock_->now() - optimize_time_start).seconds());
+  RCLCPP_DEBUG(node_->get_logger(), "trajectory generated, took %.3f s", (clock_->now() - optimize_time_start).seconds());
 
   return std::tuple(true, ss.str(), mrs_trajectory, initial_condition.has_value());
 }
@@ -915,7 +900,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   mrs_lib::AtomicScopeFlag unset_running(running_async_planning_);
 
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: findTrajectory() started");
+  RCLCPP_DEBUG(node_->get_logger(), "findTrajectory() started");
 
   rclcpp::Time find_trajectory_time_start = clock_->now();
 
@@ -1071,11 +1056,11 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
       a_max_vertical = override_max_acceleration_vertical_;
       j_max_vertical = override_max_jerk_vertical_;
 
-      RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: overriding constraints by a user");
+      RCLCPP_DEBUG(node_->get_logger(), "overriding constraints by a user");
 
     } else {
 
-      RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: overrifing constraints refused due to possible infeasibility");
+      RCLCPP_WARN(node_->get_logger(), "overrifing constraints refused due to possible infeasibility");
     }
   }
 
@@ -1091,11 +1076,10 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     j_max_heading = constraints->heading_jerk;
   }
 
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: using constraints:");
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal,
-               j_max_horizontal);
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_heading, j_max_heading);
+  RCLCPP_DEBUG(node_->get_logger(), "using constraints:");
+  RCLCPP_DEBUG(node_->get_logger(), "horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal, j_max_horizontal);
+  RCLCPP_DEBUG(node_->get_logger(), "vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
+  RCLCPP_DEBUG(node_->get_logger(), "heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_heading, j_max_heading);
 
   std::vector<double> segment_times, segment_times_baca;
   segment_times      = estimateSegmentTimes(vertices, v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical,
@@ -1110,8 +1094,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     initial_total_time_baca += segment_times_baca.at(i);
   }
 
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: initial total time (Euclidean): %.2f", initial_total_time);
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: initial total time (Baca): %.2f", initial_total_time_baca);
+  RCLCPP_DEBUG(node_->get_logger(), "initial total time (Euclidean): %.2f", initial_total_time);
+  RCLCPP_DEBUG(node_->get_logger(), "initial total time (Baca): %.2f", initial_total_time_baca);
 
   // | --------- create an optimizer object and solve it -------- |
 
@@ -1191,16 +1175,15 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   }
 
   if (opt.getOptimizationInfo().stopping_reason >= 1 && opt.getOptimizationInfo().stopping_reason != 6) {
-    RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: optimization finished successfully with code %d, '%s'",
-                 opt.getOptimizationInfo().stopping_reason, result_str.c_str());
+    RCLCPP_DEBUG(node_->get_logger(), "optimization finished successfully with code %d, '%s'", opt.getOptimizationInfo().stopping_reason, result_str.c_str());
 
   } else if (opt.getOptimizationInfo().stopping_reason == -1) {
-    RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: optimization finished with a generic error code %d, '%s'",
-                 opt.getOptimizationInfo().stopping_reason, result_str.c_str());
+    RCLCPP_DEBUG(node_->get_logger(), "optimization finished with a generic error code %d, '%s'", opt.getOptimizationInfo().stopping_reason,
+                 result_str.c_str());
 
   } else {
-    RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: optimization failed with code %d, '%s', took %.3f s", opt.getOptimizationInfo().stopping_reason,
-                result_str.c_str(), (clock_->now() - find_trajectory_time_start).seconds());
+    RCLCPP_WARN(node_->get_logger(), "optimization failed with code %d, '%s', took %.3f s", opt.getOptimizationInfo().stopping_reason, result_str.c_str(),
+                (clock_->now() - find_trajectory_time_start).seconds());
     return {};
   }
 
@@ -1220,7 +1203,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   eth_mav_msgs::EigenTrajectoryPoint::Vector states;
 
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: starting eth sampling with dt = %.2f s ", sampling_dt);
+  RCLCPP_DEBUG(node_->get_logger(), "starting eth sampling with dt = %.2f s ", sampling_dt);
 
   bool success = eth_trajectory_generation::sampleWholeTrajectory(trajectory, sampling_dt, &states);
 
@@ -1232,37 +1215,34 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   // only check this if the trajectory is > 1.0 sec, this check does not make much sense for the short ones
   if ((states.size() * sampling_dt) > 1.0 && (states.size() * sampling_dt) > (_max_trajectory_len_factor_ * initial_total_time_baca)) {
-    RCLCPP_ERROR(node_->get_logger(),
-                 "[TrajectoryGeneration]: the final trajectory sampling is too long = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
+    RCLCPP_ERROR(node_->get_logger(), "the final trajectory sampling is too long = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
                  (states.size() * sampling_dt), initial_total_time_baca, _max_trajectory_len_factor_);
 
     std::stringstream ss;
     ss << "trajectory sampling failed";
-    RCLCPP_ERROR_STREAM(node_->get_logger(), "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM(node_->get_logger(), "" << ss.str());
     return {};
 
   } else if ((states.size() * sampling_dt) > 1.0 && (states.size() * sampling_dt) < (_min_trajectory_len_factor_ * initial_total_time_baca)) {
-    RCLCPP_ERROR(node_->get_logger(),
-                 "[TrajectoryGeneration]: the final trajectory sampling is too short = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
+    RCLCPP_ERROR(node_->get_logger(), "the final trajectory sampling is too short = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting",
                  (states.size() * sampling_dt), initial_total_time_baca, _min_trajectory_len_factor_);
 
     std::stringstream ss;
     ss << "trajectory sampling failed";
-    RCLCPP_ERROR_STREAM(node_->get_logger(), "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM(node_->get_logger(), "" << ss.str());
     return {};
 
   } else {
-    RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: estimated/final trajectory length ratio (final/estimated) %.2f",
+    RCLCPP_DEBUG(node_->get_logger(), "estimated/final trajectory length ratio (final/estimated) %.2f",
                  (states.size() * sampling_dt) / initial_total_time_baca);
   }
 
   if (success) {
-    RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: eth sampling finished, took %.3f s", (clock_->now() - find_trajectory_time_start).seconds());
+    RCLCPP_DEBUG(node_->get_logger(), "eth sampling finished, took %.3f s", (clock_->now() - find_trajectory_time_start).seconds());
     return std::optional(states);
 
   } else {
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: eth could not sample the trajectory, took %.3f s",
-                 (clock_->now() - find_trajectory_time_start).seconds());
+    RCLCPP_ERROR(node_->get_logger(), "eth could not sample the trajectory, took %.3f s", (clock_->now() - find_trajectory_time_start).seconds());
     return {};
   }
 }
@@ -1279,7 +1259,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   rclcpp::Time time_start = clock_->now();
 
-  RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: fallback sampling started");
+  RCLCPP_WARN(node_->get_logger(), "fallback sampling started");
 
   auto constraints = sh_constraints_.getMsg();
 
@@ -1324,7 +1304,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     a_max_vertical = override_max_acceleration_vertical_;
     j_max_vertical = override_max_jerk_vertical_;
 
-    RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: overriding constraints by a user");
+    RCLCPP_DEBUG(node_->get_logger(), "overriding constraints by a user");
   } else {
 
     v_max_horizontal = constraints->horizontal_speed;
@@ -1356,11 +1336,10 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   a_max_horizontal *= _fallback_sampling_accel_factor_;
   a_max_vertical *= _fallback_sampling_accel_factor_;
 
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: using constraints:");
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal,
-               j_max_horizontal);
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_heading, j_max_heading);
+  RCLCPP_DEBUG(node_->get_logger(), "using constraints:");
+  RCLCPP_DEBUG(node_->get_logger(), "horizontal: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_horizontal, a_max_horizontal, j_max_horizontal);
+  RCLCPP_DEBUG(node_->get_logger(), "vertical: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_vertical, a_max_vertical, j_max_vertical);
+  RCLCPP_DEBUG(node_->get_logger(), "heading: vel = %.2f, acc = %.2f, jerk = %.2f", v_max_heading, a_max_heading, j_max_heading);
 
   std::vector<double> segment_times, segment_times_baca;
   segment_times      = estimateSegmentTimes(vertices, v_max_horizontal, v_max_vertical, a_max_horizontal, a_max_vertical, j_max_horizontal, j_max_vertical,
@@ -1374,11 +1353,11 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     initial_total_time += segment_times.at(i);
     initial_total_time_baca += segment_times_baca.at(i);
 
-    RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: segment time [%d] = %.2f", i, segment_times_baca.at(i));
+    RCLCPP_DEBUG(node_->get_logger(), "segment time [%d] = %.2f", i, segment_times_baca.at(i));
   }
 
-  RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: fallback: initial total time (Euclidean): %.2f", initial_total_time);
-  RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: fallback: initial total time (Baca): %.2f", initial_total_time_baca);
+  RCLCPP_WARN(node_->get_logger(), "fallback: initial total time (Euclidean): %.2f", initial_total_time);
+  RCLCPP_WARN(node_->get_logger(), "fallback: initial total time (Baca): %.2f", initial_total_time_baca);
 
   eth_mav_msgs::EigenTrajectoryPoint::Vector states;
 
@@ -1408,7 +1387,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
       interp_step = 0;
     }
 
-    RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: segment n_samples [%lu] = %d", i, n_samples);
+    RCLCPP_DEBUG(node_->get_logger(), "segment n_samples [%lu] = %d", i, n_samples);
 
     // for the last segment, hit the last waypoint completely
     // otherwise, it is hit as the first sample of the following segment
@@ -1441,14 +1420,14 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
   bool success = true;
 
-  RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: fallback: sampling finished, took %.3f s", (clock_->now() - time_start).seconds());
+  RCLCPP_WARN(node_->get_logger(), "fallback: sampling finished, took %.3f s", (clock_->now() - time_start).seconds());
 
   // | --------------- create the trajectory class -------------- |
 
   if (success) {
     return std::optional(states);
   } else {
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: fallback: sampling failed");
+    RCLCPP_ERROR(node_->get_logger(), "fallback: sampling failed");
     return {};
   }
 }
@@ -1541,11 +1520,10 @@ std::vector<int> MrsTrajectoryGeneration::getWaypointInTrajectoryIdxs(const mrs_
 
     const double waypoint_traj_seg_dist = distFromSegment(waypoint, sample, next_sample);
 
-    RCLCPP_DEBUG(node_->get_logger(), "[MrsTrajectoryGeneration]: distance %.3f", waypoint_traj_seg_dist);
+    RCLCPP_DEBUG(node_->get_logger(), "distance %.3f", waypoint_traj_seg_dist);
 
     if (waypoint_traj_seg_dist < 0.1) {
-      RCLCPP_DEBUG(node_->get_logger(), "[MrsTrajectoryGeneration]: waypoint_idx=%d, trajectory_idx=%d/%d", waypoint_idx, int(i),
-                   int(trajectory.points.size()));
+      RCLCPP_DEBUG(node_->get_logger(), "waypoint_idx=%d, trajectory_idx=%d/%d", waypoint_idx, int(i), int(trajectory.points.size()));
       idxs.push_back(i);
       waypoint_idx++;
     }
@@ -1568,7 +1546,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
     const std::vector<Waypoint_t>& waypoints, const std::optional<mrs_msgs::msg::TrackerCommand>& initial_state, const double& sampling_dt,
     const bool& relax_heading) {
 
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: starting the async planning task");
+  RCLCPP_DEBUG(node_->get_logger(), "starting the async planning task");
 
   future_trajectory_result_ =
       std::async(std::launch::async, &MrsTrajectoryGeneration::findTrajectory, this, waypoints, initial_state, sampling_dt, relax_heading);
@@ -1576,12 +1554,12 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   while (rclcpp::ok() && future_trajectory_result_.wait_for(std::chrono::milliseconds(1)) != std::future_status::ready) {
 
     if (overtime()) {
-      RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: async task planning timeout, breaking");
+      RCLCPP_WARN(node_->get_logger(), "async task planning timeout, breaking");
       return {};
     }
   }
 
-  RCLCPP_DEBUG(node_->get_logger(), "[TrajectoryGeneration]: async planning task finished successfully");
+  RCLCPP_DEBUG(node_->get_logger(), "async planning task finished successfully");
 
   return future_trajectory_result_.get();
 }
@@ -1728,14 +1706,14 @@ bool MrsTrajectoryGeneration::trajectorySrv(const mrs_msgs::msg::TrajectoryRefer
   if (response) {
 
     if (!response.value()->success) {
-      RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: service call for trajectory_reference returned: '%s'", response.value()->message.c_str());
+      RCLCPP_WARN(node_->get_logger(), "service call for trajectory_reference returned: '%s'", response.value()->message.c_str());
     }
 
     return response.value()->success;
 
   } else {
 
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: service call for trajectory_reference failed!");
+    RCLCPP_ERROR(node_->get_logger(), "service call for trajectory_reference failed!");
 
     return false;
   }
@@ -1756,8 +1734,8 @@ std::optional<mrs_msgs::msg::Path> MrsTrajectoryGeneration::transformPath(const 
   auto tf = transformer_->getTransform(path_in.header.frame_id, target_frame, path_in.header.stamp);
 
   if (!tf) {
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: could not find transform from '%s' to '%s' in time %f", path_in.header.frame_id.c_str(),
-                 target_frame.c_str(), rclcpp::Time(path_in.header.stamp).seconds());
+    RCLCPP_ERROR(node_->get_logger(), "could not find transform from '%s' to '%s' in time %f", path_in.header.frame_id.c_str(), target_frame.c_str(),
+                 rclcpp::Time(path_in.header.stamp).seconds());
     return {};
   }
 
@@ -1843,21 +1821,21 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstShare
   if (!sh_constraints_.hasMsg()) {
     std::stringstream ss;
     ss << "missing constraints";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
     return;
   }
 
   if (!sh_control_manager_diag_.hasMsg()) {
     std::stringstream ss;
     ss << "missing control manager diagnostics";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
     return;
   }
 
   if (!sh_uav_state_.hasMsg()) {
     std::stringstream ss;
     ss << "missing UAV state";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
     return;
   }
 
@@ -1881,8 +1859,8 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstShare
 
     max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, drs_params_.max_execution_time);
 
-    RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_,
-                FUTURIZATION_EXEC_TIME_FACTOR, path_time_offset);
+    RCLCPP_INFO(node_->get_logger(), "setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
+                path_time_offset);
   } else {
 
     std::scoped_lock lock(mutex_max_execution_time_, mutex_drs_params_);
@@ -1890,14 +1868,14 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstShare
     max_execution_time_ = drs_params_.max_execution_time;
   }
 
-  RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: got path from message");
+  RCLCPP_INFO(node_->get_logger(), "got path from message");
 
   ph_original_path_.publish(*msg);
 
   if (msg->points.empty()) {
     std::stringstream ss;
     ss << "received an empty message";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
     return;
   }
 
@@ -1906,7 +1884,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstShare
   if (!transformed_path) {
     std::stringstream ss;
     ss << "could not transform the path to the current control frame";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
     return;
   }
 
@@ -1960,7 +1938,7 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstShare
     wp.stop_at = stop_at_waypoints_;
 
     if (!checkNaN(wp)) {
-      RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
+      RCLCPP_ERROR(node_->get_logger(), "NaN detected in waypoint #%d", int(i));
       return;
     }
 
@@ -1988,9 +1966,9 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstShare
       break;
     } else {
       if (i < _n_attempts_) {
-        RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+        RCLCPP_WARN(node_->get_logger(), "failed to calculate a feasible trajectory, trying again with different initial conditions!");
       } else {
-        RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: failed to calculate a feasible trajectory");
+        RCLCPP_WARN(node_->get_logger(), "failed to calculate a feasible trajectory");
       }
     }
   }
@@ -2000,10 +1978,10 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstShare
   auto max_execution_time = mrs_lib::get_mutexed(mutex_max_execution_time_, max_execution_time_);
 
   if (total_time > max_execution_time) {
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time,
-                 max_execution_time, total_time - max_execution_time);
+    RCLCPP_ERROR(node_->get_logger(), "trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time, max_execution_time,
+                 total_time - max_execution_time);
   } else {
-    RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
+    RCLCPP_INFO(node_->get_logger(), "trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
   }
 
   trajectory.input_id = transformed_path->input_id;
@@ -2014,16 +1992,16 @@ void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstShare
 
     if (published) {
 
-      RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: trajectory successfully published");
+      RCLCPP_INFO(node_->get_logger(), "trajectory successfully published");
 
     } else {
 
-      RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: could not publish the trajectory");
+      RCLCPP_ERROR(node_->get_logger(), "could not publish the trajectory");
     }
 
   } else {
 
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: failed to calculate a feasible trajectory, no publishing a result");
+    RCLCPP_ERROR(node_->get_logger(), "failed to calculate a feasible trajectory, no publishing a result");
   }
 }
 
@@ -2043,7 +2021,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
   if (!sh_constraints_.hasMsg()) {
     std::stringstream ss;
     ss << "missing constraints";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
 
     response->message = ss.str();
     response->success = false;
@@ -2053,7 +2031,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
   if (!sh_control_manager_diag_.hasMsg()) {
     std::stringstream ss;
     ss << "missing control manager diagnostics";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
 
     response->message = ss.str();
     response->success = false;
@@ -2063,7 +2041,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
   if (!sh_uav_state_.hasMsg()) {
     std::stringstream ss;
     ss << "missing UAV state";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
 
     response->message = ss.str();
     response->success = false;
@@ -2090,8 +2068,8 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
 
     max_execution_time_ = std::min(FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset, drs_params_.max_execution_time);
 
-    RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_,
-                FUTURIZATION_EXEC_TIME_FACTOR, path_time_offset);
+    RCLCPP_INFO(node_->get_logger(), "setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
+                path_time_offset);
   } else {
 
     std::scoped_lock lock(mutex_max_execution_time_, mutex_drs_params_);
@@ -2099,7 +2077,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
     max_execution_time_ = drs_params_.max_execution_time;
   }
 
-  RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: got path from service");
+  RCLCPP_INFO(node_->get_logger(), "got path from service");
 
   mrs_msgs::msg::Path path_from_req = request->path;
 
@@ -2108,7 +2086,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
   if (request->path.points.empty()) {
     std::stringstream ss;
     ss << "received an empty message";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
 
     response->message = ss.str();
     response->success = false;
@@ -2120,7 +2098,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
   if (!transformed_path) {
     std::stringstream ss;
     ss << "could not transform the path to the current control frame";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
 
     response->message = ss.str();
     response->success = false;
@@ -2177,7 +2155,7 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
     wp.stop_at = stop_at_waypoints_;
 
     if (!checkNaN(wp)) {
-      RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
+      RCLCPP_ERROR(node_->get_logger(), "NaN detected in waypoint #%d", int(i));
       response->success = false;
       response->message = "invalid path";
       return true;
@@ -2207,9 +2185,9 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
       break;
     } else {
       if (i < _n_attempts_) {
-        RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+        RCLCPP_WARN(node_->get_logger(), "failed to calculate a feasible trajectory, trying again with different initial conditions!");
       } else {
-        RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: failed to calculate a feasible trajectory");
+        RCLCPP_WARN(node_->get_logger(), "failed to calculate a feasible trajectory");
       }
     }
   }
@@ -2219,10 +2197,10 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
   auto max_execution_time = mrs_lib::get_mutexed(mutex_max_execution_time_, max_execution_time_);
 
   if (total_time > max_execution_time) {
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time,
-                 max_execution_time, total_time - max_execution_time);
+    RCLCPP_ERROR(node_->get_logger(), "trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time, max_execution_time,
+                 total_time - max_execution_time);
   } else {
-    RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
+    RCLCPP_INFO(node_->get_logger(), "trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
   }
 
   trajectory.input_id = transformed_path->input_id;
@@ -2244,12 +2222,12 @@ bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::sr
       response->success = false;
       response->message = ss.str();
 
-      RCLCPP_ERROR_STREAM(node_->get_logger(), "[TrajectoryGeneration]: " << ss.str());
+      RCLCPP_ERROR_STREAM(node_->get_logger(), "" << ss.str());
     }
 
   } else {
 
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: failed to calculate a feasible trajectory, not publishing a result");
+    RCLCPP_ERROR(node_->get_logger(), "failed to calculate a feasible trajectory, not publishing a result");
 
     response->success = success;
     response->message = message;
@@ -2274,7 +2252,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
   if (!sh_constraints_.hasMsg()) {
     std::stringstream ss;
     ss << "missing constraints";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
 
     response->message = ss.str();
     response->success = false;
@@ -2284,7 +2262,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
   if (!sh_control_manager_diag_.hasMsg()) {
     std::stringstream ss;
     ss << "missing control manager diagnostics";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
 
     response->message = ss.str();
     response->success = false;
@@ -2294,7 +2272,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
   if (!sh_uav_state_.hasMsg()) {
     std::stringstream ss;
     ss << "missing UAV state";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
 
     response->message = ss.str();
     response->success = false;
@@ -2321,8 +2299,8 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
 
     max_execution_time_ = FUTURIZATION_EXEC_TIME_FACTOR * path_time_offset;
 
-    RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_,
-                FUTURIZATION_EXEC_TIME_FACTOR, path_time_offset);
+    RCLCPP_INFO(node_->get_logger(), "setting the max execution time to %.3f s = %.1f * %.3f", max_execution_time_, FUTURIZATION_EXEC_TIME_FACTOR,
+                path_time_offset);
   } else {
 
     std::scoped_lock lock(mutex_max_execution_time_, mutex_drs_params_);
@@ -2330,7 +2308,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
     max_execution_time_ = drs_params_.max_execution_time;
   }
 
-  RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: got path from service");
+  RCLCPP_INFO(node_->get_logger(), "got path from service");
 
   mrs_msgs::msg::Path path_from_req = request->path;
 
@@ -2339,7 +2317,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
   if (request->path.points.empty()) {
     std::stringstream ss;
     ss << "received an empty message";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
 
     response->message = ss.str();
     response->success = false;
@@ -2356,7 +2334,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
   if (!transformed_path) {
     std::stringstream ss;
     ss << "could not transform the path to the current control frame";
-    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+    RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
 
     response->message = ss.str();
     response->success = false;
@@ -2413,7 +2391,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
     wp.stop_at = stop_at_waypoints_;
 
     if (!checkNaN(wp)) {
-      RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: NaN detected in waypoint #%d", int(i));
+      RCLCPP_ERROR(node_->get_logger(), "NaN detected in waypoint #%d", int(i));
       response->success = false;
       response->message = "invalid path";
       return true;
@@ -2443,9 +2421,9 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
       break;
     } else {
       if (i < _n_attempts_) {
-        RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: failed to calculate a feasible trajectory, trying again with different initial conditions!");
+        RCLCPP_WARN(node_->get_logger(), "failed to calculate a feasible trajectory, trying again with different initial conditions!");
       } else {
-        RCLCPP_WARN(node_->get_logger(), "[TrajectoryGeneration]: failed to calculate a feasible trajectory");
+        RCLCPP_WARN(node_->get_logger(), "failed to calculate a feasible trajectory");
       }
     }
   }
@@ -2455,10 +2433,10 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
   auto max_execution_time = mrs_lib::get_mutexed(mutex_max_execution_time_, max_execution_time_);
 
   if (total_time > max_execution_time) {
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time,
-                 max_execution_time, total_time - max_execution_time);
+    RCLCPP_ERROR(node_->get_logger(), "trajectory ready, took %.3f s in total (exceeding maxtime %.3f s by %.3f s)", total_time, max_execution_time,
+                 total_time - max_execution_time);
   } else {
-    RCLCPP_INFO(node_->get_logger(), "[TrajectoryGeneration]: trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
+    RCLCPP_INFO(node_->get_logger(), "trajectory ready, took %.3f s in total (out of %.3f)", total_time, max_execution_time);
   }
 
   // locate the waypoint idxs
@@ -2472,7 +2450,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
 
     if (!tf_traj_state) {
       ss << "could not create TF transformer for the trajectory to the requested frame: \"" << request->path.header.frame_id << "\"";
-      RCLCPP_WARN_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+      RCLCPP_WARN_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
       response->success = false;
       response->message = ss.str();
       return true;
@@ -2491,7 +2469,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
       if (!ret) {
 
         ss << "trajectory cannot be transformed to the requested frame: \"" << request->path.header.frame_id << "\"";
-        RCLCPP_WARN_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "[TrajectoryGeneration]: " << ss.str());
+        RCLCPP_WARN_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
         response->success = false;
         response->message = ss.str();
         return true;
@@ -2513,7 +2491,7 @@ bool MrsTrajectoryGeneration::callbackGetPathSrv(const std::shared_ptr<mrs_msgs:
 
   } else {
 
-    RCLCPP_ERROR(node_->get_logger(), "[TrajectoryGeneration]: failed to calculate a feasible trajectory");
+    RCLCPP_ERROR(node_->get_logger(), "failed to calculate a feasible trajectory");
 
     response->success = success;
     response->message = message;
@@ -2532,7 +2510,7 @@ void MrsTrajectoryGeneration::callbackUavState(const mrs_msgs::msg::UavState::Co
     return;
   }
 
-  RCLCPP_INFO_ONCE(node_->get_logger(), "[TrajectoryGeneration]: getting uav state");
+  RCLCPP_INFO_ONCE(node_->get_logger(), "getting uav state");
 
   transformer_->setDefaultFrame(msg->header.frame_id);
 }
