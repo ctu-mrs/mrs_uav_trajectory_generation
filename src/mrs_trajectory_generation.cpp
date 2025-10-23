@@ -36,6 +36,7 @@
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/service_client_handler.h>
+#include <mrs_lib/service_server_handler.h>
 #include <mrs_lib/dynparam_mgr.h>
 
 #include <future>
@@ -158,13 +159,13 @@ private:
   // service client for input
   bool callbackPathSrv(const std::shared_ptr<mrs_msgs::srv::PathSrv::Request> request, const std::shared_ptr<mrs_msgs::srv::PathSrv::Response> response);
 
-  rclcpp::Service<mrs_msgs::srv::PathSrv>::SharedPtr service_server_path_;
+  mrs_lib::ServiceServerHandler<mrs_msgs::srv::PathSrv> ss_path_;
 
   // service client for returning result to the user
   bool callbackGetPathSrv(const std::shared_ptr<mrs_msgs::srv::GetPathSrv::Request>  request,
                           const std::shared_ptr<mrs_msgs::srv::GetPathSrv::Response> response);
 
-  rclcpp::Service<mrs_msgs::srv::GetPathSrv>::SharedPtr service_server_get_path_;
+  mrs_lib::ServiceServerHandler<mrs_msgs::srv::GetPathSrv> ss_get_path_;
 
   void callbackPath(const mrs_msgs::msg::Path::ConstSharedPtr msg);
 
@@ -316,13 +317,13 @@ void MrsTrajectoryGeneration::initialize(void) {
 
   // | --------------------- service servers -------------------- |
 
-  service_server_path_ = node_->create_service<mrs_msgs::srv::PathSrv>(
-      "~/path_in", std::bind(&MrsTrajectoryGeneration::callbackPathSrv, this, std::placeholders::_1, std::placeholders::_2), rclcpp::SystemDefaultsQoS(),
+  ss_path_ = mrs_lib::ServiceServerHandler<mrs_msgs::srv::PathSrv>(
+      node_, "~/path_in", std::bind(&MrsTrajectoryGeneration::callbackPathSrv, this, std::placeholders::_1, std::placeholders::_2), rclcpp::SystemDefaultsQoS(),
       cbkgrp_ss_);
 
-  service_server_get_path_ = node_->create_service<mrs_msgs::srv::GetPathSrv>(
-      "~/get_path_in", std::bind(&MrsTrajectoryGeneration::callbackGetPathSrv, this, std::placeholders::_1, std::placeholders::_2), rclcpp::SystemDefaultsQoS(),
-      cbkgrp_ss_);
+  ss_get_path_ = mrs_lib::ServiceServerHandler<mrs_msgs::srv::GetPathSrv>(
+      node_, "~/get_path_in", std::bind(&MrsTrajectoryGeneration::callbackGetPathSrv, this, std::placeholders::_1, std::placeholders::_2),
+      rclcpp::SystemDefaultsQoS(), cbkgrp_ss_);
 
   // | --------------------- service clients -------------------- |
 
