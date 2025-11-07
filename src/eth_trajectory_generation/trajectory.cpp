@@ -34,7 +34,7 @@ namespace eth_trajectory_generation
 
 /* operator==(const Trajectory& rhs) //{ */
 
-bool Trajectory::operator==(const Trajectory& rhs) const {
+bool Trajectory::operator==(const Trajectory &rhs) const {
   if (segments_.size() != rhs.segments_.size()) {
     // Different number of segments.
     return false;
@@ -90,8 +90,8 @@ Eigen::VectorXd Trajectory::evaluate(double t, int derivative_order) const {
 
 /* evaluateRange() //{ */
 
-void Trajectory::evaluateRange(double t_start, double t_end, double dt, int derivative_order, std::vector<Eigen::VectorXd>* result,
-                               std::vector<double>* sampling_times) const {
+void Trajectory::evaluateRange(double t_start, double t_end, double dt, int derivative_order, std::vector<Eigen::VectorXd> *result,
+                               std::vector<double> *sampling_times) const {
   const size_t expected_number_of_samples = (t_end - t_start) / dt + 1;
 
   result->clear();
@@ -176,7 +176,7 @@ Trajectory Trajectory::getTrajectoryWithSingleDimension(int dimension) const {
 
 /* getTrajectoryWithAppendedDimension() //{ */
 
-bool Trajectory::getTrajectoryWithAppendedDimension(const Trajectory& trajectory_to_append, Trajectory* new_trajectory) const {
+bool Trajectory::getTrajectoryWithAppendedDimension(const Trajectory &trajectory_to_append, Trajectory *new_trajectory) const {
   // Handle the case of one of the trajectories being empty.
   if (N_ == 0 || D_ == 0) {
     *new_trajectory = trajectory_to_append;
@@ -208,7 +208,7 @@ bool Trajectory::getTrajectoryWithAppendedDimension(const Trajectory& trajectory
 
 /* computeMinMaxMagnitude() //{ */
 
-bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int>& dimensions, Extremum* minimum, Extremum* maximum, int seg) const {
+bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int> &dimensions, Extremum *minimum, Extremum *maximum, int seg) const {
 
   CHECK_NOTNULL(minimum);
   CHECK_NOTNULL(maximum);
@@ -244,7 +244,7 @@ bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int>& 
 
 /* computeMinMaxMagnitude() //{ */
 
-bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int>& dimensions, Extremum* minimum, Extremum* maximum) const {
+bool Trajectory::computeMinMaxMagnitude(int derivative, const std::vector<int> &dimensions, Extremum *minimum, Extremum *maximum) const {
 
   CHECK_NOTNULL(minimum);
   CHECK_NOTNULL(maximum);
@@ -295,12 +295,12 @@ std::vector<double> Trajectory::getSegmentTimes() const {
 
 /* addTrajectories() //{ */
 
-bool Trajectory::addTrajectories(const std::vector<Trajectory>& trajectories, Trajectory* merged) const {
+bool Trajectory::addTrajectories(const std::vector<Trajectory> &trajectories, Trajectory *merged) const {
   CHECK_NOTNULL(merged);
   merged->clear();
   *merged = *this;
 
-  for (const Trajectory& t : trajectories) {
+  for (const Trajectory &t : trajectories) {
     // Check dimensions and coefficients.
     // TODO(rikba): Allow different number of coefficients.
     if (t.D() != D_ || t.N() != N_) {
@@ -321,13 +321,13 @@ bool Trajectory::addTrajectories(const std::vector<Trajectory>& trajectories, Tr
 
 /* offsetTrajectory() //{ */
 
-bool Trajectory::offsetTrajectory(const Eigen::VectorXd& A_r_B) {
+bool Trajectory::offsetTrajectory(const Eigen::VectorXd &A_r_B) {
   if (A_r_B.size() < std::min(D_, 3)) {
     LOG(WARNING) << "Offset vector size smaller than trajectory dimension.";
     return false;
   }
 
-  for (Segment& s : segments_) {
+  for (Segment &s : segments_) {
     // Returns false if dimension check fails at segment level.
     if (!s.offsetSegment(A_r_B))
       return false;
@@ -368,7 +368,7 @@ Vertex Trajectory::getGoalVertex(int max_derivative_order) const {
 
 /* getVertices() //{ */
 
-bool Trajectory::getVertices(int max_derivative_order_pos, int max_derivative_order_yaw, Vertex::Vector* pos_vertices, Vertex::Vector* yaw_vertices) const {
+bool Trajectory::getVertices(int max_derivative_order_pos, int max_derivative_order_yaw, Vertex::Vector *pos_vertices, Vertex::Vector *yaw_vertices) const {
   CHECK_NOTNULL(pos_vertices);
   CHECK_NOTNULL(yaw_vertices);
   const std::vector<size_t> kPosDimensions      = {0, 1, 2};
@@ -401,7 +401,7 @@ bool Trajectory::getVertices(int max_derivative_order_pos, int max_derivative_or
 
 /* getVertices() //{ */
 
-bool Trajectory::getVertices(int max_derivative_order, Vertex::Vector* vertices) const {
+bool Trajectory::getVertices(int max_derivative_order, Vertex::Vector *vertices) const {
   CHECK_NOTNULL(vertices);
   vertices->resize(segments_.size() + 1, D_);
   vertices->front() = getStartVertex(max_derivative_order);
@@ -419,10 +419,10 @@ bool Trajectory::getVertices(int max_derivative_order, Vertex::Vector* vertices)
 /* computeMaxDerivativesHorizontal() //{ */
 
 // compute max velocity, acceleration and jerk
-bool Trajectory::computeMaxDerivativesHorizontal(double* v_max, double* a_max, double* j_max, int seg) const {
+bool Trajectory::computeMaxDerivativesHorizontal(double *v_max, double *a_max, double *j_max, int seg) const {
 
   // not counting the heading dimension, that is going to be solved separately
-  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+  std::vector<int> dimensions; // Evaluate in whatever dimensions we have.
 
   dimensions.push_back(0);
   dimensions.push_back(1);
@@ -445,10 +445,10 @@ bool Trajectory::computeMaxDerivativesHorizontal(double* v_max, double* a_max, d
 /* computeMaxDerivativesHorizontal() //{ */
 
 // compute max velocity, acceleration and jerk
-bool Trajectory::computeMaxDerivativesHorizontal(double* v_max, double* a_max, double* j_max) const {
+bool Trajectory::computeMaxDerivativesHorizontal(double *v_max, double *a_max, double *j_max) const {
 
   // not counting the heading dimension, that is going to be solved separately
-  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+  std::vector<int> dimensions; // Evaluate in whatever dimensions we have.
 
   dimensions.push_back(0);
   dimensions.push_back(1);
@@ -471,10 +471,10 @@ bool Trajectory::computeMaxDerivativesHorizontal(double* v_max, double* a_max, d
 /* computeMaxDerivativesVertical() //{ */
 
 // compute max velocity, acceleration and jerk
-bool Trajectory::computeMaxDerivativesVertical(double* v_max, double* a_max, double* j_max, int seg) const {
+bool Trajectory::computeMaxDerivativesVertical(double *v_max, double *a_max, double *j_max, int seg) const {
 
   // not counting the heading dimension, that is going to be solved separately
-  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+  std::vector<int> dimensions; // Evaluate in whatever dimensions we have.
 
   dimensions.push_back(2);
 
@@ -496,10 +496,10 @@ bool Trajectory::computeMaxDerivativesVertical(double* v_max, double* a_max, dou
 /* computeMaxDerivativesVertical() //{ */
 
 // compute max velocity, acceleration and jerk
-bool Trajectory::computeMaxDerivativesVertical(double* v_max, double* a_max, double* j_max) const {
+bool Trajectory::computeMaxDerivativesVertical(double *v_max, double *a_max, double *j_max) const {
 
   // not counting the heading dimension, that is going to be solved separately
-  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+  std::vector<int> dimensions; // Evaluate in whatever dimensions we have.
 
   dimensions.push_back(2);
 
@@ -521,11 +521,11 @@ bool Trajectory::computeMaxDerivativesVertical(double* v_max, double* a_max, dou
 /* computeMaxDerivativesHeading() //{ */
 
 // compute max velocity, acceleration and jerk
-bool Trajectory::computeMaxDerivativesHeading(double* v_max, double* a_max, double* j_max, int seg) const {
+bool Trajectory::computeMaxDerivativesHeading(double *v_max, double *a_max, double *j_max, int seg) const {
 
-  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+  std::vector<int> dimensions; // Evaluate in whatever dimensions we have.
 
-  dimensions.push_back(3);  // 3 = heading
+  dimensions.push_back(3); // 3 = heading
 
   Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj, j_min_traj, j_max_traj;
 
@@ -545,11 +545,11 @@ bool Trajectory::computeMaxDerivativesHeading(double* v_max, double* a_max, doub
 /* computeMaxDerivativesHeading() //{ */
 
 // compute max velocity, acceleration and jerk
-bool Trajectory::computeMaxDerivativesHeading(double* v_max, double* a_max, double* j_max) const {
+bool Trajectory::computeMaxDerivativesHeading(double *v_max, double *a_max, double *j_max) const {
 
-  std::vector<int> dimensions;  // Evaluate in whatever dimensions we have.
+  std::vector<int> dimensions; // Evaluate in whatever dimensions we have.
 
-  dimensions.push_back(3);  // 3 = heading
+  dimensions.push_back(3); // 3 = heading
 
   Extremum v_min_traj, v_max_traj, a_min_traj, a_max_traj, j_min_traj, j_max_traj;
 
@@ -693,4 +693,4 @@ bool Trajectory::scaleSegmentTimesToMeetConstraints(const double v_max_horizonta
 
 //}
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation

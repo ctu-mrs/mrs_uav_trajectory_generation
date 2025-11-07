@@ -15,16 +15,16 @@ class GetPathTest : public mrs_uav_testing::TestGeneric {
 public:
   GetPathTest();
 
-  bool checkTrajectory(const mrs_msgs::msg::TrajectoryReference& trajectory, const mrs_msgs::msg::Path& path, bool starting_from_current_pos);
+  bool checkTrajectory(const mrs_msgs::msg::TrajectoryReference &trajectory, const mrs_msgs::msg::Path &path, bool starting_from_current_pos);
 
-  bool checkWaypintIdxs(const Eigen::VectorXd& idxs, const mrs_msgs::msg::Path& path);
+  bool checkWaypintIdxs(const Eigen::VectorXd &idxs, const mrs_msgs::msg::Path &path);
 
   std::shared_ptr<mrs_uav_testing::UAVHandler> uh_;
 };
 
 GetPathTest::GetPathTest() : mrs_uav_testing::TestGeneric(){};
 
-bool GetPathTest::checkTrajectory(const mrs_msgs::msg::TrajectoryReference& trajectory, const mrs_msgs::msg::Path& path, bool starting_from_current_pos) {
+bool GetPathTest::checkTrajectory(const mrs_msgs::msg::TrajectoryReference &trajectory, const mrs_msgs::msg::Path &path, bool starting_from_current_pos) {
 
   if (starting_from_current_pos) {
 
@@ -46,7 +46,9 @@ bool GetPathTest::checkTrajectory(const mrs_msgs::msg::TrajectoryReference& traj
 
   for (size_t i = 0; i < trajectory.points.size(); i++) {
 
-    double points_dist = std::hypot(path.points[waypoint_idx].position.x - trajectory.points[i].position.x, path.points[waypoint_idx].position.y - trajectory.points[i].position.y, path.points[waypoint_idx].position.z - trajectory.points[i].position.z);
+    double points_dist = std::hypot(path.points[waypoint_idx].position.x - trajectory.points[i].position.x,
+                                    path.points[waypoint_idx].position.y - trajectory.points[i].position.y,
+                                    path.points[waypoint_idx].position.z - trajectory.points[i].position.z);
 
     double hdg_dist = 0;
 
@@ -66,10 +68,11 @@ bool GetPathTest::checkTrajectory(const mrs_msgs::msg::TrajectoryReference& traj
   return false;
 }
 
-bool GetPathTest::checkWaypintIdxs(const Eigen::VectorXd& idxs, const mrs_msgs::msg::Path& path) {
+bool GetPathTest::checkWaypintIdxs(const Eigen::VectorXd &idxs, const mrs_msgs::msg::Path &path) {
 
   if (int(idxs.size()) != int(path.points.size())) {
-    RCLCPP_ERROR(node_->get_logger(), "the original path length (%d) is different than the number of idxs in the list (%d)", int(path.points.size()), int(idxs.size()));
+    RCLCPP_ERROR(node_->get_logger(), "the original path length (%d) is different than the number of idxs in the list (%d)", int(path.points.size()),
+                 int(idxs.size()));
     return false;
   }
 
@@ -83,4 +86,4 @@ bool GetPathTest::checkWaypintIdxs(const Eigen::VectorXd& idxs, const mrs_msgs::
   return true;
 }
 
-#endif  // GET_PATH_TEST_H
+#endif // GET_PATH_TEST_H

@@ -43,12 +43,7 @@ namespace eth_trajectory_generation
 
 template <int _N>
 PolynomialOptimization<_N>::PolynomialOptimization(size_t dimension)
-    : dimension_(dimension),
-      derivative_to_optimize_(derivative_order::INVALID),
-      n_vertices_(0),
-      n_segments_(0),
-      n_all_constraints_(0),
-      n_fixed_constraints_(0),
+    : dimension_(dimension), derivative_to_optimize_(derivative_order::INVALID), n_vertices_(0), n_segments_(0), n_all_constraints_(0), n_fixed_constraints_(0),
       n_free_constraints_(0) {
   fixed_constraints_compact_.resize(dimension_);
   free_constraints_compact_.resize(dimension_);
@@ -59,7 +54,7 @@ PolynomialOptimization<_N>::PolynomialOptimization(size_t dimension)
 /* setupFromVertices() //{ */
 
 template <int _N>
-bool PolynomialOptimization<_N>::setupFromVertices(const Vertex::Vector& vertices, const std::vector<double>& times, int derivative_to_optimize) {
+bool PolynomialOptimization<_N>::setupFromVertices(const Vertex::Vector &vertices, const std::vector<double> &times, int derivative_to_optimize) {
   CHECK(derivative_to_optimize >= 0 && derivative_to_optimize <= kHighestDerivativeToOptimize)
       << "You tried to optimize the " << derivative_to_optimize << "th derivative of position on a " << N
       << "th order polynomial. This is not possible, you either need a higher "
@@ -82,7 +77,7 @@ bool PolynomialOptimization<_N>::setupFromVertices(const Vertex::Vector& vertice
   // Iterate through all vertices and remove invalid constraints (order too
   // high).
   for (size_t vertex_idx = 0; vertex_idx < n_vertices_; ++vertex_idx) {
-    Vertex& vertex = vertices_[vertex_idx];
+    Vertex &vertex = vertices_[vertex_idx];
 
     // Check if we have valid constraints.
     bool   vertex_valid = true;
@@ -110,7 +105,7 @@ bool PolynomialOptimization<_N>::setupFromVertices(const Vertex::Vector& vertice
 /* setupMappingMatrix() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::setupMappingMatrix(double segment_time, SquareMatrix* A) {
+void PolynomialOptimization<_N>::setupMappingMatrix(double segment_time, SquareMatrix *A) {
   // The sum of fixed/free variables has to be equal on both ends of the
   // segment.
   // Thus, A is created as [A(t=0); A(t=segment_time)].
@@ -129,15 +124,15 @@ double PolynomialOptimization<_N>::computeCost() const {
   CHECK(n_segments_ == segments_.size() && n_segments_ == cost_matrices_.size());
   double cost = 0;
   for (size_t segment_idx = 0; segment_idx < n_segments_; ++segment_idx) {
-    const SquareMatrix& Q       = cost_matrices_[segment_idx];
-    const Segment&      segment = segments_[segment_idx];
+    const SquareMatrix &Q       = cost_matrices_[segment_idx];
+    const Segment      &segment = segments_[segment_idx];
     for (size_t dimension_idx = 0; dimension_idx < dimension_; ++dimension_idx) {
       const Eigen::VectorXd c            = segment[dimension_idx].getCoefficients(derivative_order::POSITION);
       const double          partial_cost = c.transpose() * Q * c;
       cost += partial_cost;
     }
   }
-  return 0.5 * cost;  // cost = 0.5 * c^T * Q * c
+  return 0.5 * cost; // cost = 0.5 * c^T * Q * c
 }
 
 //}
@@ -145,7 +140,7 @@ double PolynomialOptimization<_N>::computeCost() const {
 /* invertMappingMatrix() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::invertMappingMatrix(const SquareMatrix& mapping_matrix, SquareMatrix* inverse_mapping_matrix) {
+void PolynomialOptimization<_N>::invertMappingMatrix(const SquareMatrix &mapping_matrix, SquareMatrix *inverse_mapping_matrix) {
   // The mapping matrix has the following structure:
   // [ x 0 0 0 0 0 ]
   // [ 0 x 0 0 0 0 ]
@@ -191,10 +186,10 @@ void PolynomialOptimization<_N>::setupConstraintReorderingMatrix() {
   std::set<Constraint>    fixed_constraints;
   std::set<Constraint>    free_constraints;
 
-  all_constraints.reserve(n_vertices_ * N / 2);  // Will have exactly this number of elements in the end.
+  all_constraints.reserve(n_vertices_ * N / 2); // Will have exactly this number of elements in the end.
 
   for (size_t vertex_idx = 0; vertex_idx < n_vertices; ++vertex_idx) {
-    const Vertex& vertex = vertices_[vertex_idx];
+    const Vertex &vertex = vertices_[vertex_idx];
 
     // Extract constraints and sort them to fixed and free. For the start and
     // end Vertex, we need to do this once, while we need to do it twice for the
@@ -227,24 +222,24 @@ void PolynomialOptimization<_N>::setupConstraintReorderingMatrix() {
   reordering_list.reserve(n_all_constraints_);
   constraint_reordering_ = Eigen::SparseMatrix<double>(n_all_constraints_, n_fixed_constraints_ + n_free_constraints_);
 
-  for (Eigen::VectorXd& df : fixed_constraints_compact_)
+  for (Eigen::VectorXd &df : fixed_constraints_compact_)
     df.resize(n_fixed_constraints_, Eigen::NoChange);
 
   int row = 0;
   int col = 0;
-  for (const Constraint& ca : all_constraints) {
-    for (const Constraint& cf : fixed_constraints) {
+  for (const Constraint &ca : all_constraints) {
+    for (const Constraint &cf : fixed_constraints) {
       if (ca == cf) {
         reordering_list.emplace_back(Triplet(row, col, 1.0));
         for (size_t d = 0; d < dimension_; ++d) {
-          Eigen::VectorXd&      df                        = fixed_constraints_compact_[d];
+          Eigen::VectorXd      &df                        = fixed_constraints_compact_[d];
           const Eigen::VectorXd constraint_all_dimensions = cf.value;
           df[col]                                         = constraint_all_dimensions[d];
         }
       }
       ++col;
     }
-    for (const Constraint& cp : free_constraints) {
+    for (const Constraint &cp : free_constraints) {
       if (ca == cp)
         reordering_list.emplace_back(Triplet(row, col, 1.0));
       ++col;
@@ -265,8 +260,8 @@ void PolynomialOptimization<_N>::updateSegmentsFromCompactConstraints() {
   const size_t n_all_constraints = n_fixed_constraints_ + n_free_constraints_;
 
   for (size_t dimension_idx = 0; dimension_idx < dimension_; ++dimension_idx) {
-    const Eigen::VectorXd& df     = fixed_constraints_compact_[dimension_idx];
-    const Eigen::VectorXd& dp_opt = free_constraints_compact_[dimension_idx];
+    const Eigen::VectorXd &df     = fixed_constraints_compact_[dimension_idx];
+    const Eigen::VectorXd &dp_opt = free_constraints_compact_[dimension_idx];
 
     Eigen::VectorXd d_all(n_all_constraints);
     d_all << df, dp_opt;
@@ -274,7 +269,7 @@ void PolynomialOptimization<_N>::updateSegmentsFromCompactConstraints() {
     for (size_t i = 0; i < n_segments_; ++i) {
       const Eigen::Matrix<double, N, 1> new_d   = constraint_reordering_.block(i * N, 0, N, n_all_constraints) * d_all;
       const Eigen::Matrix<double, N, 1> coeffs  = inverse_mapping_matrices_[i] * new_d;
-      Segment&                          segment = segments_[i];
+      Segment                          &segment = segments_[i];
       segment.setTime(segment_times_[i]);
       segment[dimension_idx] = Polynomial(N, coeffs);
     }
@@ -286,7 +281,7 @@ void PolynomialOptimization<_N>::updateSegmentsFromCompactConstraints() {
 /* updateSegmentTimes() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::updateSegmentTimes(const std::vector<double>& segment_times) {
+void PolynomialOptimization<_N>::updateSegmentTimes(const std::vector<double> &segment_times) {
   const size_t n_segment_times = segment_times.size();
   CHECK(n_segment_times == n_segments_) << "Number of segment times (" << n_segment_times << ") does not match number of segments (" << n_segments_ << ")";
 
@@ -308,15 +303,15 @@ void PolynomialOptimization<_N>::updateSegmentTimes(const std::vector<double>& s
 /* constructR() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::constructR(Eigen::SparseMatrix<double>* R) const {
+void PolynomialOptimization<_N>::constructR(Eigen::SparseMatrix<double> *R) const {
   CHECK_NOTNULL(R);
   typedef Eigen::Triplet<double> Triplet;
   std::vector<Triplet>           cost_unconstrained_triplets;
   cost_unconstrained_triplets.reserve(N * N * n_segments_);
 
   for (size_t i = 0; i < n_segments_; ++i) {
-    const SquareMatrix& Ai        = inverse_mapping_matrices_[i];
-    const SquareMatrix& Q         = cost_matrices_[i];
+    const SquareMatrix &Ai        = inverse_mapping_matrices_[i];
+    const SquareMatrix &Q         = cost_matrices_[i];
     const SquareMatrix  H         = Ai.transpose() * Q * Ai;
     const int           start_pos = i * N;
     for (int row = 0; row < N; ++row) {
@@ -364,8 +359,8 @@ bool PolynomialOptimization<_N>::solveLinear() {
 
   // Compute dp_opt for every dimension.
   for (size_t dimension_idx = 0; dimension_idx < dimension_; ++dimension_idx) {
-    Eigen::VectorXd df                       = -Rpf * fixed_constraints_compact_[dimension_idx];  // Rpf = Rfp^T
-    free_constraints_compact_[dimension_idx] = solver.solve(df);                                  // dp = -Rpp^-1 * Rpf * df
+    Eigen::VectorXd df                       = -Rpf * fixed_constraints_compact_[dimension_idx]; // Rpf = Rfp^T
+    free_constraints_compact_[dimension_idx] = solver.solve(df);                                 // dp = -Rpp^-1 * Rpf * df
   }
 
   updateSegmentsFromCompactConstraints();
@@ -377,7 +372,7 @@ bool PolynomialOptimization<_N>::solveLinear() {
 /* printReorderingMatrix() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::printReorderingMatrix(std::ostream& stream) const {
+void PolynomialOptimization<_N>::printReorderingMatrix(std::ostream &stream) const {
   stream << "Mapping matrix:\n" << constraint_reordering_ << std::endl;
 }
 
@@ -387,8 +382,8 @@ void PolynomialOptimization<_N>::printReorderingMatrix(std::ostream& stream) con
 
 template <int _N>
 template <int Derivative>
-bool PolynomialOptimization<_N>::computeSegmentMaximumMagnitudeCandidates(const Segment& segment, double t_start, double t_stop,
-                                                                          std::vector<double>* candidates) {
+bool PolynomialOptimization<_N>::computeSegmentMaximumMagnitudeCandidates(const Segment &segment, double t_start, double t_stop,
+                                                                          std::vector<double> *candidates) {
   return computeSegmentMaximumMagnitudeCandidates(Derivative, segment, t_start, t_stop, candidates);
 }
 
@@ -397,8 +392,8 @@ bool PolynomialOptimization<_N>::computeSegmentMaximumMagnitudeCandidates(const 
 /* computeSegmentMaximumMagnitudeCandidates() //{ */
 
 template <int _N>
-bool PolynomialOptimization<_N>::computeSegmentMaximumMagnitudeCandidates(int derivative, const Segment& segment, double t_start, double t_stop,
-                                                                          std::vector<double>* candidates) {
+bool PolynomialOptimization<_N>::computeSegmentMaximumMagnitudeCandidates(int derivative, const Segment &segment, double t_start, double t_stop,
+                                                                          std::vector<double> *candidates) {
   CHECK(candidates);
   CHECK(N - derivative - 1 > 0) << "N-Derivative-1 has to be greater 0";
 
@@ -415,16 +410,14 @@ bool PolynomialOptimization<_N>::computeSegmentMaximumMagnitudeCandidates(int de
 
 template <int _N>
 template <int Derivative>
-void PolynomialOptimization<_N>::
-    computeSegmentMaximumMagnitudeCandidatesBySampling(
-        const Segment& segment, double t_start, double t_stop, double dt,
-        std::vector<double>* candidates) {
+void PolynomialOptimization<_N>::computeSegmentMaximumMagnitudeCandidatesBySampling(const Segment &segment, double t_start, double t_stop, double dt,
+                                                                                    std::vector<double> *candidates) {
   CHECK_NOTNULL(candidates);
   // Start is candidate.
   candidates->push_back(t_start);
 
   // Determine initial direction from t_start to t_start + dt.
-  auto t_old = t_start + dt;
+  auto t_old     = t_start + dt;
   auto value_new = segment.evaluate(t_old, Derivative);
   auto value_old = segment.evaluate(t_start, Derivative);
   auto direction = value_new.norm() - value_old.norm();
@@ -433,23 +426,23 @@ void PolynomialOptimization<_N>::
   bool last_sample = false;
   for (double t = t_start + dt + dt; t <= t_stop; t += dt) {
     // Update direction.
-    value_old = value_new;
-    value_new = segment.evaluate(t, Derivative);
+    value_old          = value_new;
+    value_new          = segment.evaluate(t, Derivative);
     auto direction_new = value_new.norm() - value_old.norm();
 
     if (std::signbit(direction) != std::signbit(direction_new)) {
       auto value_deriv = segment.evaluate(t_old, Derivative + 1);
       if (value_deriv.norm() < 1e-2) {
-        candidates->push_back(t_old);  // extremum was at last dt
+        candidates->push_back(t_old); // extremum was at last dt
       }
     }
 
     direction = direction_new;
-    t_old = t;
+    t_old     = t;
 
     // Check last sample before t_stop.
     if ((t + dt) > t_stop && !last_sample) {
-      t = t_stop - dt;
+      t           = t_stop - dt;
       last_sample = true;
     }
   }
@@ -466,7 +459,7 @@ void PolynomialOptimization<_N>::
 
 template <int _N>
 template <int Derivative>
-Extremum PolynomialOptimization<_N>::computeMaximumOfMagnitude(std::vector<Extremum>* candidates) const {
+Extremum PolynomialOptimization<_N>::computeMaximumOfMagnitude(std::vector<Extremum> *candidates) const {
   return computeMaximumOfMagnitude(Derivative, candidates);
 }
 
@@ -475,13 +468,13 @@ Extremum PolynomialOptimization<_N>::computeMaximumOfMagnitude(std::vector<Extre
 /* computeMaximumOfMagnitude() //{ */
 
 template <int _N>
-Extremum PolynomialOptimization<_N>::computeMaximumOfMagnitude(int derivative, std::vector<Extremum>* candidates) const {
+Extremum PolynomialOptimization<_N>::computeMaximumOfMagnitude(int derivative, std::vector<Extremum> *candidates) const {
   if (candidates != nullptr)
     candidates->clear();
 
   int      segment_idx = 0;
   Extremum extremum;
-  for (const Segment& s : segments_) {
+  for (const Segment &s : segments_) {
     std::vector<double> extrema_times;
     extrema_times.reserve(N - 1);
     // Add the beginning as well. Call below appends its extrema.
@@ -512,9 +505,9 @@ Extremum PolynomialOptimization<_N>::computeMaximumOfMagnitude(int derivative, s
 /* setFreeConstraints() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::setFreeConstraints(const std::vector<Eigen::VectorXd>& free_constraints) {
+void PolynomialOptimization<_N>::setFreeConstraints(const std::vector<Eigen::VectorXd> &free_constraints) {
   CHECK(free_constraints.size() == dimension_);
-  for (const Eigen::VectorXd& v : free_constraints)
+  for (const Eigen::VectorXd &v : free_constraints)
     CHECK(static_cast<size_t>(v.size()) == n_free_constraints_);
 
   free_constraints_compact_ = free_constraints;
@@ -526,7 +519,7 @@ void PolynomialOptimization<_N>::setFreeConstraints(const std::vector<Eigen::Vec
 /* getAInverse() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::getAInverse(Eigen::MatrixXd* A_inv) const {
+void PolynomialOptimization<_N>::getAInverse(Eigen::MatrixXd *A_inv) const {
   CHECK_NOTNULL(A_inv);
 
   A_inv->resize(N * n_segments_, N * n_segments_);
@@ -542,7 +535,7 @@ void PolynomialOptimization<_N>::getAInverse(Eigen::MatrixXd* A_inv) const {
 /* getM() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::getM(Eigen::MatrixXd* M) const {
+void PolynomialOptimization<_N>::getM(Eigen::MatrixXd *M) const {
   CHECK_NOTNULL(M);
   *M = constraint_reordering_;
 }
@@ -552,7 +545,7 @@ void PolynomialOptimization<_N>::getM(Eigen::MatrixXd* M) const {
 /* getR() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::getR(Eigen::MatrixXd* R) const {
+void PolynomialOptimization<_N>::getR(Eigen::MatrixXd *R) const {
   CHECK_NOTNULL(R);
 
   Eigen::SparseMatrix<double> R_sparse;
@@ -566,7 +559,7 @@ void PolynomialOptimization<_N>::getR(Eigen::MatrixXd* R) const {
 /* getA() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::getA(Eigen::MatrixXd* A) const {
+void PolynomialOptimization<_N>::getA(Eigen::MatrixXd *A) const {
   CHECK_NOTNULL(A);
   A->resize(N * n_segments_, N * n_segments_);
   A->setZero();
@@ -588,7 +581,7 @@ void PolynomialOptimization<_N>::getA(Eigen::MatrixXd* A) const {
 /* getMpinv() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::getMpinv(Eigen::MatrixXd* M_pinv) const {
+void PolynomialOptimization<_N>::getMpinv(Eigen::MatrixXd *M_pinv) const {
   CHECK_NOTNULL(M_pinv);
 
   // Pseudoinverse implementation by @SebastianInd.
@@ -603,7 +596,7 @@ void PolynomialOptimization<_N>::getMpinv(Eigen::MatrixXd* M_pinv) const {
 /* computeQuadraticCostJacobian() //{ */
 
 template <int _N>
-void PolynomialOptimization<_N>::computeQuadraticCostJacobian(int derivative, double t, SquareMatrix* cost_jacobian) {
+void PolynomialOptimization<_N>::computeQuadraticCostJacobian(int derivative, double t, SquareMatrix *cost_jacobian) {
   CHECK_LT(derivative, N);
 
   cost_jacobian->setZero();
@@ -619,6 +612,6 @@ void PolynomialOptimization<_N>::computeQuadraticCostJacobian(int derivative, do
 
 //}
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
-#endif  // eth_trajectory_generation_IMPL_POLYNOMIAL_OPTIMIZATION_LINEAR_IMPL_H_
+#endif // eth_trajectory_generation_IMPL_POLYNOMIAL_OPTIMIZATION_LINEAR_IMPL_H_

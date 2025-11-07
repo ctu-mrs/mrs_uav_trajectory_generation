@@ -26,23 +26,20 @@
 #include <mav_trajectory_generation/polynomial_optimization_linear.h>
 #include <mav_trajectory_generation/timing.h>
 
-const int N = 10;
-const int max_derivative = mav_trajectory_generation::derivative_order::SNAP;
-const size_t derivative_to_optimize =
-    mav_trajectory_generation::derivative_order::SNAP;
+const int    N                      = 10;
+const int    max_derivative         = mav_trajectory_generation::derivative_order::SNAP;
+const size_t derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
 
-mav_trajectory_generation::Vertex::Vector createRandomVerticesPath(
-    int dimension, size_t n_segments, double average_distance,
-    int maximum_derivative, size_t seed) {
+mav_trajectory_generation::Vertex::Vector createRandomVerticesPath(int dimension, size_t n_segments, double average_distance, int maximum_derivative,
+                                                                   size_t seed) {
   CHECK_GE(static_cast<int>(n_segments), 1);
 
   CHECK_GT(maximum_derivative, 0);
 
-  mav_trajectory_generation::Vertex::Vector vertices;
-  std::mt19937 generator(seed);
-  std::vector<std::uniform_real_distribution<double> > distribution;
-  std::uniform_real_distribution<double> random_distance(0,
-                                                         2 * average_distance);
+  mav_trajectory_generation::Vertex::Vector           vertices;
+  std::mt19937                                        generator(seed);
+  std::vector<std::uniform_real_distribution<double>> distribution;
+  std::uniform_real_distribution<double>              random_distance(0, 2 * average_distance);
 
   distribution.resize(dimension);
 
@@ -51,7 +48,7 @@ mav_trajectory_generation::Vertex::Vector createRandomVerticesPath(
   }
 
   const double min_distance = 0.2;
-  const int n_vertices = n_segments + 1;
+  const int    n_vertices   = n_segments + 1;
 
   Eigen::VectorXd last_position(dimension);
   for (int i = 0; i < dimension; ++i) {
@@ -72,7 +69,8 @@ mav_trajectory_generation::Vertex::Vector createRandomVerticesPath(
       for (int d = 0; d < dimension; ++d) {
         position_sample[d] = distribution[d](generator);
       }
-      if (position_sample.norm() > min_distance) break;
+      if (position_sample.norm() > min_distance)
+        break;
     }
 
     position_sample = position_sample.normalized() * random_distance(generator);
@@ -80,8 +78,7 @@ mav_trajectory_generation::Vertex::Vector createRandomVerticesPath(
     distance_accumulated += position_sample.norm();
 
     mav_trajectory_generation::Vertex v(dimension);
-    v.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
-                    position_sample + last_position);
+    v.addConstraint(mav_trajectory_generation::derivative_order::POSITION, position_sample + last_position);
     vertices.push_back(v);
     last_position = position_sample;
   }
@@ -92,17 +89,14 @@ mav_trajectory_generation::Vertex::Vector createRandomVerticesPath(
 
 bool timeEval(int n_segments, double average_distance, size_t seed) {
   mav_trajectory_generation::Vertex::Vector vertices;
-  vertices = createRandomVerticesPath(3, n_segments, average_distance,
-                                      max_derivative, seed);
+  vertices = createRandomVerticesPath(3, n_segments, average_distance, max_derivative, seed);
 
-  const double approximate_v_max = 2.0;
-  const double approximate_a_max = 2.0;
-  const double magic_fabian_constant = 6.5;
-  std::vector<double> segment_times =
-      estimateSegmentTimes(vertices, approximate_v_max, approximate_a_max);
+  const double        approximate_v_max     = 2.0;
+  const double        approximate_a_max     = 2.0;
+  const double        magic_fabian_constant = 6.5;
+  std::vector<double> segment_times         = estimateSegmentTimes(vertices, approximate_v_max, approximate_a_max);
 
-  mav_trajectory_generation::timing::Timer timer_solve(
-      "polynomial_optimization_template_" + std::to_string(n_segments));
+  mav_trajectory_generation::timing::Timer             timer_solve("polynomial_optimization_template_" + std::to_string(n_segments));
   mav_trajectory_generation::PolynomialOptimization<N> opt(3);
   opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
 
@@ -111,12 +105,12 @@ bool timeEval(int n_segments, double average_distance, size_t seed) {
   return true;
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
 
-  int n_segments_to_test[4] = {2, 10, 50, 100};
-  double average_distance = 5;
-  unsigned long seed = 1;
+  int           n_segments_to_test[4] = {2, 10, 50, 100};
+  double        average_distance      = 5;
+  unsigned long seed                  = 1;
 
   for (int j = 0; j < 4; ++j) {
     for (int i = 0; i < 1000; ++i) {

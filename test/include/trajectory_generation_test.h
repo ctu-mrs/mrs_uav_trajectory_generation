@@ -13,8 +13,7 @@ public:
   std::shared_ptr<mrs_uav_testing::UAVHandler> uh_;
 };
 
-TrajectoryGenerationTest::TrajectoryGenerationTest() : mrs_uav_testing::TestGeneric() {
-};
+TrajectoryGenerationTest::TrajectoryGenerationTest() : mrs_uav_testing::TestGeneric(){};
 
 std::tuple<bool, std::string> TrajectoryGenerationTest::checkPathFlythrough(const std::vector<Eigen::Vector4d> &waypoints) {
 
@@ -38,4 +37,4 @@ std::tuple<bool, std::string> TrajectoryGenerationTest::checkPathFlythrough(cons
   }
 }
 
-#endif  // TRAJECTORY_GENERATION_TEST_H
+#endif // TRAJECTORY_GENERATION_TEST_H

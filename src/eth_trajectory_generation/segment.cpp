@@ -28,7 +28,7 @@ namespace eth_trajectory_generation
 
 /* operator==(const Segment& rhs)() //{ */
 
-bool Segment::operator==(const Segment& rhs) const {
+bool Segment::operator==(const Segment &rhs) const {
   if (D_ != rhs.D_ || time_ != rhs.time_) {
     return false;
   } else {
@@ -45,7 +45,7 @@ bool Segment::operator==(const Segment& rhs) const {
 
 /* Segment::operator[](size_t idx) //{ */
 
-Polynomial& Segment::operator[](size_t idx) {
+Polynomial &Segment::operator[](size_t idx) {
   CHECK_LT(idx, static_cast<size_t>(D_));
   return polynomials_[idx];
 }
@@ -54,7 +54,7 @@ Polynomial& Segment::operator[](size_t idx) {
 
 /* Segment::operator[](size_t idx) //{ */
 
-const Polynomial& Segment::operator[](size_t idx) const {
+const Polynomial &Segment::operator[](size_t idx) const {
   CHECK_LT(idx, static_cast<size_t>(D_));
   return polynomials_[idx];
 }
@@ -76,7 +76,7 @@ Eigen::VectorXd Segment::evaluate(double t, int derivative) const {
 
 /* printSegment() //{ */
 
-void printSegment(std::ostream& stream, const Segment& s, int derivative) {
+void printSegment(std::ostream &stream, const Segment &s, int derivative) {
   CHECK(derivative >= 0 && derivative < s.N());
   stream << "t: " << s.getTime() << std::endl;
   stream << " coefficients for " << positionDerivativeToString(derivative) << ": " << std::endl;
@@ -90,7 +90,7 @@ void printSegment(std::ostream& stream, const Segment& s, int derivative) {
 
 /* operator<<(std::ostream& stream, const Segment& s) //{ */
 
-std::ostream& operator<<(std::ostream& stream, const Segment& s) {
+std::ostream &operator<<(std::ostream &stream, const Segment &s) {
   printSegment(stream, s, derivative_order::POSITION);
   return stream;
 }
@@ -99,8 +99,8 @@ std::ostream& operator<<(std::ostream& stream, const Segment& s) {
 
 /* operator<<(std::ostream& stream, const std::vector<Segment>& segments) //{ */
 
-std::ostream& operator<<(std::ostream& stream, const std::vector<Segment>& segments) {
-  for (const Segment& s : segments)
+std::ostream &operator<<(std::ostream &stream, const std::vector<Segment> &segments) {
+  for (const Segment &s : segments)
     stream << s << std::endl;
 
   return stream;
@@ -112,7 +112,7 @@ std::ostream& operator<<(std::ostream& stream, const std::vector<Segment>& segme
 
 bool Segment::computeMinMaxMagnitudeCandidateTimes(
 
-    int derivative, double t_start, double t_end, const std::vector<int>& dimensions, std::vector<double>* candidate_times) const {
+    int derivative, double t_start, double t_end, const std::vector<int> &dimensions, std::vector<double> *candidate_times) const {
   CHECK_NOTNULL(candidate_times);
   candidate_times->clear();
   // Compute magnitude derivative roots.
@@ -161,7 +161,7 @@ bool Segment::computeMinMaxMagnitudeCandidateTimes(
 
 bool Segment::computeMinMaxMagnitudeCandidates(
 
-    int derivative, double t_start, double t_end, const std::vector<int>& dimensions, std::vector<Extremum>* candidates) const {
+    int derivative, double t_start, double t_end, const std::vector<int> &dimensions, std::vector<Extremum> *candidates) const {
   CHECK_NOTNULL(candidates);
   // Find candidate times (roots + start + end).
   std::vector<double> candidate_times;
@@ -187,8 +187,8 @@ bool Segment::computeMinMaxMagnitudeCandidates(
 
 bool Segment::selectMinMaxMagnitudeFromCandidates(
 
-    int derivative, double t_start, double t_end, const std::vector<int>& dimensions, const std::vector<Extremum>& candidates, Extremum* minimum,
-    Extremum* maximum) const {
+    int derivative, double t_start, double t_end, const std::vector<int> &dimensions, const std::vector<Extremum> &candidates, Extremum *minimum,
+    Extremum *maximum) const {
   CHECK_NOTNULL(minimum);
   CHECK_NOTNULL(maximum);
   if (t_start > t_end) {
@@ -200,7 +200,7 @@ bool Segment::selectMinMaxMagnitudeFromCandidates(
   maximum->value = std::numeric_limits<double>::lowest();
 
   // Evaluate passed candidates.
-  for (const Extremum& candidate : candidates) {
+  for (const Extremum &candidate : candidates) {
     if (candidate.time < t_start || candidate.time > t_end) {
       continue;
     }
@@ -215,7 +215,7 @@ bool Segment::selectMinMaxMagnitudeFromCandidates(
 
 /* selectMinMaxMagnitudeFromCandidates() //{ */
 
-bool Segment::getSegmentWithSingleDimension(int dimension, Segment* new_segment) const {
+bool Segment::getSegmentWithSingleDimension(int dimension, Segment *new_segment) const {
   if (dimension < 0 || dimension >= D_) {
     LOG(WARNING) << "You shan't ask for a dimension that does not exist in the segment.";
     return false;
@@ -231,7 +231,7 @@ bool Segment::getSegmentWithSingleDimension(int dimension, Segment* new_segment)
 
 /* getSegmentWithAppendedDimension() //{ */
 
-bool Segment::getSegmentWithAppendedDimension(const Segment& segment_to_append, Segment* new_segment) const {
+bool Segment::getSegmentWithAppendedDimension(const Segment &segment_to_append, Segment *new_segment) const {
   if (N_ == 0 || D_ == 0) {
     *new_segment = segment_to_append;
     return true;
@@ -295,7 +295,7 @@ bool Segment::getSegmentWithAppendedDimension(const Segment& segment_to_append, 
 
 /* offsetSegment() //{ */
 
-bool Segment::offsetSegment(const Eigen::VectorXd& A_r_B) {
+bool Segment::offsetSegment(const Eigen::VectorXd &A_r_B) {
 
   if (A_r_B.size() < std::min(D_, 3)) {
     LOG(WARNING) << "Offset vector size smaller than segment dimension.";
@@ -312,4 +312,4 @@ bool Segment::offsetSegment(const Eigen::VectorXd& A_r_B) {
 
 //}
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation

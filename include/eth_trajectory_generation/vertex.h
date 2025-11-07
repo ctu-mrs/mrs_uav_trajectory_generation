@@ -64,7 +64,7 @@ public:
 
   // Adds a constraint for the derivative specified in type with the given
   // values in the constraint vector. The dimension has to match the derivative.
-  void addConstraint(int type, const Eigen::VectorXd& constraint);
+  void addConstraint(int type, const Eigen::VectorXd &constraint);
 
   // Removes a constraint for the derivative specified in type. Returns false if
   // constraint was not set.
@@ -74,7 +74,7 @@ public:
   // (including) up_to_derivative to zero. Convenience method for
   // beginning / end vertices. up_to_derivative should be set to
   // getHighestDerivativeFromN(N), where N is the order of your polynomial.
-  void makeStartOrEnd(const Eigen::VectorXd& constraint, int up_to_derivative);
+  void makeStartOrEnd(const Eigen::VectorXd &constraint, int up_to_derivative);
 
   void makeStartOrEnd(double value, int up_to_derivative) {
     makeStartOrEnd(Eigen::VectorXd::Constant(D_, value), up_to_derivative);
@@ -86,7 +86,7 @@ public:
 
   // Passes the value of the constraint for derivative order to *value,
   // and returns whether the constraint is set.
-  bool getConstraint(int derivative_order, Eigen::VectorXd* constraint) const;
+  bool getConstraint(int derivative_order, Eigen::VectorXd *constraint) const;
 
   // Returns a const iterator to the first constraint.
   typename Constraints::const_iterator cBegin() const {
@@ -105,24 +105,24 @@ public:
   }
 
   // Checks if both lhs and rhs are equal up to tol in case of double values.
-  bool isEqualTol(const Vertex& rhs, double tol) const;
+  bool isEqualTol(const Vertex &rhs, double tol) const;
 
   // Get subdimension vertex.
-  bool getSubdimension(const std::vector<size_t>& subdimensions, int max_derivative_order, Vertex* subvertex) const;
+  bool getSubdimension(const std::vector<size_t> &subdimensions, int max_derivative_order, Vertex *subvertex) const;
 
 private:
   int         D_;
   Constraints constraints_;
 };
 
-std::ostream& operator<<(std::ostream& stream, const Vertex& v);
+std::ostream &operator<<(std::ostream &stream, const Vertex &v);
 
-std::ostream& operator<<(std::ostream& stream, const std::vector<Vertex>& vertices);
+std::ostream &operator<<(std::ostream &stream, const std::vector<Vertex> &vertices);
 
 // Makes a rough estimate based on v_max and a_max about the time
 // required to get from one vertex to the next. Uses the current preferred
 // method.
-std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+std::vector<double> estimateSegmentTimes(const Vertex::Vector &vertices, const double v_max_horizontal, const double v_max_vertical,
                                          const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal, const double j_max_vertical,
                                          const double heading_speed_max, const double heading_acc_max);
 
@@ -131,17 +131,17 @@ std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, const d
 // The time_factor \in [1..Inf] increases the allocated time making the segments
 // slower and thus feasibility more likely. This method does not take into
 // account the start and goal velocity and acceleration.
-std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector& vertices, double v_max, double a_max, double time_factor = 1.0);
+std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector &vertices, double v_max, double a_max, double time_factor = 1.0);
 
-std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector &vertices, const double v_max_horizontal, const double v_max_vertical,
                                                   const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal,
                                                   const double j_max_vertical, const double heading_speed_max, const double heading_acc_max);
 
-std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector &vertices, const double v_max_horizontal, const double v_max_vertical,
                                              const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal,
                                              const double j_max_vertical, const double heading_speed_max, const double heading_acc_max);
 
-double computeTimeVelocityRamp(const Eigen::VectorXd& start, const Eigen::VectorXd& goal, double v_max, double a_max);
+double computeTimeVelocityRamp(const Eigen::VectorXd &start, const Eigen::VectorXd &goal, double v_max, double a_max);
 
 inline int getHighestDerivativeFromN(int N) {
   return N / 2 - 1;
@@ -160,13 +160,13 @@ inline int getHighestDerivativeFromN(int N) {
 // Input: maximum_position = Maximum position of the space to sample.
 // Input: seed = Initial seed for random number generation.
 // Output: return = Vector containing n_segments + 1 vertices.
-Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments, const Eigen::VectorXd& minimum_position, const Eigen::VectorXd& maximum_position,
+Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments, const Eigen::VectorXd &minimum_position, const Eigen::VectorXd &maximum_position,
                                     size_t seed = 0);
 
-Vertex::Vector createSquareVertices(int maximum_derivative, const Eigen::Vector3d& center, double side_length, int rounds);
+Vertex::Vector createSquareVertices(int maximum_derivative, const Eigen::Vector3d &center, double side_length, int rounds);
 
 // Conveninence function to create 1D vertices.
 Vertex::Vector createRandomVertices1D(int maximum_derivative, size_t n_segments, double minimum_position, double maximum_position, size_t seed = 0);
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
-#endif  // ETH_TRAJECTORY_GENERATION_VERTEX_H_
+#endif // ETH_TRAJECTORY_GENERATION_VERTEX_H_

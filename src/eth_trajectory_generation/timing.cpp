@@ -34,7 +34,7 @@ namespace eth_trajectory_generation
 namespace timing
 {
 
-Timing& Timing::Instance() {
+Timing &Timing::Instance() {
   static Timing t;
   return t;
 }
@@ -48,7 +48,7 @@ Timing::~Timing() {
 /* GetHandle() //{ */
 
 // Static functions to query the timers:
-size_t Timing::GetHandle(std::string const& tag) {
+size_t Timing::GetHandle(std::string const &tag) {
   // Search for an existing tag.
   map_t::iterator i = Instance().tag_map_.find(tag);
   if (i == Instance().tag_map_.end()) {
@@ -95,7 +95,7 @@ Timer::Timer(size_t handle, bool constructStopped) : timing_(false), handle_(han
 
 /* Timer() //{ */
 
-Timer::Timer(std::string const& tag, bool constructStopped) : timing_(false), handle_(Timing::GetHandle(tag)) {
+Timer::Timer(std::string const &tag, bool constructStopped) : timing_(false), handle_(Timing::GetHandle(tag)) {
   if (!constructStopped)
     Start();
 }
@@ -158,7 +158,7 @@ double Timing::GetTotalSeconds(size_t handle) {
 
 /* GetTotalSeconds() //{ */
 
-double Timing::GetTotalSeconds(std::string const& tag) {
+double Timing::GetTotalSeconds(std::string const &tag) {
   return GetTotalSeconds(GetHandle(tag));
 }
 
@@ -174,7 +174,7 @@ double Timing::GetMeanSeconds(size_t handle) {
 
 /* GetMeanSeconds() //{ */
 
-double Timing::GetMeanSeconds(std::string const& tag) {
+double Timing::GetMeanSeconds(std::string const &tag) {
   return GetMeanSeconds(GetHandle(tag));
 }
 
@@ -190,7 +190,7 @@ size_t Timing::GetNumSamples(size_t handle) {
 
 /* GetNumSamples() //{ */
 
-size_t Timing::GetNumSamples(std::string const& tag) {
+size_t Timing::GetNumSamples(std::string const &tag) {
   return GetNumSamples(GetHandle(tag));
 }
 
@@ -206,7 +206,7 @@ double Timing::GetVarianceSeconds(size_t handle) {
 
 /* GetVarianceSeconds() //{ */
 
-double Timing::GetVarianceSeconds(std::string const& tag) {
+double Timing::GetVarianceSeconds(std::string const &tag) {
   return GetVarianceSeconds(GetHandle(tag));
 }
 
@@ -222,7 +222,7 @@ double Timing::GetMinSeconds(size_t handle) {
 
 /* GetMinSeconds() //{ */
 
-double Timing::GetMinSeconds(std::string const& tag) {
+double Timing::GetMinSeconds(std::string const &tag) {
   return GetMinSeconds(GetHandle(tag));
 }
 
@@ -238,7 +238,7 @@ double Timing::GetMaxSeconds(size_t handle) {
 
 /* GetMaxSeconds() //{ */
 
-double Timing::GetMaxSeconds(std::string const& tag) {
+double Timing::GetMaxSeconds(std::string const &tag) {
   return GetMaxSeconds(GetHandle(tag));
 }
 
@@ -254,7 +254,7 @@ double Timing::GetHz(size_t handle) {
 
 /* GetHz() //{ */
 
-double Timing::GetHz(std::string const& tag) {
+double Timing::GetHz(std::string const &tag) {
   return GetHz(GetHandle(tag));
 }
 
@@ -272,8 +272,8 @@ std::string Timing::SecondsToTimeString(double seconds) {
 
 /* Print() //{ */
 
-void Timing::Print(std::ostream& out) {
-  map_t& tagMap = Instance().tag_map_;
+void Timing::Print(std::ostream &out) {
+  map_t &tagMap = Instance().tag_map_;
 
   if (tagMap.empty()) {
     return;
@@ -327,5 +327,5 @@ void Timing::Reset() {
 
 //}
 
-}  // namespace timing
-}  // namespace eth_trajectory_generation
+} // namespace timing
+} // namespace eth_trajectory_generation

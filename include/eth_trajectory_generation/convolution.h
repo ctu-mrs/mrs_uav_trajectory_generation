@@ -36,8 +36,8 @@ struct ConvolutionDimension
 /* convolve() //{ */
 
 template <int DataDimension_, int KernelDimension_>
-Eigen::Matrix<double, ConvolutionDimension<DataDimension_, KernelDimension_>::length, 1> convolve(const Eigen::Matrix<double, DataDimension_, 1>&   data,
-                                                                                                  const Eigen::Matrix<double, KernelDimension_, 1>& kernel) {
+Eigen::Matrix<double, ConvolutionDimension<DataDimension_, KernelDimension_>::length, 1> convolve(const Eigen::Matrix<double, DataDimension_, 1>   &data,
+                                                                                                  const Eigen::Matrix<double, KernelDimension_, 1> &kernel) {
   const int                                       convolution_dimension = ConvolutionDimension<DataDimension_, KernelDimension_>::length;
   Eigen::Matrix<double, convolution_dimension, 1> convolved;
   convolved.setZero();
@@ -64,6 +64,6 @@ int sgn(T val) {
   return (T(0) < val) - (val < T(0));
 }
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
-#endif  // ETH_TRAJECTORY_GENERATION_CONVOLUTION_H_
+#endif // ETH_TRAJECTORY_GENERATION_CONVOLUTION_H_

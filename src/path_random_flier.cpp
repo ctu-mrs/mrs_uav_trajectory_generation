@@ -63,7 +63,7 @@ private:
   mrs_lib::SubscriberHandler<mrs_msgs::msg::TrackerCommand>            sh_tracker_cmd_;
   mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlManagerDiagnostics> sh_control_manager_diag_;
 
-  std::optional<mrs_msgs::msg::TrackerCommand> transformTrackerCmd(const mrs_msgs::msg::TrackerCommand& tracker_cmd, const std::string& target_frame);
+  std::optional<mrs_msgs::msg::TrackerCommand> transformTrackerCmd(const mrs_msgs::msg::TrackerCommand &tracker_cmd, const std::string &target_frame);
 
   std::shared_ptr<mrs_lib::Transformer> transformer_;
 
@@ -434,7 +434,7 @@ void PathRandomFlier::timerMain(void) {
       last_successfull_command_ = clock_->now();
     }
   }
-}  // namespace mrs_uav_testing_old
+} // namespace mrs_uav_testing_old
 
 //}
 
@@ -522,8 +522,8 @@ bool PathRandomFlier::checkReference(const std::string frame, const double x, co
 
 /* transformTrackerCmd() //{ */
 
-std::optional<mrs_msgs::msg::TrackerCommand> PathRandomFlier::transformTrackerCmd(const mrs_msgs::msg::TrackerCommand& tracker_cmd,
-                                                                                  const std::string&                   target_frame) {
+std::optional<mrs_msgs::msg::TrackerCommand> PathRandomFlier::transformTrackerCmd(const mrs_msgs::msg::TrackerCommand &tracker_cmd,
+                                                                                  const std::string                   &target_frame) {
 
   // if we transform to the current control frame, which is in fact the same frame as the tracker_cmd is in
   if (target_frame == "") {
@@ -634,7 +634,7 @@ std::optional<mrs_msgs::msg::TrackerCommand> PathRandomFlier::transformTrackerCm
 
 //}
 
-}  // namespace mrs_uav_trajectory_generation
+} // namespace mrs_uav_trajectory_generation
 
 #include <rclcpp_components/register_node_macro.hpp>
 RCLCPP_COMPONENTS_REGISTER_NODE(mrs_uav_trajectory_generation::PathRandomFlier)

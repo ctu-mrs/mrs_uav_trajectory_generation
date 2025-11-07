@@ -48,10 +48,10 @@ public:
   Segment(int N, int D) : time_(0.0), N_(N), D_(D) {
     polynomials_.resize(D_, Polynomial(N_));
   }
-  Segment(const Segment& segment) = default;
+  Segment(const Segment &segment) = default;
 
-  bool        operator==(const Segment& rhs) const;
-  inline bool operator!=(const Segment& rhs) const {
+  bool        operator==(const Segment &rhs) const;
+  inline bool operator!=(const Segment &rhs) const {
     return !operator==(rhs);
   }
 
@@ -75,11 +75,11 @@ public:
     time_ = time_ns * kNumSecPerNsec;
   }
 
-  Polynomial& operator[](size_t idx);
+  Polynomial &operator[](size_t idx);
 
-  const Polynomial& operator[](size_t idx) const;
+  const Polynomial &operator[](size_t idx) const;
 
-  const Polynomial::Vector& getPolynomialsRef() const {
+  const Polynomial::Vector &getPolynomialsRef() const {
     return polynomials_;
   }
 
@@ -104,44 +104,44 @@ public:
   // Output: candidates = Vector containing the candidate extrema times.
   // Returns whether the computation succeeded -- false means no candidates
   // were found by Jenkins-Traub.
-  bool computeMinMaxMagnitudeCandidateTimes(int derivative, double t_start, double t_end, const std::vector<int>& dimensions,
-                                            std::vector<double>* candidate_times) const;
+  bool computeMinMaxMagnitudeCandidateTimes(int derivative, double t_start, double t_end, const std::vector<int> &dimensions,
+                                            std::vector<double> *candidate_times) const;
 
   // Convenience function. Additionally evaluates the candidate times.
-  bool computeMinMaxMagnitudeCandidates(int derivative, double t_start, double t_end, const std::vector<int>& dimensions,
-                                        std::vector<Extremum>* candidates) const;
+  bool computeMinMaxMagnitudeCandidates(int derivative, double t_start, double t_end, const std::vector<int> &dimensions,
+                                        std::vector<Extremum> *candidates) const;
 
   // Convenience function. Evaluates the magnitudes between t_start and t_end
   // for a set of candidates for given dimensions.
-  bool selectMinMaxMagnitudeFromCandidates(int derivative, double t_start, double t_end, const std::vector<int>& dimensions,
-                                           const std::vector<Extremum>& candidates, Extremum* minimum, Extremum* maximum) const;
+  bool selectMinMaxMagnitudeFromCandidates(int derivative, double t_start, double t_end, const std::vector<int> &dimensions,
+                                           const std::vector<Extremum> &candidates, Extremum *minimum, Extremum *maximum) const;
 
   // Split a segment to get a segment with the specified dimension.
-  bool getSegmentWithSingleDimension(int dimension, Segment* new_segment) const;
+  bool getSegmentWithSingleDimension(int dimension, Segment *new_segment) const;
   // Compose this segment and another segment to a new segment.
-  bool getSegmentWithAppendedDimension(const Segment& segment_to_append, Segment* new_segment) const;
+  bool getSegmentWithAppendedDimension(const Segment &segment_to_append, Segment *new_segment) const;
 
   // Offset this segment by vector A_r_B.
-  bool offsetSegment(const Eigen::VectorXd& A_r_B);
+  bool offsetSegment(const Eigen::VectorXd &A_r_B);
 
 protected:
   Polynomial::Vector polynomials_;
   double             time_;
 
 private:
-  int N_;  // Number of coefficients.
-  int D_;  // Number of dimensions.
+  int N_; // Number of coefficients.
+  int D_; // Number of dimensions.
 };
 
 // Prints the properties of the segment.
 // Polynomial coefficients are printed with increasing powers,
 // i.e. c_0 + c_1*t ... c_{N-1} * t^{N-1}
-void printSegment(std::ostream& stream, const Segment& s, int derivative);
+void printSegment(std::ostream &stream, const Segment &s, int derivative);
 
-std::ostream& operator<<(std::ostream& stream, const Segment& s);
+std::ostream &operator<<(std::ostream &stream, const Segment &s);
 
-std::ostream& operator<<(std::ostream& stream, const std::vector<Segment>& segments);
+std::ostream &operator<<(std::ostream &stream, const std::vector<Segment> &segments);
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
-#endif  // ETH_TRAJECTORY_GENERATION_SEGMENT_H_
+#endif // ETH_TRAJECTORY_GENERATION_SEGMENT_H_

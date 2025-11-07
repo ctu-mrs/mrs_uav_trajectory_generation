@@ -27,7 +27,7 @@
 namespace eth_trajectory_generation
 {
 
-inline std::ostream& operator<<(std::ostream& stream, const OptimizationInfo& val) {
+inline std::ostream &operator<<(std::ostream &stream, const OptimizationInfo &val) {
   stream << "--- optimization info ---" << std::endl;
   stream << "  optimization time:     " << val.optimization_time << std::endl;
   stream << "  n_iterations:          " << val.n_iterations << std::endl;
@@ -36,7 +36,7 @@ inline std::ostream& operator<<(std::ostream& stream, const OptimizationInfo& va
   stream << "  cost time:             " << val.cost_time << std::endl;
   stream << "  cost soft constraints: " << val.cost_soft_constraints << std::endl;
   stream << "  maxima: " << std::endl;
-  for (const std::pair<int, Extremum>& m : val.maxima) {
+  for (const std::pair<int, Extremum> &m : val.maxima) {
     stream << "    " << positionDerivativeToString(m.first) << ": " << m.second.value << " in segment " << m.second.segment_idx << " and segment time "
            << m.second.time << std::endl;
   }
@@ -44,25 +44,25 @@ inline std::ostream& operator<<(std::ostream& stream, const OptimizationInfo& va
 }
 
 template <int _N>
-PolynomialOptimizationNonLinear<_N>::PolynomialOptimizationNonLinear(size_t dimension, const NonlinearOptimizationParameters& parameters)
+PolynomialOptimizationNonLinear<_N>::PolynomialOptimizationNonLinear(size_t dimension, const NonlinearOptimizationParameters &parameters)
     : poly_opt_(dimension), optimization_parameters_(parameters) {
 }
 
 template <int _N>
-bool PolynomialOptimizationNonLinear<_N>::setupFromVertices(const Vertex::Vector& vertices, const std::vector<double>& segment_times,
+bool PolynomialOptimizationNonLinear<_N>::setupFromVertices(const Vertex::Vector &vertices, const std::vector<double> &segment_times,
                                                             int derivative_to_optimize) {
   bool ret = poly_opt_.setupFromVertices(vertices, segment_times, derivative_to_optimize);
 
   size_t n_optimization_parameters;
   switch (optimization_parameters_.time_alloc_method) {
-    case NonlinearOptimizationParameters::kSquaredTime:
-    case NonlinearOptimizationParameters::kRichterTime:
-    case NonlinearOptimizationParameters::kMellingerOuterLoop:
-      n_optimization_parameters = segment_times.size();
-      break;
-    default:
-      n_optimization_parameters = segment_times.size() + poly_opt_.getNumberFreeConstraints() * poly_opt_.getDimension();
-      break;
+  case NonlinearOptimizationParameters::kSquaredTime:
+  case NonlinearOptimizationParameters::kRichterTime:
+  case NonlinearOptimizationParameters::kMellingerOuterLoop:
+    n_optimization_parameters = segment_times.size();
+    break;
+  default:
+    n_optimization_parameters = segment_times.size() + poly_opt_.getNumberFreeConstraints() * poly_opt_.getDimension();
+    break;
   }
 
   nlopt_.reset(new nlopt::opt(optimization_parameters_.algorithm, n_optimization_parameters));
@@ -94,19 +94,19 @@ int PolynomialOptimizationNonLinear<_N>::optimize() {
   const std::chrono::high_resolution_clock::time_point t_start = std::chrono::high_resolution_clock::now();
 
   switch (optimization_parameters_.time_alloc_method) {
-    case NonlinearOptimizationParameters::kSquaredTime:
-    case NonlinearOptimizationParameters::kRichterTime:
-      result = optimizeTime();
-      break;
-    case NonlinearOptimizationParameters::kSquaredTimeAndConstraints:
-    case NonlinearOptimizationParameters::kRichterTimeAndConstraints:
-      result = optimizeTimeAndFreeConstraints();
-      break;
-    case NonlinearOptimizationParameters::kMellingerOuterLoop:
-      result = optimizeTimeMellingerOuterLoop();
-      break;
-    default:
-      break;
+  case NonlinearOptimizationParameters::kSquaredTime:
+  case NonlinearOptimizationParameters::kRichterTime:
+    result = optimizeTime();
+    break;
+  case NonlinearOptimizationParameters::kSquaredTimeAndConstraints:
+  case NonlinearOptimizationParameters::kRichterTimeAndConstraints:
+    result = optimizeTimeAndFreeConstraints();
+    break;
+  case NonlinearOptimizationParameters::kMellingerOuterLoop:
+    result = optimizeTimeMellingerOuterLoop();
+    break;
+  default:
+    break;
   }
 
   const std::chrono::high_resolution_clock::time_point t_stop = std::chrono::high_resolution_clock::now();
@@ -137,7 +137,7 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTime() {
     nlopt_->set_lower_bounds(kOptimizationTimeLowerBound);
     nlopt_->set_min_objective(&PolynomialOptimizationNonLinear<N>::objectiveFunctionTime, this);
   }
-  catch (std::exception& e) {
+  catch (std::exception &e) {
     LOG(ERROR) << "error while setting up nlopt: " << e.what() << std::endl;
     return nlopt::FAILURE;
   }
@@ -148,7 +148,7 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTime() {
   try {
     result = nlopt_->optimize(segment_times, final_cost);
   }
-  catch (std::exception& e) {
+  catch (std::exception &e) {
     LOG(ERROR) << "error while running nlopt: " << e.what() << std::endl;
     return nlopt::FAILURE;
   }
@@ -179,7 +179,7 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTimeMellingerOuterLoop() {
     nlopt_->set_lower_bounds(kOptimizationTimeLowerBound);
     nlopt_->set_min_objective(&PolynomialOptimizationNonLinear<N>::objectiveFunctionTimeMellingerOuterLoop, this);
   }
-  catch (std::exception& e) {
+  catch (std::exception &e) {
     LOG(ERROR) << "error while setting up nlopt: " << e.what() << std::endl;
     return nlopt::FAILURE;
   }
@@ -190,7 +190,7 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTimeMellingerOuterLoop() {
   try {
     result = nlopt_->optimize(segment_times, final_cost);
   }
-  catch (std::exception& e) {
+  catch (std::exception &e) {
     LOG(ERROR) << "error while running nlopt: " << e.what() << ". This likely means the optimization aborted early." << std::endl;
     if (final_cost == std::numeric_limits<double>::max()) {
       return nlopt::FAILURE;
@@ -254,7 +254,7 @@ double PolynomialOptimizationNonLinear<_N>::getTotalCostWithSoftConstraints() co
 }
 
 template <int _N>
-double PolynomialOptimizationNonLinear<_N>::getCostAndGradientMellinger(std::vector<double>* gradients) {
+double PolynomialOptimizationNonLinear<_N>::getCostAndGradientMellinger(std::vector<double> *gradients) {
   // Weighting terms for different costs
   // Retrieve the current segment times
   std::vector<double> segment_times;
@@ -306,7 +306,7 @@ double PolynomialOptimizationNonLinear<_N>::getCostAndGradientMellinger(std::vec
 
       // Check and make sure that segment times are >
       // kOptimizationTimeLowerBound
-      for (double& t : segment_times_bigger) {
+      for (double &t : segment_times_bigger) {
         t = std::max(kOptimizationTimeLowerBound, t);
       }
 
@@ -352,7 +352,7 @@ void PolynomialOptimizationNonLinear<_N>::scaleSegmentTimesWithViolation() {
   double a_max_heading = 0.0;
   double j_max_heading = 0.0;
 
-  for (const auto& constraint : inequality_constraints_) {
+  for (const auto &constraint : inequality_constraints_) {
     if (constraint->dimension <= 1) {
       if (constraint->derivative == derivative_order::VELOCITY) {
         v_max_horizontal = constraint->value;
@@ -455,7 +455,7 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTimeAndFreeConstraints() {
     initial_solution.push_back(t);
   }
 
-  for (const Eigen::VectorXd& c : free_constraints) {
+  for (const Eigen::VectorXd &c : free_constraints) {
     for (int i = 0; i < c.size(); ++i) {
       initial_solution.push_back(c[i]);
     }
@@ -513,7 +513,7 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTimeAndFreeConstraints() {
     nlopt_->set_upper_bounds(upper_bounds);
     nlopt_->set_min_objective(&PolynomialOptimizationNonLinear<N>::objectiveFunctionTimeAndConstraints, this);
   }
-  catch (std::exception& e) {
+  catch (std::exception &e) {
     LOG(ERROR) << "error while setting up nlopt: " << e.what() << std::endl;
     return nlopt::FAILURE;
   }
@@ -527,7 +527,7 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTimeAndFreeConstraints() {
     result = nlopt_->optimize(initial_solution, final_cost);
     timer_solve.Stop();
   }
-  catch (std::exception& e) {
+  catch (std::exception &e) {
     LOG(ERROR) << "error while running nlopt: " << e.what() << std::endl;
     return nlopt::FAILURE;
   }
@@ -555,7 +555,7 @@ bool PolynomialOptimizationNonLinear<_N>::addMaximumMagnitudeConstraint(int dime
       nlopt_->add_inequality_constraint(&PolynomialOptimizationNonLinear<N>::evaluateMaximumMagnitudeConstraint, constraint_data.get(),
                                         optimization_parameters_.inequality_constraint_tolerance);
     }
-    catch (std::exception& e) {
+    catch (std::exception &e) {
       LOG(ERROR) << "ERROR while setting inequality constraint " << e.what() << std::endl;
       return false;
     }
@@ -565,11 +565,11 @@ bool PolynomialOptimizationNonLinear<_N>::addMaximumMagnitudeConstraint(int dime
 }
 
 template <int _N>
-double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTime(const std::vector<double>& segment_times, std::vector<double>& gradient, void* data) {
+double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTime(const std::vector<double> &segment_times, std::vector<double> &gradient, void *data) {
   CHECK(gradient.empty()) << "computing gradient not possible, choose a gradient free method";
   CHECK_NOTNULL(data);
 
-  PolynomialOptimizationNonLinear<N>* optimization_data = static_cast<PolynomialOptimizationNonLinear<N>*>(data);  // wheee ...
+  PolynomialOptimizationNonLinear<N> *optimization_data = static_cast<PolynomialOptimizationNonLinear<N> *>(data); // wheee ...
 
   CHECK_EQ(segment_times.size(), optimization_data->poly_opt_.getNumberSegments());
 
@@ -581,12 +581,12 @@ double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTime(const std::vec
   const double total_time       = computeTotalTrajectoryTime(segment_times);
 
   switch (optimization_data->optimization_parameters_.time_alloc_method) {
-    case NonlinearOptimizationParameters::kRichterTime:
-      cost_time = total_time * optimization_data->optimization_parameters_.time_penalty;
-      break;
-    default:  // kSquaredTime
-      cost_time = total_time * total_time * optimization_data->optimization_parameters_.time_penalty;
-      break;
+  case NonlinearOptimizationParameters::kRichterTime:
+    cost_time = total_time * optimization_data->optimization_parameters_.time_penalty;
+    break;
+  default: // kSquaredTime
+    cost_time = total_time * total_time * optimization_data->optimization_parameters_.time_penalty;
+    break;
   }
 
   if (optimization_data->optimization_parameters_.print_debug_info) {
@@ -614,12 +614,12 @@ double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTime(const std::vec
 }
 
 template <int _N>
-double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeMellingerOuterLoop(const std::vector<double>& segment_times, std::vector<double>& gradient,
-                                                                                    void* data) {
+double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeMellingerOuterLoop(const std::vector<double> &segment_times, std::vector<double> &gradient,
+                                                                                    void *data) {
   CHECK(!gradient.empty()) << "only with gradients possible, choose a gradient based method";
   CHECK_NOTNULL(data);
 
-  PolynomialOptimizationNonLinear<N>* optimization_data = static_cast<PolynomialOptimizationNonLinear<N>*>(data);  // wheee ...
+  PolynomialOptimizationNonLinear<N> *optimization_data = static_cast<PolynomialOptimizationNonLinear<N> *>(data); // wheee ...
 
   CHECK_EQ(segment_times.size(), optimization_data->poly_opt_.getNumberSegments());
 
@@ -649,11 +649,11 @@ double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeMellingerOuterL
 }
 
 template <int _N>
-double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeAndConstraints(const std::vector<double>& x, std::vector<double>& gradient, void* data) {
+double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeAndConstraints(const std::vector<double> &x, std::vector<double> &gradient, void *data) {
   CHECK(gradient.empty()) << "computing gradient not possible, choose a gradient-free method";
   CHECK_NOTNULL(data);
 
-  PolynomialOptimizationNonLinear<N>* optimization_data = static_cast<PolynomialOptimizationNonLinear<N>*>(data);  // wheee ...
+  PolynomialOptimizationNonLinear<N> *optimization_data = static_cast<PolynomialOptimizationNonLinear<N> *>(data); // wheee ...
 
   const size_t n_segments         = optimization_data->poly_opt_.getNumberSegments();
   const size_t n_free_constraints = optimization_data->poly_opt_.getNumberFreeConstraints();
@@ -673,7 +673,7 @@ double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeAndConstraints(
   for (size_t d = 0; d < dim; ++d) {
     const size_t idx_start = n_segments + d * n_free_constraints;
 
-    Eigen::VectorXd& free_constraints_dim = free_constraints[d];
+    Eigen::VectorXd &free_constraints_dim = free_constraints[d];
     free_constraints_dim.resize(n_free_constraints, Eigen::NoChange);
     for (size_t i = 0; i < n_free_constraints; ++i) {
       free_constraints_dim[i] = x[idx_start + i];
@@ -689,12 +689,12 @@ double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeAndConstraints(
 
   const double total_time = computeTotalTrajectoryTime(segment_times);
   switch (optimization_data->optimization_parameters_.time_alloc_method) {
-    case NonlinearOptimizationParameters::kRichterTimeAndConstraints:
-      cost_time = total_time * optimization_data->optimization_parameters_.time_penalty;
-      break;
-    default:  // kSquaredTimeAndConstraints
-      cost_time = total_time * total_time * optimization_data->optimization_parameters_.time_penalty;
-      break;
+  case NonlinearOptimizationParameters::kRichterTimeAndConstraints:
+    cost_time = total_time * optimization_data->optimization_parameters_.time_penalty;
+    break;
+  default: // kSquaredTimeAndConstraints
+    cost_time = total_time * total_time * optimization_data->optimization_parameters_.time_penalty;
+    break;
   }
 
   if (optimization_data->optimization_parameters_.print_debug_info) {
@@ -722,11 +722,11 @@ double PolynomialOptimizationNonLinear<_N>::objectiveFunctionTimeAndConstraints(
 }
 
 template <int _N>
-double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeConstraint([[maybe_unused]] const std::vector<double>& segment_times,
-                                                                               std::vector<double>& gradient, void* data) {
+double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeConstraint([[maybe_unused]] const std::vector<double> &segment_times,
+                                                                               std::vector<double> &gradient, void *data) {
   CHECK(gradient.empty()) << "computing gradient not possible, choose a gradient-free method";
-  ConstraintData*                     constraint_data   = static_cast<ConstraintData*>(data);  // wheee ...
-  PolynomialOptimizationNonLinear<N>* optimization_data = constraint_data->this_object;
+  ConstraintData                     *constraint_data   = static_cast<ConstraintData *>(data); // wheee ...
+  PolynomialOptimizationNonLinear<N> *optimization_data = constraint_data->this_object;
 
   Extremum max;
   max = optimization_data->poly_opt_.computeMaximumOfMagnitude(constraint_data->derivative, nullptr);
@@ -738,7 +738,7 @@ double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeConstraint([
 
 template <int _N>
 double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeAsSoftConstraint(
-    [[maybe_unused]] const std::vector<std::shared_ptr<ConstraintData>>& inequality_constraints, double weight, double maximum_cost) const {
+    [[maybe_unused]] const std::vector<std::shared_ptr<ConstraintData>> &inequality_constraints, double weight, double maximum_cost) const {
   std::vector<double> dummy;
   double              cost = 0;
 
@@ -748,7 +748,7 @@ double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeAsSoftConstr
   for (std::shared_ptr<const ConstraintData> constraint : inequality_constraints_) {
     // need to call the c-style callback function here, thus the ugly cast to
     // void*.
-    double abs_violation = evaluateMaximumMagnitudeConstraint(dummy, dummy, (void*)constraint.get());
+    double abs_violation = evaluateMaximumMagnitudeConstraint(dummy, dummy, (void *)constraint.get());
 
     double       relative_violation = abs_violation / constraint->value;
     const double current_cost       = std::min(maximum_cost, exp(relative_violation * weight));
@@ -762,8 +762,8 @@ double PolynomialOptimizationNonLinear<_N>::evaluateMaximumMagnitudeAsSoftConstr
 }
 
 template <int _N>
-void PolynomialOptimizationNonLinear<_N>::setFreeEndpointDerivativeHardConstraints(const Vertex::Vector& vertices, std::vector<double>* lower_bounds,
-                                                                                   std::vector<double>* upper_bounds) {
+void PolynomialOptimizationNonLinear<_N>::setFreeEndpointDerivativeHardConstraints(const Vertex::Vector &vertices, std::vector<double> *lower_bounds,
+                                                                                   std::vector<double> *upper_bounds) {
   CHECK_NOTNULL(lower_bounds);
   CHECK_NOTNULL(upper_bounds);
   CHECK(lower_bounds->empty()) << "Lower bounds not empty!";
@@ -782,7 +782,7 @@ void PolynomialOptimizationNonLinear<_N>::setFreeEndpointDerivativeHardConstrain
   // If it is a free derivative check if we have a constraint in
   // inequality_constraints_ and set the constraint as hard constraint in
   // lower_bounds and upper_bounds
-  for (const auto& constraint_data : inequality_constraints_) {
+  for (const auto &constraint_data : inequality_constraints_) {
     unsigned int free_deriv_counter = 0;
     const int    derivative_hc      = constraint_data->derivative;
     const int    dimension          = constraint_data->dimension;
@@ -804,46 +804,46 @@ void PolynomialOptimizationNonLinear<_N>::setFreeEndpointDerivativeHardConstrain
 }
 
 template <int _N>
-double PolynomialOptimizationNonLinear<_N>::computeTotalTrajectoryTime(const std::vector<double>& segment_times) {
+double PolynomialOptimizationNonLinear<_N>::computeTotalTrajectoryTime(const std::vector<double> &segment_times) {
   double total_time = 0;
   for (double t : segment_times)
     total_time += t;
   return total_time;
 }
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
 namespace nlopt
 {
 
 inline std::string returnValueToString(int return_value) {
   switch (return_value) {
-    case nlopt::SUCCESS:
-      return std::string("SUCCESS");
-    case nlopt::FAILURE:
-      return std::string("FAILURE");
-    case nlopt::INVALID_ARGS:
-      return std::string("INVALID_ARGS");
-    case nlopt::OUT_OF_MEMORY:
-      return std::string("OUT_OF_MEMORY");
-    case nlopt::ROUNDOFF_LIMITED:
-      return std::string("ROUNDOFF_LIMITED");
-    case nlopt::FORCED_STOP:
-      return std::string("FORCED_STOP");
-    case nlopt::STOPVAL_REACHED:
-      return std::string("STOPVAL_REACHED");
-    case nlopt::FTOL_REACHED:
-      return std::string("FTOL_REACHED");
-    case nlopt::XTOL_REACHED:
-      return std::string("XTOL_REACHED");
-    case nlopt::MAXEVAL_REACHED:
-      return std::string("MAXEVAL_REACHED");
-    case nlopt::MAXTIME_REACHED:
-      return std::string("MAXTIME_REACHED");
-    default:
-      return std::string("ERROR CODE UNKNOWN");
+  case nlopt::SUCCESS:
+    return std::string("SUCCESS");
+  case nlopt::FAILURE:
+    return std::string("FAILURE");
+  case nlopt::INVALID_ARGS:
+    return std::string("INVALID_ARGS");
+  case nlopt::OUT_OF_MEMORY:
+    return std::string("OUT_OF_MEMORY");
+  case nlopt::ROUNDOFF_LIMITED:
+    return std::string("ROUNDOFF_LIMITED");
+  case nlopt::FORCED_STOP:
+    return std::string("FORCED_STOP");
+  case nlopt::STOPVAL_REACHED:
+    return std::string("STOPVAL_REACHED");
+  case nlopt::FTOL_REACHED:
+    return std::string("FTOL_REACHED");
+  case nlopt::XTOL_REACHED:
+    return std::string("XTOL_REACHED");
+  case nlopt::MAXEVAL_REACHED:
+    return std::string("MAXEVAL_REACHED");
+  case nlopt::MAXTIME_REACHED:
+    return std::string("MAXTIME_REACHED");
+  default:
+    return std::string("ERROR CODE UNKNOWN");
   }
 }
-}  // namespace nlopt
+} // namespace nlopt
 
-#endif  // ETH_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_NONLINEAR_IMPL_H_
+#endif // ETH_TRAJECTORY_GENERATION_IMPL_POLYNOMIAL_OPTIMIZATION_NONLINEAR_IMPL_H_

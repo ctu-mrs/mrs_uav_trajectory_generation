@@ -46,7 +46,7 @@ public:
       samples_[window_samples_++] = sample;
       window_sum_ += sample;
     } else {
-      T& oldest = samples_[window_samples_++ % N];
+      T &oldest = samples_[window_samples_++ % N];
       window_sum_ += sample - oldest;
       oldest = sample;
     }
@@ -123,7 +123,7 @@ class DummyTimer {
 public:
   DummyTimer(size_t /*handle*/, bool /*constructStopped*/ = false) {
   }
-  DummyTimer(std::string const& /*tag*/, bool /*constructStopped*/ = false) {
+  DummyTimer(std::string const & /*tag*/, bool /*constructStopped*/ = false) {
   }
   ~DummyTimer() {
   }
@@ -140,7 +140,7 @@ public:
 class Timer {
 public:
   Timer(size_t handle, bool constructStopped = false);
-  Timer(std::string const& tag, bool constructStopped = false);
+  Timer(std::string const &tag, bool constructStopped = false);
   ~Timer();
 
   void Start();
@@ -159,34 +159,34 @@ public:
   typedef std::map<std::string, size_t> map_t;
   friend class Timer;
   // Definition of static functions to query the timers.
-  static size_t       GetHandle(std::string const& tag);
+  static size_t       GetHandle(std::string const &tag);
   static std::string  GetTag(size_t handle);
   static double       GetTotalSeconds(size_t handle);
-  static double       GetTotalSeconds(std::string const& tag);
+  static double       GetTotalSeconds(std::string const &tag);
   static double       GetMeanSeconds(size_t handle);
-  static double       GetMeanSeconds(std::string const& tag);
+  static double       GetMeanSeconds(std::string const &tag);
   static size_t       GetNumSamples(size_t handle);
-  static size_t       GetNumSamples(std::string const& tag);
+  static size_t       GetNumSamples(std::string const &tag);
   static double       GetVarianceSeconds(size_t handle);
-  static double       GetVarianceSeconds(std::string const& tag);
+  static double       GetVarianceSeconds(std::string const &tag);
   static double       GetMinSeconds(size_t handle);
-  static double       GetMinSeconds(std::string const& tag);
+  static double       GetMinSeconds(std::string const &tag);
   static double       GetMaxSeconds(size_t handle);
-  static double       GetMaxSeconds(std::string const& tag);
+  static double       GetMaxSeconds(std::string const &tag);
   static double       GetHz(size_t handle);
-  static double       GetHz(std::string const& tag);
-  static void         Print(std::ostream& out);
+  static double       GetHz(std::string const &tag);
+  static void         Print(std::ostream &out);
   static std::string  Print();
   static std::string  SecondsToTimeString(double seconds);
   static void         Reset();
-  static const map_t& GetTimers() {
+  static const map_t &GetTimers() {
     return Instance().tag_map_;
   }
 
 private:
   void AddTime(size_t handle, double seconds);
 
-  static Timing& Instance();
+  static Timing &Instance();
 
   Timing();
   ~Timing();
@@ -232,7 +232,7 @@ private:
   std::chrono::time_point<std::chrono::system_clock> end_;
 };
 
-}  // namespace timing
-}  // namespace eth_trajectory_generation
+} // namespace timing
+} // namespace eth_trajectory_generation
 
-#endif  // ETH_TRAJECTORY_GENERATION_TIMING_H_
+#endif // ETH_TRAJECTORY_GENERATION_TIMING_H_

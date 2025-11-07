@@ -37,23 +37,23 @@ public:
   Extremum(double _time, double _value, int _segment_idx) : time(_time), value(_value), segment_idx(_segment_idx) {
   }
 
-  bool operator<(const Extremum& rhs) const {
+  bool operator<(const Extremum &rhs) const {
     return value < rhs.value;
   }
-  bool operator>(const Extremum& rhs) const {
+  bool operator>(const Extremum &rhs) const {
     return value > rhs.value;
   }
 
-  double time;         // Time where the extremum occurs, relative to the segment start.
-  double value;        // Value of the extremum at time.
-  int    segment_idx;  // Index of the segment where the extremum occurs.
+  double time;        // Time where the extremum occurs, relative to the segment start.
+  double value;       // Value of the extremum at time.
+  int    segment_idx; // Index of the segment where the extremum occurs.
 };
 
-inline std::ostream& operator<<(std::ostream& stream, const Extremum& e) {
+inline std::ostream &operator<<(std::ostream &stream, const Extremum &e) {
   stream << "time: " << e.time << ", value: " << e.value << ", segment idx: " << e.segment_idx << std::endl;
   return stream;
 }
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
-#endif  // ETH_TRAJECTORY_GENERATION_EXTREMUM_H_
+#endif // ETH_TRAJECTORY_GENERATION_EXTREMUM_H_

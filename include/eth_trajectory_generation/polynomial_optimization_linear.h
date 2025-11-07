@@ -67,7 +67,7 @@ public:
   // Thus, its size is size(vertices) - 1.
   // Input: derivative_to_optimize = Specifies the derivative of which the
   // cost is optimized.
-  bool setupFromVertices(const Vertex::Vector& vertices, const std::vector<double>& segment_times, int derivative_to_optimize = kHighestDerivativeToOptimize);
+  bool setupFromVertices(const Vertex::Vector &vertices, const std::vector<double> &segment_times, int derivative_to_optimize = kHighestDerivativeToOptimize);
 
   // Sets up the optimization problem from a vector of positions and a
   // vector of times between the via points.
@@ -77,15 +77,15 @@ public:
   // positions and the final position.
   // Input: times = Vector containing the time between two positions. Thus,
   // its size is size(positions) - 1.
-  bool setupFromPositons(const std::vector<double>& positions, const std::vector<double>& times);
+  bool setupFromPositons(const std::vector<double> &positions, const std::vector<double> &times);
 
   // Wrapper that inverts the mapping matrix (A in [1]) to take advantage
   // of its structure.
   // Input: A matrix
   // Output: Ai inverse of the A matrix
-  static void invertMappingMatrix(const SquareMatrix& mapping_matrix, SquareMatrix* inverse_mapping_matrix);
+  static void invertMappingMatrix(const SquareMatrix &mapping_matrix, SquareMatrix *inverse_mapping_matrix);
 
-  static void setupMappingMatrix(double segment_time, SquareMatrix* A);
+  static void setupMappingMatrix(double segment_time, SquareMatrix *A);
 
   // Computes the cost in the derivative that was specified during
   // setupFromVertices().
@@ -97,7 +97,7 @@ public:
   // the number of vertices that was initially passed during the problem setup.
   // This recomputes all cost- and inverse mapping block-matrices and is meant
   // to be called during non-linear optimization procedures.
-  void updateSegmentTimes(const std::vector<double>& segment_times);
+  void updateSegmentTimes(const std::vector<double> &segment_times);
 
   // Solves the linear optimization problem according to [1].
   // The solver is re-used for every dimension, which means:
@@ -109,7 +109,7 @@ public:
   // Returns the trajectory created by the optimization.
   // Only valid after solveLinear() is called. This is the preferred external
   // interface for getting information back out of the solver.
-  void getTrajectory(Trajectory* trajectory) const {
+  void getTrajectory(Trajectory *trajectory) const {
     CHECK_NOTNULL(trajectory);
     trajectory->setSegments(segments_);
   }
@@ -135,10 +135,10 @@ public:
   // Returns whether the computation succeeded -- false means no candidates
   // were found by Jenkins-Traub.
   template <int Derivative>
-  static bool computeSegmentMaximumMagnitudeCandidates(const Segment& segment, double t_start, double t_stop, std::vector<double>* candidates);
+  static bool computeSegmentMaximumMagnitudeCandidates(const Segment &segment, double t_start, double t_stop, std::vector<double> *candidates);
 
   // Template-free version of above:
-  static bool computeSegmentMaximumMagnitudeCandidates(int derivative, const Segment& segment, double t_start, double t_stop, std::vector<double>* candidates);
+  static bool computeSegmentMaximumMagnitudeCandidates(int derivative, const Segment &segment, double t_start, double t_stop, std::vector<double> *candidates);
 
   // Computes the candidates for the maximum magnitude of a single
   // segment in the specified derivative.
@@ -150,8 +150,8 @@ public:
   // Input: sampling_interval = Time between two sampling points.
   // Output: candidates = Vector containing the candidate times for a maximum.
   template <int Derivative>
-  static void computeSegmentMaximumMagnitudeCandidatesBySampling(const Segment& segment, double t_start, double t_stop, double sampling_interval,
-                                                                 std::vector<double>* candidates);
+  static void computeSegmentMaximumMagnitudeCandidatesBySampling(const Segment &segment, double t_start, double t_stop, double sampling_interval,
+                                                                 std::vector<double> *candidates);
 
   // Computes the global maximum of the magnitude of the path in the
   // specified derivative.
@@ -163,35 +163,35 @@ public:
   //                        Optional, can be set to nullptr if not needed.
   // Output: return = The global maximum of the path.
   template <int Derivative>
-  Extremum computeMaximumOfMagnitude(std::vector<Extremum>* candidates) const;
+  Extremum computeMaximumOfMagnitude(std::vector<Extremum> *candidates) const;
 
   // Template-free version of above.
-  Extremum computeMaximumOfMagnitude(int derivative, std::vector<Extremum>* candidates) const;
+  Extremum computeMaximumOfMagnitude(int derivative, std::vector<Extremum> *candidates) const;
 
-  void getVertices(Vertex::Vector* vertices) const {
+  void getVertices(Vertex::Vector *vertices) const {
     CHECK_NOTNULL(vertices);
     *vertices = vertices_;
   }
 
   // Only for internal use -- always use getTrajectory() instead if you can!
-  void getSegments(Segment::Vector* segments) const {
+  void getSegments(Segment::Vector *segments) const {
     CHECK_NOTNULL(segments);
     *segments = segments_;
   }
 
-  void getSegmentTimes(std::vector<double>* segment_times) const {
+  void getSegmentTimes(std::vector<double> *segment_times) const {
     CHECK(segment_times != nullptr);
     *segment_times = segment_times_;
   }
 
-  void getFreeConstraints(std::vector<Eigen::VectorXd>* free_constraints) const {
+  void getFreeConstraints(std::vector<Eigen::VectorXd> *free_constraints) const {
     CHECK(free_constraints != nullptr);
     *free_constraints = free_constraints_compact_;
   }
 
-  void setFreeConstraints(const std::vector<Eigen::VectorXd>& free_constraints);
+  void setFreeConstraints(const std::vector<Eigen::VectorXd> &free_constraints);
 
-  void getFixedConstraints(std::vector<Eigen::VectorXd>* fixed_constraints) const {
+  void getFixedConstraints(std::vector<Eigen::VectorXd> *fixed_constraints) const {
     CHECK(fixed_constraints != nullptr);
     *fixed_constraints = fixed_constraints_compact_;
   }
@@ -201,7 +201,7 @@ public:
   // If C is dynamic, the correct size has to be set.
   // Input: t = time of evaluation
   // Input: derivative used to compute the cost
-  static void computeQuadraticCostJacobian(int derivative, double t, SquareMatrix* cost_jacobian);
+  static void computeQuadraticCostJacobian(int derivative, double t, SquareMatrix *cost_jacobian);
 
   size_t getDimension() const {
     return dimension_;
@@ -223,18 +223,18 @@ public:
   }
 
   // Accessor functions for internal matrices.
-  void getAInverse(Eigen::MatrixXd* A_inv) const;
-  void getM(Eigen::MatrixXd* M) const;
-  void getR(Eigen::MatrixXd* R) const;
+  void getAInverse(Eigen::MatrixXd *A_inv) const;
+  void getM(Eigen::MatrixXd *M) const;
+  void getR(Eigen::MatrixXd *R) const;
   // Extras not directly used in the standard optimization:
-  void getA(Eigen::MatrixXd* A) const;
-  void getMpinv(Eigen::MatrixXd* M_pinv) const;  // Pseudo-inverse of M.
+  void getA(Eigen::MatrixXd *A) const;
+  void getMpinv(Eigen::MatrixXd *M_pinv) const; // Pseudo-inverse of M.
 
-  void printReorderingMatrix(std::ostream& stream) const;
+  void printReorderingMatrix(std::ostream &stream) const;
 
 private:
   // Constructs the sparse R (cost) matrix.
-  void constructR(Eigen::SparseMatrix<double>* R) const;
+  void constructR(Eigen::SparseMatrix<double> *R) const;
 
   // Sets up the matrix (C in [1]) that reorders constraints for the
   // optimization problem.
@@ -288,7 +288,7 @@ private:
 // Constraint class that aggregates all constraints from incoming Vertices.
 struct Constraint
 {
-  inline bool operator<(const Constraint& rhs) const {
+  inline bool operator<(const Constraint &rhs) const {
     if (vertex_idx < rhs.vertex_idx)
       return true;
     if (rhs.vertex_idx < vertex_idx)
@@ -301,7 +301,7 @@ struct Constraint
     return false;
   }
 
-  inline bool operator==(const Constraint& rhs) const {
+  inline bool operator==(const Constraint &rhs) const {
     return vertex_idx == rhs.vertex_idx && constraint_idx == rhs.constraint_idx;
   }
 
@@ -310,8 +310,8 @@ struct Constraint
   Vertex::ConstraintValue value;
 };
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
 #include "eth_trajectory_generation/impl/polynomial_optimization_linear_impl.h"
 
-#endif  // ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_LINEAR_H_
+#endif // ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_LINEAR_H_

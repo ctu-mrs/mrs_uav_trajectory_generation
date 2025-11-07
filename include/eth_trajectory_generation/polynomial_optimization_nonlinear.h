@@ -116,7 +116,7 @@ struct OptimizationInfo
   std::map<int, Extremum> maxima;
 };
 
-std::ostream& operator<<(std::ostream& stream, const OptimizationInfo& val);
+std::ostream &operator<<(std::ostream &stream, const OptimizationInfo &val);
 
 // Implements a nonlinear optimization of the unconstrained optimization
 // of paths consisting of polynomial segments as described in [1]
@@ -145,7 +145,7 @@ public:
   // If false, both segment times and free derivatives become optimization
   // variables. The latter case is theoretically correct, but may result in
   // more iterations.
-  PolynomialOptimizationNonLinear(size_t dimension, const NonlinearOptimizationParameters& parameters);
+  PolynomialOptimizationNonLinear(size_t dimension, const NonlinearOptimizationParameters &parameters);
 
   // Sets up the optimization problem from a vector of Vertex objects and
   // a vector of times between the vertices.
@@ -155,7 +155,7 @@ public:
   // between two vertices. Thus, its size is size(vertices) - 1.
   // Input: derivative_to_optimize = Specifies the derivative of which the
   // cost is optimized.
-  bool setupFromVertices(const Vertex::Vector& vertices, const std::vector<double>& segment_times,
+  bool setupFromVertices(const Vertex::Vector &vertices, const std::vector<double> &segment_times,
                          int derivative_to_optimize = PolynomialOptimization<N>::kHighestDerivativeToOptimize);
 
   // Adds a constraint for the maximum of magnitude to the optimization
@@ -179,19 +179,19 @@ public:
   // Get the resulting trajectory out -- prefer this as the main method
   // to get the results of the optimization, over getting the reference
   // to the linear optimizer.
-  void getTrajectory(Trajectory* trajectory) const {
+  void getTrajectory(Trajectory *trajectory) const {
     poly_opt_.getTrajectory(trajectory);
   }
 
   // Returns a const reference to the underlying linear optimization
   // object.
-  const PolynomialOptimization<N>& getPolynomialOptimizationRef() const {
+  const PolynomialOptimization<N> &getPolynomialOptimizationRef() const {
     return poly_opt_;
   }
 
   // Returns a non-const reference to the underlying linear optimization
   // object.
-  PolynomialOptimization<N>& getPolynomialOptimizationRef() {
+  PolynomialOptimization<N> &getPolynomialOptimizationRef() {
     return poly_opt_;
   }
 
@@ -215,7 +215,7 @@ private:
   // static.
   struct ConstraintData
   {
-    PolynomialOptimizationNonLinear<N>* this_object;
+    PolynomialOptimizationNonLinear<N> *this_object;
     int                                 derivative;
     int                                 dimension;
     double                              value;
@@ -228,7 +228,7 @@ private:
   // Thus, only gradient-free optimization methods are possible.
   // Input: Custom data pointer = In our case, it's an ConstraintData object.
   // Output: Cost = based on the parameters passed in.
-  static double objectiveFunctionTime(const std::vector<double>& segment_times, std::vector<double>& gradient, void* data);
+  static double objectiveFunctionTime(const std::vector<double> &segment_times, std::vector<double> &gradient, void *data);
 
   // Objective function for the time-only Mellinger Outer Loop.
   // Input: segment_times = Segment times in the current iteration.
@@ -237,7 +237,7 @@ private:
   // Thus, only gradient-free optimization methods are possible.
   // Input: Custom data pointer = In our case, it's an ConstraintData object.
   // Output: Cost = based on the parameters passed in.
-  static double objectiveFunctionTimeMellingerOuterLoop(const std::vector<double>& segment_times, std::vector<double>& gradient, void* data);
+  static double objectiveFunctionTimeMellingerOuterLoop(const std::vector<double> &segment_times, std::vector<double> &gradient, void *data);
 
   // Objective function for the version optimizing segment times and free
   // derivatives.
@@ -251,12 +251,12 @@ private:
   // Input: data = Custom data pointer. In our case, it's an ConstraintData
   // object.
   // Output: Cost based on the parameters passed in.
-  static double objectiveFunctionTimeAndConstraints(const std::vector<double>& optimization_variables, std::vector<double>& gradient, void* data);
+  static double objectiveFunctionTimeAndConstraints(const std::vector<double> &optimization_variables, std::vector<double> &gradient, void *data);
 
   // Evaluates the maximum magnitude constraint at the current value of
   // the optimization variables.
   // All input parameters are ignored, all information is contained in data.
-  static double evaluateMaximumMagnitudeConstraint(const std::vector<double>& optimization_variables, std::vector<double>& gradient, void* data);
+  static double evaluateMaximumMagnitudeConstraint(const std::vector<double> &optimization_variables, std::vector<double> &gradient, void *data);
 
   // Does the actual optimization work for the time-only version.
   int optimizeTime();
@@ -275,17 +275,17 @@ private:
   // Input: maximum_cost = Upper bound of the cost. Necessary, since exp of a
   // high violation can end up in inf.
   // Output: Sum of the costs per constraint.
-  double evaluateMaximumMagnitudeAsSoftConstraint(const std::vector<std::shared_ptr<ConstraintData>>& inequality_constraints, double weight,
+  double evaluateMaximumMagnitudeAsSoftConstraint(const std::vector<std::shared_ptr<ConstraintData>> &inequality_constraints, double weight,
                                                   double maximum_cost = 1.0e12) const;
 
   // Set lower and upper bounds on the optimization parameters
-  void setFreeEndpointDerivativeHardConstraints(const Vertex::Vector& vertices, std::vector<double>* lower_bounds, std::vector<double>* upper_bounds);
+  void setFreeEndpointDerivativeHardConstraints(const Vertex::Vector &vertices, std::vector<double> *lower_bounds, std::vector<double> *upper_bounds);
 
   // Computes the gradients by doing forward difference!
-  double getCostAndGradientMellinger(std::vector<double>* gradients);
+  double getCostAndGradientMellinger(std::vector<double> *gradients);
 
   // Computes the total trajectory time.
-  static double computeTotalTrajectoryTime(const std::vector<double>& segment_times);
+  static double computeTotalTrajectoryTime(const std::vector<double> &segment_times);
 
   // nlopt optimization object.
   std::shared_ptr<nlopt::opt> nlopt_;
@@ -302,15 +302,15 @@ private:
   OptimizationInfo optimization_info_;
 };
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
 namespace nlopt
 {
 // Convenience function that turns nlopt's return values into something
 // readable.
 std::string returnValueToString(int return_value);
-}  // namespace nlopt
+} // namespace nlopt
 
-#endif  // ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
+#endif // ETH_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_NONLINEAR_H_
 
 #include "eth_trajectory_generation/impl/polynomial_optimization_nonlinear_impl.h"

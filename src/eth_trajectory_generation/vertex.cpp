@@ -30,7 +30,7 @@ namespace eth_trajectory_generation
 
 /* createRandomVertices() //{ */
 
-Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments, const Eigen::VectorXd& pos_min, const Eigen::VectorXd& pos_max, size_t seed) {
+Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments, const Eigen::VectorXd &pos_min, const Eigen::VectorXd &pos_max, size_t seed) {
   CHECK_GE(static_cast<int>(n_segments), 1);
   CHECK_EQ(pos_min.size(), pos_max.size());
   CHECK_GE((pos_max - pos_min).norm(), 0.2);
@@ -87,7 +87,7 @@ Vertex::Vector createRandomVertices(int maximum_derivative, size_t n_segments, c
 
 /* createSquareVertices() //{ */
 
-Vertex::Vector createSquareVertices(int maximum_derivative, const Eigen::Vector3d& center, double side_length, int rounds) {
+Vertex::Vector createSquareVertices(int maximum_derivative, const Eigen::Vector3d &center, double side_length, int rounds) {
   Vertex::Vector vertices;
   const size_t   dimension = center.size();
 
@@ -131,7 +131,7 @@ Vertex::Vector createRandomVertices1D(int maximum_derivative, size_t n_segments,
 
 /* addConstraint() //{ */
 
-void Vertex::addConstraint(int derivative_order, const Eigen::VectorXd& constraint) {
+void Vertex::addConstraint(int derivative_order, const Eigen::VectorXd &constraint) {
   CHECK_EQ(constraint.rows(), static_cast<long>(D_));
   constraints_[derivative_order] = constraint;
 }
@@ -155,7 +155,7 @@ bool Vertex::removeConstraint(int type) {
 
 /* makeStartOrEnd() //{ */
 
-void Vertex::makeStartOrEnd(const Eigen::VectorXd& constraint, int up_to_derivative) {
+void Vertex::makeStartOrEnd(const Eigen::VectorXd &constraint, int up_to_derivative) {
   addConstraint(derivative_order::POSITION, constraint);
   for (int i = 1; i <= up_to_derivative; ++i) {
     constraints_[i] = ConstraintValue::Zero(static_cast<int>(D_));
@@ -166,7 +166,7 @@ void Vertex::makeStartOrEnd(const Eigen::VectorXd& constraint, int up_to_derivat
 
 /* getConstraint() //{ */
 
-bool Vertex::getConstraint(int derivative_order, Eigen::VectorXd* value) const {
+bool Vertex::getConstraint(int derivative_order, Eigen::VectorXd *value) const {
   CHECK_NOTNULL(value);
   typename Constraints::const_iterator it = constraints_.find(derivative_order);
   if (it != constraints_.end()) {
@@ -189,7 +189,7 @@ bool Vertex::hasConstraint(int derivative_order) const {
 
 /* isEqualTol() //{ */
 
-bool Vertex::isEqualTol(const Vertex& rhs, double tol) const {
+bool Vertex::isEqualTol(const Vertex &rhs, double tol) const {
   if (constraints_.size() != rhs.constraints_.size())
     return false;
   // loop through lhs constraint map
@@ -209,7 +209,7 @@ bool Vertex::isEqualTol(const Vertex& rhs, double tol) const {
 
 /* getSubdimension() //{ */
 
-bool Vertex::getSubdimension(const std::vector<size_t>& subdimensions, int max_derivative_order, Vertex* subvertex) const {
+bool Vertex::getSubdimension(const std::vector<size_t> &subdimensions, int max_derivative_order, Vertex *subvertex) const {
   CHECK_NOTNULL(subvertex);
   *subvertex = Vertex(subdimensions.size());
 
@@ -223,7 +223,7 @@ bool Vertex::getSubdimension(const std::vector<size_t>& subdimensions, int max_d
     int derivative_order = it->first;
     if (derivative_order > max_derivative_order)
       continue;
-    const ConstraintValue& original_constraint = it->second;
+    const ConstraintValue &original_constraint = it->second;
     ConstraintValue        subsconstraint(subvertex->D());
     for (size_t i = 0; i < subdimensions.size(); i++) {
       subsconstraint[i] = original_constraint[subdimensions[i]];
@@ -237,7 +237,7 @@ bool Vertex::getSubdimension(const std::vector<size_t>& subdimensions, int max_d
 
 /* operator<<(std::ostream& stream, const Vertex& v) //{ */
 
-std::ostream& operator<<(std::ostream& stream, const Vertex& v) {
+std::ostream &operator<<(std::ostream &stream, const Vertex &v) {
   stream << "constraints: " << std::endl;
   Eigen::IOFormat format(4, 0, ", ", "\n", "[", "]");
   for (typename Vertex::Constraints::const_iterator it = v.cBegin(); it != v.cEnd(); ++it) {
@@ -251,8 +251,8 @@ std::ostream& operator<<(std::ostream& stream, const Vertex& v) {
 
 /* operator<<(std::ostream& stream, const std::vector<Vertex>& vertices) //{ */
 
-std::ostream& operator<<(std::ostream& stream, const std::vector<Vertex>& vertices) {
-  for (const Vertex& v : vertices) {
+std::ostream &operator<<(std::ostream &stream, const std::vector<Vertex> &vertices) {
+  for (const Vertex &v : vertices) {
     stream << v << std::endl;
   }
   return stream;
@@ -262,7 +262,7 @@ std::ostream& operator<<(std::ostream& stream, const std::vector<Vertex>& vertic
 
 /* estimateSegmentTimes() //{ */
 
-std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+std::vector<double> estimateSegmentTimes(const Vertex::Vector &vertices, const double v_max_horizontal, const double v_max_vertical,
                                          const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal, const double j_max_vertical,
                                          const double heading_speed_max, const double heading_acc_max) {
 
@@ -274,7 +274,7 @@ std::vector<double> estimateSegmentTimes(const Vertex::Vector& vertices, const d
 
 /* estimateSegmentTimesVelocityRamp() //{ */
 
-std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector& vertices, double v_max, double a_max, double time_factor) {
+std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector &vertices, double v_max, double a_max, double time_factor) {
   CHECK_GE(vertices.size(), 2);
   std::vector<double> segment_times;
 
@@ -298,7 +298,7 @@ std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector& verti
 
 /* estimateSegmentTimesBaca() //{ */
 
-std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector &vertices, const double v_max_horizontal, const double v_max_vertical,
                                              const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal,
                                              const double j_max_vertical, const double heading_speed_max, const double heading_acc_max) {
 
@@ -488,7 +488,7 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector& vertices, con
 
 /* estimateSegmentTimesEuclidean() //{ */
 
-std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices, const double v_max_horizontal, const double v_max_vertical,
+std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector &vertices, const double v_max_horizontal, const double v_max_vertical,
                                                   const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal,
                                                   const double j_max_vertical, const double heading_speed_max, const double heading_acc_max) {
 
@@ -568,7 +568,7 @@ std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector& vertices
 
 /* computeTimeVelocityRamp() //{ */
 
-double computeTimeVelocityRamp(const Eigen::VectorXd& start, const Eigen::VectorXd& goal, double v_max, double a_max) {
+double computeTimeVelocityRamp(const Eigen::VectorXd &start, const Eigen::VectorXd &goal, double v_max, double a_max) {
 
   const double distance = (start - goal).norm();
   // Time to accelerate or decelerate to or from maximum velocity:
@@ -587,4 +587,4 @@ double computeTimeVelocityRamp(const Eigen::VectorXd& start, const Eigen::Vector
 
 //}
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation

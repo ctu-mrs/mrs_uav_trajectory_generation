@@ -56,11 +56,11 @@ using sradians = mrs_lib::geometry::sradians;
 
 /* defines //{ */
 
-#define FUTURIZATION_EXEC_TIME_FACTOR 0.5        // [0, 1]
-#define FUTURIZATION_FIRST_WAYPOINT_FACTOR 0.50  // [0, 1]
-#define OVERTIME_SAFETY_FACTOR 0.95              // [0, 1]
-#define OVERTIME_SAFETY_OFFSET 0.01              // [s]
-#define NLOPT_EXEC_TIME_FACTOR 0.95              // [0, 1]
+#define FUTURIZATION_EXEC_TIME_FACTOR 0.5       // [0, 1]
+#define FUTURIZATION_FIRST_WAYPOINT_FACTOR 0.50 // [0, 1]
+#define OVERTIME_SAFETY_FACTOR 0.95             // [0, 1]
+#define OVERTIME_SAFETY_OFFSET 0.01             // [s]
+#define NLOPT_EXEC_TIME_FACTOR 0.95             // [0, 1]
 
 typedef struct
 {
@@ -183,9 +183,8 @@ private:
   mrs_lib::ServiceClientHandler<mrs_msgs::srv::TrajectoryReferenceSrv> service_client_trajectory_reference_;
 
   // solve the whole problem
-  std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> optimize(const std::vector<Waypoint_t>& waypoints_in,
-                                                                                   const std_msgs::msg::Header& waypoints_stamp, bool fallback_sampling,
-                                                                                   const bool relax_heading);
+  std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool>
+  optimize(const std::vector<Waypoint_t> &waypoints_in, const std_msgs::msg::Header &waypoints_stamp, bool fallback_sampling, const bool relax_heading);
 
   std::tuple<std::optional<mrs_msgs::msg::TrackerCommand>, bool, int> prepareInitialCondition(const rclcpp::Time path_time);
 
@@ -194,7 +193,7 @@ private:
   mrs_lib::BatchVisualizer bw_final_;
 
   // transforming TrackerCommand
-  std::optional<mrs_msgs::msg::Path> transformPath(const mrs_msgs::msg::Path& path, const std::string& target_frame);
+  std::optional<mrs_msgs::msg::Path> transformPath(const mrs_msgs::msg::Path &path, const std::string &target_frame);
 
   // | ------------------ trajectory validation ----------------- |
 
@@ -206,37 +205,37 @@ private:
    *
    * @return <success, traj_fail_idx, path_fail_segment>
    */
-  std::tuple<bool, int, std::vector<bool>, double> validateTrajectorySpatial(const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory,
-                                                                             const std::vector<Waypoint_t>&                    waypoints);
+  std::tuple<bool, int, std::vector<bool>, double> validateTrajectorySpatial(const eth_mav_msgs::EigenTrajectoryPoint::Vector &trajectory,
+                                                                             const std::vector<Waypoint_t>                    &waypoints);
 
-  std::vector<int> getWaypointInTrajectoryIdxs(const mrs_msgs::msg::TrajectoryReference& trajectory, const std::vector<Waypoint_t>& waypoints);
+  std::vector<int> getWaypointInTrajectoryIdxs(const mrs_msgs::msg::TrajectoryReference &trajectory, const std::vector<Waypoint_t> &waypoints);
 
-  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>&                      waypoints,
-                                                                           const std::optional<mrs_msgs::msg::TrackerCommand>& initial_state,
-                                                                           const double& sampling_dt, const bool& relax_heading);
+  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectory(const std::vector<Waypoint_t>                      &waypoints,
+                                                                           const std::optional<mrs_msgs::msg::TrackerCommand> &initial_state,
+                                                                           const double &sampling_dt, const bool &relax_heading);
 
-  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectoryFallback(const std::vector<Waypoint_t>& waypoints, const double& sampling_dt,
-                                                                                   const bool& relax_heading);
+  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectoryFallback(const std::vector<Waypoint_t> &waypoints, const double &sampling_dt,
+                                                                                   const bool &relax_heading);
 
   std::future<std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector>> future_trajectory_result_;
   std::atomic<bool>                                                      running_async_planning_ = false;
 
-  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectoryAsync(const std::vector<Waypoint_t>&                      waypoints,
-                                                                                const std::optional<mrs_msgs::msg::TrackerCommand>& initial_state,
-                                                                                const double& sampling_dt, const bool& relax_heading);
+  std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> findTrajectoryAsync(const std::vector<Waypoint_t>                      &waypoints,
+                                                                                const std::optional<mrs_msgs::msg::TrackerCommand> &initial_state,
+                                                                                const double &sampling_dt, const bool &relax_heading);
 
-  std::vector<Waypoint_t> preprocessPath(const std::vector<Waypoint_t>& waypoints_in);
+  std::vector<Waypoint_t> preprocessPath(const std::vector<Waypoint_t> &waypoints_in);
 
-  mrs_msgs::msg::TrajectoryReference getTrajectoryReference(const eth_mav_msgs::EigenTrajectoryPoint::Vector&   trajectory,
-                                                            const std::optional<mrs_msgs::msg::TrackerCommand>& initial_condition, const double& sampling_dt);
+  mrs_msgs::msg::TrajectoryReference getTrajectoryReference(const eth_mav_msgs::EigenTrajectoryPoint::Vector   &trajectory,
+                                                            const std::optional<mrs_msgs::msg::TrackerCommand> &initial_condition, const double &sampling_dt);
 
-  Waypoint_t interpolatePoint(const Waypoint_t& a, const Waypoint_t& b, const double& coeff);
+  Waypoint_t interpolatePoint(const Waypoint_t &a, const Waypoint_t &b, const double &coeff);
 
-  bool checkNaN(const Waypoint_t& a);
+  bool checkNaN(const Waypoint_t &a);
 
-  double distFromSegment(const vec3_t& point, const vec3_t& seg1, const vec3_t& seg2);
+  double distFromSegment(const vec3_t &point, const vec3_t &seg1, const vec3_t &seg2);
 
-  bool trajectorySrv(const mrs_msgs::msg::TrajectoryReference& msg);
+  bool trajectorySrv(const mrs_msgs::msg::TrajectoryReference &msg);
 
   // | --------------- dynamic reconfigure server --------------- |
 
@@ -468,13 +467,13 @@ void MrsTrajectoryGeneration::initialize(void) {
 
 /* preprocessPath() //{ */
 
-std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessPath(const std::vector<Waypoint_t>& waypoints_in) {
+std::vector<Waypoint_t> MrsTrajectoryGeneration::preprocessPath(const std::vector<Waypoint_t> &waypoints_in) {
 
   mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer(node_, "MrsTrajectoryGeneration::preprocessPath", scope_timer_logger_, scope_timer_enabled_);
 
   std::vector<Waypoint_t> waypoints;
 
-  size_t last_added_idx = 0;  // in "waypoints_in"
+  size_t last_added_idx = 0; // in "waypoints_in"
 
   for (size_t i = 0; i < waypoints_in.size(); i++) {
 
@@ -657,8 +656,8 @@ std::tuple<std::optional<mrs_msgs::msg::TrackerCommand>, bool, int> MrsTrajector
 
 /* optimize() //{ */
 
-std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTrajectoryGeneration::optimize(const std::vector<Waypoint_t>& waypoints_in,
-                                                                                                          const std_msgs::msg::Header&   waypoints_header,
+std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTrajectoryGeneration::optimize(const std::vector<Waypoint_t> &waypoints_in,
+                                                                                                          const std_msgs::msg::Header   &waypoints_header,
                                                                                                           const bool                     fallback_sampling,
                                                                                                           const bool                     relax_heading) {
 
@@ -895,9 +894,9 @@ std::tuple<bool, std::string, mrs_msgs::msg::TrajectoryReference, bool> MrsTraje
 
 /* findTrajectory() //{ */
 
-std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectory(
-    const std::vector<Waypoint_t>& waypoints, const std::optional<mrs_msgs::msg::TrackerCommand>& initial_state, const double& sampling_dt,
-    const bool& relax_heading) {
+std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector>
+MrsTrajectoryGeneration::findTrajectory(const std::vector<Waypoint_t> &waypoints, const std::optional<mrs_msgs::msg::TrackerCommand> &initial_state,
+                                        const double &sampling_dt, const bool &relax_heading) {
 
   mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer(node_, "MrsTrajectoryGeneration::findTrajectory", scope_timer_logger_, scope_timer_enabled_);
 
@@ -946,18 +945,18 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   int derivative_to_optimize = eth_trajectory_generation::derivative_order::ACCELERATION;
 
   switch (params.derivative_to_optimize) {
-    case 0: {
-      derivative_to_optimize = eth_trajectory_generation::derivative_order::ACCELERATION;
-      break;
-    }
-    case 1: {
-      derivative_to_optimize = eth_trajectory_generation::derivative_order::JERK;
-      break;
-    }
-    case 2: {
-      derivative_to_optimize = eth_trajectory_generation::derivative_order::SNAP;
-      break;
-    }
+  case 0: {
+    derivative_to_optimize = eth_trajectory_generation::derivative_order::ACCELERATION;
+    break;
+  }
+  case 1: {
+    derivative_to_optimize = eth_trajectory_generation::derivative_order::JERK;
+    break;
+  }
+  case 2: {
+    derivative_to_optimize = eth_trajectory_generation::derivative_order::SNAP;
+    break;
+  }
   }
 
   // | --------------- add constraints to vertices -------------- |
@@ -998,13 +997,13 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
                              Eigen::Vector4d(initial_state->jerk.x, initial_state->jerk.y, initial_state->jerk.z, initial_state->heading_jerk));
       }
 
-    } else if (i == (waypoints.size() - 1)) {  // the last point
+    } else if (i == (waypoints.size() - 1)) { // the last point
 
       vertex.makeStartOrEnd(Eigen::Vector4d(x, y, z, heading), derivative_to_optimize);
 
       vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
 
-    } else {  // mid points
+    } else { // mid points
 
       vertex.addConstraint(eth_trajectory_generation::derivative_order::POSITION, Eigen::Vector4d(x, y, z, heading));
 
@@ -1131,50 +1130,50 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
   std::string result_str;
 
   switch (opt.getOptimizationInfo().stopping_reason) {
-    case nlopt::FAILURE: {
-      result_str = "generic failure";
-      break;
-    }
-    case nlopt::INVALID_ARGS: {
-      result_str = "invalid args";
-      break;
-    }
-    case nlopt::OUT_OF_MEMORY: {
-      result_str = "out of memory";
-      break;
-    }
-    case nlopt::ROUNDOFF_LIMITED: {
-      result_str = "roundoff limited";
-      break;
-    }
-    case nlopt::FORCED_STOP: {
-      result_str = "forced stop";
-      break;
-    }
-    case nlopt::STOPVAL_REACHED: {
-      result_str = "stopval reached";
-      break;
-    }
-    case nlopt::FTOL_REACHED: {
-      result_str = "ftol reached";
-      break;
-    }
-    case nlopt::XTOL_REACHED: {
-      result_str = "xtol reached";
-      break;
-    }
-    case nlopt::MAXEVAL_REACHED: {
-      result_str = "maxeval reached";
-      break;
-    }
-    case nlopt::MAXTIME_REACHED: {
-      result_str = "maxtime reached";
-      break;
-    }
-    default: {
-      result_str = "UNKNOWN FAILURE CODE";
-      break;
-    }
+  case nlopt::FAILURE: {
+    result_str = "generic failure";
+    break;
+  }
+  case nlopt::INVALID_ARGS: {
+    result_str = "invalid args";
+    break;
+  }
+  case nlopt::OUT_OF_MEMORY: {
+    result_str = "out of memory";
+    break;
+  }
+  case nlopt::ROUNDOFF_LIMITED: {
+    result_str = "roundoff limited";
+    break;
+  }
+  case nlopt::FORCED_STOP: {
+    result_str = "forced stop";
+    break;
+  }
+  case nlopt::STOPVAL_REACHED: {
+    result_str = "stopval reached";
+    break;
+  }
+  case nlopt::FTOL_REACHED: {
+    result_str = "ftol reached";
+    break;
+  }
+  case nlopt::XTOL_REACHED: {
+    result_str = "xtol reached";
+    break;
+  }
+  case nlopt::MAXEVAL_REACHED: {
+    result_str = "maxeval reached";
+    break;
+  }
+  case nlopt::MAXTIME_REACHED: {
+    result_str = "maxtime reached";
+    break;
+  }
+  default: {
+    result_str = "UNKNOWN FAILURE CODE";
+    break;
+  }
   }
 
   if (opt.getOptimizationInfo().stopping_reason >= 1 && opt.getOptimizationInfo().stopping_reason != 6) {
@@ -1254,9 +1253,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
 /* findTrajectoryFallback() //{ */
 
-std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectoryFallback(const std::vector<Waypoint_t>& waypoints,
-                                                                                                          const double&                  sampling_dt,
-                                                                                                          const bool&                    relax_heading) {
+std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector>
+MrsTrajectoryGeneration::findTrajectoryFallback(const std::vector<Waypoint_t> &waypoints, const double &sampling_dt, const bool &relax_heading) {
 
   mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer(node_, "MrsTrajectoryGeneration::findTrajectoryFallback", scope_timer_logger_, scope_timer_enabled_);
 
@@ -1439,8 +1437,8 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
 /* validateTrajectorySpatial() //{ */
 
-std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::validateTrajectorySpatial(
-    const eth_mav_msgs::EigenTrajectoryPoint::Vector& trajectory, const std::vector<Waypoint_t>& waypoints) {
+std::tuple<bool, int, std::vector<bool>, double>
+MrsTrajectoryGeneration::validateTrajectorySpatial(const eth_mav_msgs::EigenTrajectoryPoint::Vector &trajectory, const std::vector<Waypoint_t> &waypoints) {
 
   mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer(node_, "MrsTrajectoryGeneration::validateTrajectorySpatial", scope_timer_logger_, scope_timer_enabled_);
 
@@ -1499,8 +1497,8 @@ std::tuple<bool, int, std::vector<bool>, double> MrsTrajectoryGeneration::valida
 
 /* getWaypointInTrajectoryIdxs() //{ */
 
-std::vector<int> MrsTrajectoryGeneration::getWaypointInTrajectoryIdxs(const mrs_msgs::msg::TrajectoryReference& trajectory,
-                                                                      const std::vector<Waypoint_t>&            waypoints) {
+std::vector<int> MrsTrajectoryGeneration::getWaypointInTrajectoryIdxs(const mrs_msgs::msg::TrajectoryReference &trajectory,
+                                                                      const std::vector<Waypoint_t>            &waypoints) {
 
   mrs_lib::ScopeTimer timer = mrs_lib::ScopeTimer(node_, "MrsTrajectoryGeneration::validateTrajectorySpatial", scope_timer_logger_, scope_timer_enabled_);
 
@@ -1545,9 +1543,9 @@ std::vector<int> MrsTrajectoryGeneration::getWaypointInTrajectoryIdxs(const mrs_
 
 /* findTrajectoryAsync() //{ */
 
-std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneration::findTrajectoryAsync(
-    const std::vector<Waypoint_t>& waypoints, const std::optional<mrs_msgs::msg::TrackerCommand>& initial_state, const double& sampling_dt,
-    const bool& relax_heading) {
+std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector>
+MrsTrajectoryGeneration::findTrajectoryAsync(const std::vector<Waypoint_t> &waypoints, const std::optional<mrs_msgs::msg::TrackerCommand> &initial_state,
+                                             const double &sampling_dt, const bool &relax_heading) {
 
   RCLCPP_DEBUG(node_->get_logger(), "starting the async planning task");
 
@@ -1571,7 +1569,7 @@ std::optional<eth_mav_msgs::EigenTrajectoryPoint::Vector> MrsTrajectoryGeneratio
 
 /* distFromSegment() //{ */
 
-double MrsTrajectoryGeneration::distFromSegment(const vec3_t& point, const vec3_t& seg1, const vec3_t& seg2) {
+double MrsTrajectoryGeneration::distFromSegment(const vec3_t &point, const vec3_t &seg1, const vec3_t &seg2) {
 
   vec3_t segment_vector = seg2 - seg1;
   double segment_len    = segment_vector.norm();
@@ -1598,9 +1596,9 @@ double MrsTrajectoryGeneration::distFromSegment(const vec3_t& point, const vec3_
 
 /* getTrajectoryReference() //{ */
 
-mrs_msgs::msg::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReference(const eth_mav_msgs::EigenTrajectoryPoint::Vector&   trajectory,
-                                                                                   const std::optional<mrs_msgs::msg::TrackerCommand>& initial_condition,
-                                                                                   const double&                                       sampling_dt) {
+mrs_msgs::msg::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReference(const eth_mav_msgs::EigenTrajectoryPoint::Vector   &trajectory,
+                                                                                   const std::optional<mrs_msgs::msg::TrackerCommand> &initial_condition,
+                                                                                   const double                                       &sampling_dt) {
 
   mrs_msgs::msg::TrajectoryReference msg;
 
@@ -1650,7 +1648,7 @@ mrs_msgs::msg::TrajectoryReference MrsTrajectoryGeneration::getTrajectoryReferen
 
 /* interpolatePoint() //{ */
 
-Waypoint_t MrsTrajectoryGeneration::interpolatePoint(const Waypoint_t& a, const Waypoint_t& b, const double& coeff) {
+Waypoint_t MrsTrajectoryGeneration::interpolatePoint(const Waypoint_t &a, const Waypoint_t &b, const double &coeff) {
 
   Waypoint_t      out;
   Eigen::Vector4d diff = b.coords - a.coords;
@@ -1669,7 +1667,7 @@ Waypoint_t MrsTrajectoryGeneration::interpolatePoint(const Waypoint_t& a, const 
 
 /* checkNaN() //{ */
 
-bool MrsTrajectoryGeneration::checkNaN(const Waypoint_t& a) {
+bool MrsTrajectoryGeneration::checkNaN(const Waypoint_t &a) {
 
   if (!std::isfinite(a.coords(0))) {
     RCLCPP_ERROR(node_->get_logger(), "NaN detected in variable \"a.coords(0)\"!!!");
@@ -1698,7 +1696,7 @@ bool MrsTrajectoryGeneration::checkNaN(const Waypoint_t& a) {
 
 /* trajectorySrv() //{ */
 
-bool MrsTrajectoryGeneration::trajectorySrv(const mrs_msgs::msg::TrajectoryReference& msg) {
+bool MrsTrajectoryGeneration::trajectorySrv(const mrs_msgs::msg::TrajectoryReference &msg) {
 
   std::shared_ptr<mrs_msgs::srv::TrajectoryReferenceSrv::Request> request = std::make_shared<mrs_msgs::srv::TrajectoryReferenceSrv::Request>();
 
@@ -1726,7 +1724,7 @@ bool MrsTrajectoryGeneration::trajectorySrv(const mrs_msgs::msg::TrajectoryRefer
 
 /* transformTrackerCmd() //{ */
 
-std::optional<mrs_msgs::msg::Path> MrsTrajectoryGeneration::transformPath(const mrs_msgs::msg::Path& path_in, const std::string& target_frame) {
+std::optional<mrs_msgs::msg::Path> MrsTrajectoryGeneration::transformPath(const mrs_msgs::msg::Path &path_in, const std::string &target_frame) {
 
   // if we transform to the current control frame, which is in fact the same frame as the tracker_cmd is in
   if (target_frame == path_in.header.frame_id) {
@@ -2520,7 +2518,7 @@ void MrsTrajectoryGeneration::callbackUavState(const mrs_msgs::msg::UavState::Co
 
 //}
 
-}  // namespace mrs_uav_trajectory_generation
+} // namespace mrs_uav_trajectory_generation
 
 #include <rclcpp_components/register_node_macro.hpp>
 RCLCPP_COMPONENTS_REGISTER_NODE(mrs_uav_trajectory_generation::MrsTrajectoryGeneration);

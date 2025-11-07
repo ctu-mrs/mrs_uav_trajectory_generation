@@ -55,37 +55,37 @@ public:
   }
 
   // Assigns arbitrary coefficients to a polynomial.
-  Polynomial(int N, const Eigen::VectorXd& coeffs) : N_(N), coefficients_(coeffs) {
+  Polynomial(int N, const Eigen::VectorXd &coeffs) : N_(N), coefficients_(coeffs) {
     CHECK_EQ(N_, coeffs.size()) << "Number of coefficients has to match.";
   }
 
-  Polynomial(const Eigen::VectorXd& coeffs) : N_(coeffs.size()), coefficients_(coeffs) {
+  Polynomial(const Eigen::VectorXd &coeffs) : N_(coeffs.size()), coefficients_(coeffs) {
   }
   /// Gets the number of coefficients (order + 1) of the polynomial.
   int N() const {
     return N_;
   }
 
-  inline bool operator==(const Polynomial& rhs) const {
+  inline bool operator==(const Polynomial &rhs) const {
     return coefficients_ == rhs.coefficients_;
   }
-  inline bool operator!=(const Polynomial& rhs) const {
+  inline bool operator!=(const Polynomial &rhs) const {
     return !operator==(rhs);
   }
-  inline Polynomial operator+(const Polynomial& rhs) const {
+  inline Polynomial operator+(const Polynomial &rhs) const {
     return Polynomial(coefficients_ + rhs.coefficients_);
   }
-  inline Polynomial& operator+=(const Polynomial& rhs) {
+  inline Polynomial &operator+=(const Polynomial &rhs) {
     this->coefficients_ += rhs.coefficients_;
     return *this;
   }
   // The product of two polynomials is the convolution of their coefficients.
-  inline Polynomial operator*(const Polynomial& rhs) const {
+  inline Polynomial operator*(const Polynomial &rhs) const {
     return Polynomial(convolve(coefficients_, rhs.coefficients_));
   }
   // The product of a polynomial with a scalar. Note that polynomials are in
   // general not homogeneous, i.e., f(a*t) != a*f(t)
-  inline Polynomial operator*(const double& rhs) const {
+  inline Polynomial operator*(const double &rhs) const {
     return Polynomial(coefficients_ * rhs);
   }
 
@@ -94,7 +94,7 @@ public:
   // i.e. c1 + c2*t + c3*t^2 ==> coeffs = [c1 c2 c3]
   /* setCoefficients() //{ */
 
-  void setCoefficients(const Eigen::VectorXd& coeffs) {
+  void setCoefficients(const Eigen::VectorXd &coeffs) {
     CHECK_EQ(N_, coeffs.size()) << "Number of coefficients has to match.";
     coefficients_ = coeffs;
   }
@@ -125,7 +125,7 @@ public:
   // 3-vector, then will fill in derivatives 0, 1, and 2).
   /* evaluate() //{ */
 
-  void evaluate(double t, Eigen::VectorXd* result) const {
+  void evaluate(double t, Eigen::VectorXd *result) const {
     CHECK_LE(result->size(), N_);
     const int max_deg = result->size();
 
@@ -166,36 +166,36 @@ public:
 
   // Uses Jenkins-Traub to get all the roots of the polynomial at a certain
   // derivative.
-  bool getRoots(int derivative, Eigen::VectorXcd* roots) const;
+  bool getRoots(int derivative, Eigen::VectorXcd *roots) const;
 
   // Finds all candidates for the minimum and maximum between t_start and t_end
   // by evaluating the roots of the polynomial's derivative.
-  static bool selectMinMaxCandidatesFromRoots(double t_start, double t_end, const Eigen::VectorXcd& roots_derivative_of_derivative,
-                                              std::vector<double>* candidates);
+  static bool selectMinMaxCandidatesFromRoots(double t_start, double t_end, const Eigen::VectorXcd &roots_derivative_of_derivative,
+                                              std::vector<double> *candidates);
 
   // Finds all candidates for the minimum and maximum between t_start and t_end
   // by computing the roots of the derivative polynomial.
-  bool computeMinMaxCandidates(double t_start, double t_end, int derivative, std::vector<double>* candidates) const;
+  bool computeMinMaxCandidates(double t_start, double t_end, int derivative, std::vector<double> *candidates) const;
 
   // Evaluates the minimum and maximum of a polynomial between time t_start and
   // t_end given the roots of the derivative.
   // Returns the minimum and maximum as pair<t, value>.
-  bool selectMinMaxFromRoots(double t_start, double t_end, int derivative, const Eigen::VectorXcd& roots_derivative_of_derivative,
-                             std::pair<double, double>* minimum, std::pair<double, double>* maximum) const;
+  bool selectMinMaxFromRoots(double t_start, double t_end, int derivative, const Eigen::VectorXcd &roots_derivative_of_derivative,
+                             std::pair<double, double> *minimum, std::pair<double, double> *maximum) const;
 
   // Computes the minimum and maximum of a polynomial between time t_start and
   // t_end by computing the roots of the derivative polynomial.
   // Returns the minimum and maximum as pair<t, value>.
-  bool computeMinMax(double t_start, double t_end, int derivative, std::pair<double, double>* minimum, std::pair<double, double>* maximum) const;
+  bool computeMinMax(double t_start, double t_end, int derivative, std::pair<double, double> *minimum, std::pair<double, double> *maximum) const;
 
   // Selects the minimum and maximum of a polynomial among a candidate set.
   // Returns the minimum and maximum as pair<t, value>.
-  bool selectMinMaxFromCandidates(const std::vector<double>& candidates, int derivative, std::pair<double, double>* minimum,
-                                  std::pair<double, double>* maximum) const;
+  bool selectMinMaxFromCandidates(const std::vector<double> &candidates, int derivative, std::pair<double, double> *minimum,
+                                  std::pair<double, double> *maximum) const;
 
   // Increase the number of coefficients of this polynomial up to the specified
   // degree by appending zeros.
-  bool getPolynomialWithAppendedCoefficients(int new_N, Polynomial* new_polynomial) const;
+  bool getPolynomialWithAppendedCoefficients(int new_N, Polynomial *new_polynomial) const;
 
   // Computes the base coefficients with the according powers of t, as
   // e.g. needed for computation of (in)equality constraints.
@@ -205,7 +205,7 @@ public:
   // Input: t = time of evaluation
   /* baseCoeffsWithTime() //{ */
 
-  static void baseCoeffsWithTime(int N, int derivative, double t, Eigen::VectorXd* coeffs) {
+  static void baseCoeffsWithTime(int N, int derivative, double t, Eigen::VectorXd *coeffs) {
     CHECK_LT(derivative, N);
     CHECK_GE(derivative, 0);
 
@@ -238,7 +238,7 @@ public:
 
   // Discrete convolution of two vectors.
   // convolve(d, k)[m] = sum(d[m - n] * k[n])
-  static Eigen::VectorXd convolve(const Eigen::VectorXd& data, const Eigen::VectorXd& kernel);
+  static Eigen::VectorXd convolve(const Eigen::VectorXd &data, const Eigen::VectorXd &kernel);
 
   static inline int getConvolutionLength(int data_size, int kernel_size) {
     return data_size + kernel_size - 1;
@@ -264,6 +264,6 @@ private:
 // up to order N.
 Eigen::MatrixXd computeBaseCoefficients(int N);
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
-#endif  // ETH_TRAJECTORY_GENERATION_POLYNOMIAL_H_
+#endif // ETH_TRAJECTORY_GENERATION_POLYNOMIAL_H_

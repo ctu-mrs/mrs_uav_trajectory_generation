@@ -39,14 +39,14 @@ static constexpr int ANGULAR_VELOCITY     = 1;
 static constexpr int ANGULAR_ACCELERATION = 2;
 
 static constexpr int INVALID = -1;
-}  // namespace derivative_order
+} // namespace derivative_order
 
 std::string positionDerivativeToString(int derivative);
-int         positionDerivativeToInt(const std::string& string);
+int         positionDerivativeToInt(const std::string &string);
 
 std::string orintationDerivativeToString(int derivative);
-int         orientationDerivativeToInt(const std::string& string);
+int         orientationDerivativeToInt(const std::string &string);
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
 #endif

@@ -37,8 +37,8 @@ public:
   ~Trajectory() {
   }
 
-  bool        operator==(const Trajectory& rhs) const;
-  inline bool operator!=(const Trajectory& rhs) const {
+  bool        operator==(const Trajectory &rhs) const;
+  inline bool operator!=(const Trajectory &rhs) const {
     return !operator==(rhs);
   }
 
@@ -62,7 +62,7 @@ public:
     max_time_ = 0.0;
   }
 
-  void setSegments(const Segment::Vector& segments) {
+  void setSegments(const Segment::Vector &segments) {
     CHECK(!segments.empty());
     // Reset states.
     D_        = segments.front().D();
@@ -73,8 +73,8 @@ public:
     addSegments(segments);
   }
 
-  void addSegments(const Segment::Vector& segments) {
-    for (const Segment& segment : segments) {
+  void addSegments(const Segment::Vector &segments) {
+    for (const Segment &segment : segments) {
       CHECK_EQ(segment.D(), D_);
       CHECK_EQ(segment.N(), N_);
       max_time_ += segment.getTime();
@@ -82,12 +82,12 @@ public:
     segments_.insert(segments_.end(), segments.begin(), segments.end());
   }
 
-  void getSegments(Segment::Vector* segments) const {
+  void getSegments(Segment::Vector *segments) const {
     CHECK_NOTNULL(segments);
     *segments = segments_;
   }
 
-  const Segment::Vector& segments() const {
+  const Segment::Vector &segments() const {
     return segments_;
   }
 
@@ -103,13 +103,13 @@ public:
   // with a single dimension) or compositing (create a new trajectory with
   // another trajectory appended).
   Trajectory getTrajectoryWithSingleDimension(int dimension) const;
-  bool       getTrajectoryWithAppendedDimension(const Trajectory& trajectory_to_append, Trajectory* new_trajectory) const;
+  bool       getTrajectoryWithAppendedDimension(const Trajectory &trajectory_to_append, Trajectory *new_trajectory) const;
 
   // Add trajectories with same dimensions and coefficients to this trajectory.
-  bool addTrajectories(const std::vector<Trajectory>& trajectories, Trajectory* merged) const;
+  bool addTrajectories(const std::vector<Trajectory> &trajectories, Trajectory *merged) const;
 
   // Offset this trajectory by vector A_r_B.
-  bool offsetTrajectory(const Eigen::VectorXd& A_r_B);
+  bool offsetTrajectory(const Eigen::VectorXd &A_r_B);
 
   // Evaluate the vertex constraint at time t.
   Vertex getVertexAtTime(double t, int max_derivative_order) const;
@@ -118,8 +118,8 @@ public:
   // Evaluate the vertex constraint at goal time.
   Vertex getGoalVertex(int max_derivative_order) const;
   // Evaluate all underlying vertices.
-  bool getVertices(int max_derivative_order_pos, int max_derivative_order_yaw, Vertex::Vector* pos_vertices, Vertex::Vector* yaw_vertices) const;
-  bool getVertices(int max_derivative_order, Vertex::Vector* vertices) const;
+  bool getVertices(int max_derivative_order_pos, int max_derivative_order_yaw, Vertex::Vector *pos_vertices, Vertex::Vector *yaw_vertices) const;
+  bool getVertices(int max_derivative_order, Vertex::Vector *vertices) const;
 
   // Evaluation functions.
   // Evaluate at a single time, and a single derivative. Return type of
@@ -129,28 +129,28 @@ public:
   // Evaluates the trajectory in a specified range and derivative.
   // Outputs are a vector of the sampled values (size of VectorXd is D) by
   // time and optionally the actual sampling times.
-  void evaluateRange(double t_start, double t_end, double dt, int derivative_order, std::vector<Eigen::VectorXd>* result,
-                     std::vector<double>* sampling_times = nullptr) const;
+  void evaluateRange(double t_start, double t_end, double dt, int derivative_order, std::vector<Eigen::VectorXd> *result,
+                     std::vector<double> *sampling_times = nullptr) const;
 
   // Compute the analytic minimum and maximum of magnitude for a given
   // derivative and dimensions, e.g., [0, 1, 2] for position or [3] for yaw.
   // Returns false in case of extremum calculation failure.
-  bool computeMinMaxMagnitude(int derivative, const std::vector<int>& dimensions, Extremum* minimum, Extremum* maximum, int seg) const;
+  bool computeMinMaxMagnitude(int derivative, const std::vector<int> &dimensions, Extremum *minimum, Extremum *maximum, int seg) const;
 
   // Compute the analytic minimum and maximum of magnitude for a given
   // derivative and dimensions, e.g., [0, 1, 2] for position or [3] for yaw.
   // Returns false in case of extremum calculation failure.
-  bool computeMinMaxMagnitude(int derivative, const std::vector<int>& dimensions, Extremum* minimum, Extremum* maximum) const;
+  bool computeMinMaxMagnitude(int derivative, const std::vector<int> &dimensions, Extremum *minimum, Extremum *maximum) const;
 
   // Compute max velocity and max acceleration. Shorthand for the method above.
-  bool computeMaxDerivativesHorizontal(double* v_max, double* a_max, double* j_max, int seg) const;
-  bool computeMaxDerivativesHorizontal(double* v_max, double* a_max, double* j_max) const;
+  bool computeMaxDerivativesHorizontal(double *v_max, double *a_max, double *j_max, int seg) const;
+  bool computeMaxDerivativesHorizontal(double *v_max, double *a_max, double *j_max) const;
 
-  bool computeMaxDerivativesVertical(double* v_max, double* a_max, double* j_max, int seg) const;
-  bool computeMaxDerivativesVertical(double* v_max, double* a_max, double* j_max) const;
+  bool computeMaxDerivativesVertical(double *v_max, double *a_max, double *j_max, int seg) const;
+  bool computeMaxDerivativesVertical(double *v_max, double *a_max, double *j_max) const;
 
-  bool computeMaxDerivativesHeading(double* v_max, double* a_max, double* j_max, int seg) const;
-  bool computeMaxDerivativesHeading(double* v_max, double* a_max, double* j_max) const;
+  bool computeMaxDerivativesHeading(double *v_max, double *a_max, double *j_max, int seg) const;
+  bool computeMaxDerivativesHeading(double *v_max, double *a_max, double *j_max) const;
 
   // This method SCALES the segment times evenly.
   bool scaleSegmentTimes(double scaling);
@@ -164,14 +164,14 @@ public:
                                           const double a_max_heading, const double j_max_heading);
 
 private:
-  int    D_;         // Number of dimensions.
-  int    N_;         // Number of coefficients.
-  double max_time_;  // Time at the end of the trajectory.
+  int    D_;        // Number of dimensions.
+  int    N_;        // Number of coefficients.
+  double max_time_; // Time at the end of the trajectory.
 
   // K is number of segments...
   Segment::Vector segments_;
 };
 
-}  // namespace eth_trajectory_generation
+} // namespace eth_trajectory_generation
 
-#endif  // ETH_TRAJECTORY_GENERATION_TRAJECTORY_H_
+#endif // ETH_TRAJECTORY_GENERATION_TRAJECTORY_H_
