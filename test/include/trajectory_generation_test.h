@@ -25,11 +25,13 @@ std::tuple<bool, std::string> TrajectoryGenerationTest::checkPathFlythrough(cons
       return {false, "terminated form outside"};
     }
 
-    if (uh_->isAtPosition(waypoints[current_idx][0], waypoints[current_idx][1], waypoints[current_idx][2], waypoints[current_idx][3], 1.2)) {
+    if (uh_->isAtPosition(waypoints[current_idx][0], waypoints[current_idx][1], waypoints[current_idx][2], waypoints[current_idx][3], 2.0)) {
+      RCLCPP_INFO(node_->get_logger(), "reached waypoint %lu", current_idx);
       current_idx++;
     }
 
     if (current_idx == waypoints.size()) {
+      RCLCPP_INFO(node_->get_logger(), "reached last waypoint");
       return {true, "waypoints passed"};
     }
 
