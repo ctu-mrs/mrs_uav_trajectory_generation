@@ -7,14 +7,11 @@ function(add_ros_isolated_launch_test path)
   add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
 endfunction()
 
-add_subdirectory(./fly_now_service)
+include_directories(include)
 
-add_subdirectory(./fly_now_topic)
-
-add_subdirectory(./fallback_sampling_topic)
-
-add_subdirectory(./path_before_takeoff_service)
-
-add_subdirectory(./get_path_before_takeoff_service)
-
-add_subdirectory(./get_path_after_takeoff_service)
+add_subdirectory(fallback_sampling_topic)
+add_subdirectory(fly_now_service)
+add_subdirectory(fly_now_topic)
+add_subdirectory(get_path_after_takeoff_service)
+add_subdirectory(get_path_before_takeoff_service)
+add_subdirectory(path_before_takeoff_service)

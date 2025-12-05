@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.28)
 project(mrs_uav_trajectory_generation)
 
 # set the correct standards
@@ -11,12 +11,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(USE_ROS_TIMER 0)
 
 if(${USE_ROS_TIMER})
-  MESSAGE(WARNING "[mrs_uav_autostart]: Compiling with ROS Timers. This can cause high CPU load in runtime.")
+  MESSAGE(WARNING "Compiling with ROS Timers. This can cause high CPU load in runtime.")
 endif()
 
 # set the compile options to show code warnings
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra)
+  add_compile_options("-Wall" "-Wextra")
 endif()
 
 if(ENABLE_COVERAGE)
@@ -39,64 +39,90 @@ set(DEPENDENCIES
   mrs_uav_testing
   backward_ros
   nlopt
-  )
-
-set(LIBRARIES
-  MrsUavTrajectoryGeneration_EthTrajectoryGeneration
-  MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
-  MrsUavTrajectoryGeneration_PathRandomFlier
-  )
+)
 
 foreach(DEP IN LISTS DEPENDENCIES)
   find_package(${DEP} REQUIRED)
 endforeach()
 
-include_directories(
-  include
-  test/include
-  ${rclcpp_INCLUDE_DIRS}
-  ${mrs_lib_INCLUDE_DIRS}
-  ${nlopt_INCLUDE_DIRS}
-  )
+set(LIBRARIES
+  MrsUavTrajectoryGeneration_EthTrajectoryGeneration
+  MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
+  MrsUavTrajectoryGeneration_PathRandomFlier
+)
 
 ## --------------------------------------------------------------
 ## |                           Compile                          |
 ## --------------------------------------------------------------
 
+# Internal common library
+
+add_library(MrsUavTrajectoryGeneration_InternalCommon INTERFACE)
+add_library(mrs_uav_trajectory_generation::internal_common ALIAS
+  MrsUavTrajectoryGeneration_InternalCommon
+)
+
+target_link_libraries(MrsUavTrajectoryGeneration_InternalCommon
+  INTERFACE
+    rclcpp::rclcpp
+    rclcpp_components::component
+    mrs_lib::mrs_lib
+    nlopt::nlopt
+    ${mrs_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${std_srvs_TARGETS}
+)
+
 # ETH Trajectory Generation
 
-add_library(MrsUavTrajectoryGeneration_EthTrajectoryGeneration SHARED
-  src/eth_trajectory_generation/motion_defines.cpp
-  src/eth_trajectory_generation/polynomial.cpp
-  src/eth_trajectory_generation/segment.cpp
-  src/eth_trajectory_generation/timing.cpp
-  src/eth_trajectory_generation/trajectory.cpp
-  src/eth_trajectory_generation/trajectory_sampling.cpp
-  src/eth_trajectory_generation/vertex.cpp
-  src/eth_trajectory_generation/rpoly/rpoly_ak1.cpp
-  )
+add_library(MrsUavTrajectoryGeneration_EthTrajectoryGeneration SHARED)
+add_library(mrs_uav_trajectory_generation::eth_trajectory_generation ALIAS
+  MrsUavTrajectoryGeneration_EthTrajectoryGeneration
+)
 
-ament_target_dependencies(MrsUavTrajectoryGeneration_EthTrajectoryGeneration
-  ${DEPENDENCIES}
-  )
+target_sources(MrsUavTrajectoryGeneration_EthTrajectoryGeneration
+  PRIVATE
+    "src/eth_trajectory_generation/motion_defines.cpp"
+    "src/eth_trajectory_generation/polynomial.cpp"
+    "src/eth_trajectory_generation/segment.cpp"
+    "src/eth_trajectory_generation/timing.cpp"
+    "src/eth_trajectory_generation/trajectory.cpp"
+    "src/eth_trajectory_generation/trajectory_sampling.cpp"
+    "src/eth_trajectory_generation/vertex.cpp"
+    "src/eth_trajectory_generation/rpoly/rpoly_ak1.cpp"
+)
+
+# Headers are not installed so there is no install interface
+target_include_directories(MrsUavTrajectoryGeneration_EthTrajectoryGeneration
+  PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+)
+
+target_link_libraries(MrsUavTrajectoryGeneration_EthTrajectoryGeneration
+  PUBLIC
+    mrs_uav_trajectory_generation::internal_common
+)
 
 # MRS Trajectory Generation
 
-add_library(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration SHARED
-  src/mrs_trajectory_generation.cpp
-  )
+add_library(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration SHARED)
+
+target_sources(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
+  PRIVATE
+    "src/mrs_trajectory_generation.cpp"
+)
 
 target_link_libraries(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
-  MrsUavTrajectoryGeneration_EthTrajectoryGeneration
-  )
-
-ament_target_dependencies(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
-  ${DEPENDENCIES}
-  )
+  PUBLIC
+    mrs_uav_trajectory_generation::internal_common
+    mrs_uav_trajectory_generation::eth_trajectory_generation
+)
 
 target_compile_definitions(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
-rclcpp_components_register_nodes(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration PLUGIN "mrs_uav_trajectory_generation::MrsTrajectoryGeneration" EXECUTABLE MrsUavTrajectoryGeneration_MrsTrajectoryGeneration)
+rclcpp_components_register_nodes(MrsUavTrajectoryGeneration_MrsTrajectoryGeneration
+  "mrs_uav_trajectory_generation::MrsTrajectoryGeneration"
+)
 
 ## --------------------------------------------------------------
 ## |                           testing                          |
@@ -110,49 +136,53 @@ endif()
 
 ## | -------------------- path random flier ------------------- |
 
-add_library(MrsUavTrajectoryGeneration_PathRandomFlier SHARED
-  src/path_random_flier.cpp
-  )
+add_library(MrsUavTrajectoryGeneration_PathRandomFlier SHARED)
 
-ament_target_dependencies(MrsUavTrajectoryGeneration_PathRandomFlier
-  ${DEPENDENCIES}
-  )
+target_sources(MrsUavTrajectoryGeneration_PathRandomFlier
+  PRIVATE
+    "src/path_random_flier.cpp"
+)
+
+target_link_libraries(MrsUavTrajectoryGeneration_PathRandomFlier
+  PUBLIC
+    mrs_uav_trajectory_generation::internal_common
+)
 
 target_compile_definitions(MrsUavTrajectoryGeneration_PathRandomFlier PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
-rclcpp_components_register_nodes(MrsUavTrajectoryGeneration_PathRandomFlier PLUGIN "mrs_uav_trajectory_generation::PathRandomFlier" EXECUTABLE MrsUavTrajectoryGeneration_PathRandomFlier)
+rclcpp_components_register_nodes(MrsUavTrajectoryGeneration_PathRandomFlier
+  "mrs_uav_trajectory_generation::PathRandomFlier"
+)
 
 ## --------------------------------------------------------------
 ## |                           install                          |
 ## --------------------------------------------------------------
 
-ament_export_libraries(
-  ${LIBRARIES}
-  )
-
 install(
-  TARGETS ${LIBRARIES}
+  TARGETS
+    MrsUavTrajectoryGeneration_InternalCommon
+    ${LIBRARIES}
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
-  )
+)
 
 install(
   DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
-  )
+)
 
 install(
   DIRECTORY config
   DESTINATION share/${PROJECT_NAME}
-  )
+)
 
 install(
   DIRECTORY scripts
   USE_SOURCE_PERMISSIONS
   DESTINATION lib/${PROJECT_NAME}
-  )
+)
 
 install(
   DIRECTORY tmux
@@ -162,10 +192,14 @@ install(
 
 ament_export_targets(
   export_${PROJECT_NAME} HAS_LIBRARY_TARGET
-  )
+)
+
+ament_export_libraries(
+  ${LIBRARIES}
+)
 
 ament_export_dependencies(
   ${DEPENDENCIES}
-  )
+)
 
 ament_package()

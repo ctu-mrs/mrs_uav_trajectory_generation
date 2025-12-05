@@ -21,12 +21,8 @@
 #include <eth_trajectory_generation/polynomial.h>
 #include <eth_trajectory_generation/rpoly/rpoly_ak1.h>
 
-#include <nlopt_ros/nlopt_ros.h>
-
 #include <algorithm>
 #include <limits>
-
-nlopt_ros::NloptRos nlopt_ros_instance;
 
 namespace eth_trajectory_generation
 {
