@@ -23,7 +23,6 @@
 
 #include <memory>
 #include <nlopt.hpp>
-#include <nlopt_ros/nlopt_ros.h>
 
 #include <eth_trajectory_generation/polynomial_optimization_linear.h>
 
