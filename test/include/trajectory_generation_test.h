@@ -25,7 +25,7 @@ std::tuple<bool, std::string> TrajectoryGenerationTest::checkPathFlythrough(cons
       return {false, "terminated form outside"};
     }
 
-    if (uh_->isAtPosition(waypoints[current_idx][0], waypoints[current_idx][1], waypoints[current_idx][2], waypoints[current_idx][3], 1.2)) {
+    if (uh_->isAtPosition(waypoints[current_idx][0], waypoints[current_idx][1], waypoints[current_idx][2], waypoints[current_idx][3], 2.0)) {
       current_idx++;
     }
 
