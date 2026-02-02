@@ -7,10 +7,11 @@
   <version>2.0.0</version>
   <description>MRS UAV Trajectory Generation</description>
 
-  <author email="tomas.baca@fel.cvut.cz">Tomas Baca</author>
   <maintainer email="tomas.baca@fel.cvut.cz">Tomas Baca</maintainer>
 
   <license>BSD 3-Clause</license>
+
+  <author email="tomas.baca@fel.cvut.cz">Tomas Baca</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_ros</buildtool_depend>
@@ -29,6 +30,10 @@
   <depend>mrs_msgs</depend>
   <depend>mrs_uav_testing</depend>
   <depend>backward_ros</depend>
+
+  <!-- Linters -->
+  <test_depend>ament_cmake_clang_format</test_depend>
+  <test_depend>ament_cmake_xmllint</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
