@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 while [ ! -e "build/COLCON_IGNORE" ]; do
   cd ..
