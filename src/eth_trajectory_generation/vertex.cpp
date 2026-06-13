@@ -215,7 +215,7 @@ bool Vertex::getSubdimension(const std::vector<size_t> &subdimensions, int max_d
 
   // Check if all subdimensions exist.
   for (size_t subdimension : subdimensions)
-    if (subdimension >= D_)
+    if (subdimension >= static_cast<size_t>(D_))
       return false;
 
   // Copy constraints up to maximum derivative order.
@@ -274,7 +274,7 @@ std::vector<double> estimateSegmentTimes(const Vertex::Vector &vertices, const d
 
 /* estimateSegmentTimesVelocityRamp() //{ */
 
-std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector &vertices, double v_max, double a_max, double time_factor) {
+std::vector<double> estimateSegmentTimesVelocityRamp(const Vertex::Vector &vertices, double v_max, double a_max, [[maybe_unused]] double time_factor) {
   CHECK_GE(vertices.size(), 2);
   std::vector<double> segment_times;
 
@@ -489,10 +489,11 @@ std::vector<double> estimateSegmentTimesBaca(const Vertex::Vector &vertices, con
 /* estimateSegmentTimesEuclidean() //{ */
 
 std::vector<double> estimateSegmentTimesEuclidean(const Vertex::Vector &vertices, const double v_max_horizontal, const double v_max_vertical,
-                                                  const double a_max_horizontal, const double a_max_vertical, const double j_max_horizontal,
-                                                  const double j_max_vertical, const double heading_speed_max, const double heading_acc_max) {
+                                                  [[maybe_unused]] const double a_max_horizontal, [[maybe_unused]] const double a_max_vertical,
+                                                  [[maybe_unused]] const double j_max_horizontal, [[maybe_unused]] const double j_max_vertical,
+                                                  const double heading_speed_max, const double heading_acc_max) {
 
-  double v_max = std::min(v_max_horizontal, v_max_vertical);
+  /* double v_max = std::min(v_max_horizontal, v_max_vertical); */
 
   CHECK_GE(vertices.size(), 2);
   std::vector<double> segment_times;

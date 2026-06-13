@@ -39,7 +39,6 @@
 // the console.
 
 #include <iostream>
-#include <fstream>
 #include <cctype>
 #include <cmath>
 #include <cfloat>
@@ -96,7 +95,7 @@ bool findRootsJenkinsTraub(const Eigen::VectorXd &coefficients_increasing, Eigen
   double *roots_real = new double[kRpolyMaxDegree];
   double *roots_imag = new double[kRpolyMaxDegree];
 
-  for (size_t i = 0; i < n_coefficients; i++) {
+  for (int i = 0; i < n_coefficients; i++) {
     polynomial[i] = coefficients_decreasing(i);
   }
 
