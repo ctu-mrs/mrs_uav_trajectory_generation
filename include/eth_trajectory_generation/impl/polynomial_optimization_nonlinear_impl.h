@@ -36,7 +36,7 @@ inline std::ostream &operator<<(std::ostream &stream, const OptimizationInfo &va
   stream << "  cost time:             " << val.cost_time << std::endl;
   stream << "  cost soft constraints: " << val.cost_soft_constraints << std::endl;
   stream << "  maxima: " << std::endl;
-  for (const std::pair<int, Extremum> &m : val.maxima) {
+  for (const std::pair<const int, Extremum> &m : val.maxima) {
     stream << "    " << positionDerivativeToString(m.first) << ": " << m.second.value << " in segment " << m.second.segment_idx << " and segment time "
            << m.second.time << std::endl;
   }

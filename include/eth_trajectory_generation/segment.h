@@ -49,6 +49,7 @@ public:
     polynomials_.resize(D_, Polynomial(N_));
   }
   Segment(const Segment &segment) = default;
+  Segment& operator=(const Segment &segment) = default;
 
   bool        operator==(const Segment &rhs) const;
   inline bool operator!=(const Segment &rhs) const {

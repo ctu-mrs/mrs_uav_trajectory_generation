@@ -187,7 +187,8 @@ bool Segment::computeMinMaxMagnitudeCandidates(
 
 bool Segment::selectMinMaxMagnitudeFromCandidates(
 
-    int derivative, double t_start, double t_end, const std::vector<int> &dimensions, const std::vector<Extremum> &candidates, Extremum *minimum,
+    [[maybe_unused]] int derivative, double t_start, double t_end, [[maybe_unused]] const std::vector<int> &dimensions, const std::vector<Extremum> &candidates, Extremum *minimum,
+
     Extremum *maximum) const {
   CHECK_NOTNULL(minimum);
   CHECK_NOTNULL(maximum);
@@ -303,7 +304,7 @@ bool Segment::offsetSegment(const Eigen::VectorXd &A_r_B) {
   }
 
   // Only translate the first three dimensions.
-  for (size_t i = 0; i < std::min(D_, 3); ++i) {
+  for (int i = 0; i < std::min(D_, 3); ++i) {
     polynomials_[i].offsetPolynomial(A_r_B(i));
   }
 
