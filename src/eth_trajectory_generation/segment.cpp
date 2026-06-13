@@ -187,7 +187,8 @@ bool Segment::computeMinMaxMagnitudeCandidates(
 
 bool Segment::selectMinMaxMagnitudeFromCandidates(
 
-    [[maybe_unused]] int derivative, double t_start, double t_end, [[maybe_unused]] const std::vector<int> &dimensions, const std::vector<Extremum> &candidates, Extremum *minimum,
+    [[maybe_unused]] int derivative, double t_start, double t_end, [[maybe_unused]] const std::vector<int> &dimensions, const std::vector<Extremum> &candidates,
+    Extremum *minimum,
 
     Extremum *maximum) const {
   CHECK_NOTNULL(minimum);

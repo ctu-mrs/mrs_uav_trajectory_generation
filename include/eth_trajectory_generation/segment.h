@@ -48,8 +48,8 @@ public:
   Segment(int N, int D) : time_(0.0), N_(N), D_(D) {
     polynomials_.resize(D_, Polynomial(N_));
   }
-  Segment(const Segment &segment) = default;
-  Segment& operator=(const Segment &segment) = default;
+  Segment(const Segment &segment)            = default;
+  Segment &operator=(const Segment &segment) = default;
 
   bool        operator==(const Segment &rhs) const;
   inline bool operator!=(const Segment &rhs) const {
