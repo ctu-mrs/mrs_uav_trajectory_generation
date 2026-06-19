@@ -85,7 +85,6 @@ private:
   rclcpp::Clock::SharedPtr clock_;
 
   rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
-  rclcpp::CallbackGroup::SharedPtr cbkgrp_co_subs_;
   rclcpp::CallbackGroup::SharedPtr cbkgrp_ss_;
   rclcpp::CallbackGroup::SharedPtr cbkgrp_sc_;
 
@@ -158,8 +157,7 @@ private:
   std::shared_ptr<mrs_lib::ScopeTimerLogger> scope_timer_logger_;
 
   // service client for input
-  mrs_lib::Task<bool> callbackPathSrv(const std::shared_ptr<mrs_msgs::srv::PathSrv::Request>  request,
-                                      const std::shared_ptr<mrs_msgs::srv::PathSrv::Response> response);
+  bool callbackPathSrv(const std::shared_ptr<mrs_msgs::srv::PathSrv::Request> request, const std::shared_ptr<mrs_msgs::srv::PathSrv::Response> response);
 
   mrs_lib::ServiceServerHandler<mrs_msgs::srv::PathSrv> ss_path_;
 
@@ -169,7 +167,7 @@ private:
 
   mrs_lib::ServiceServerHandler<mrs_msgs::srv::GetPathSrv> ss_get_path_;
 
-  mrs_lib::Task<> callbackPath(const mrs_msgs::msg::Path::ConstSharedPtr msg);
+  void callbackPath(const mrs_msgs::msg::Path::ConstSharedPtr msg);
 
   mrs_lib::SubscriberHandler<mrs_msgs::msg::Path> sh_path_;
 
@@ -237,7 +235,7 @@ private:
 
   double distFromSegment(const vec3_t &point, const vec3_t &seg1, const vec3_t &seg2);
 
-  mrs_lib::Task<bool> trajectorySrv(const mrs_msgs::msg::TrajectoryReference &msg);
+  bool trajectorySrv(const mrs_msgs::msg::TrajectoryReference &msg);
 
   // | --------------- dynamic reconfigure server --------------- |
 
@@ -296,10 +294,9 @@ void MrsTrajectoryGeneration::initialize(void) {
   auto use_intra = node_->get_node_options().use_intra_process_comms();
   RCLCPP_INFO(node_->get_logger(), "Intra-process comms is: %s", use_intra ? "ON" : "OFF");
 
-  cbkgrp_subs_    = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  cbkgrp_co_subs_ = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
-  cbkgrp_ss_      = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
-  cbkgrp_sc_      = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+  cbkgrp_subs_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  cbkgrp_ss_   = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  cbkgrp_sc_   = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
   // | ----------------------- publishers ----------------------- |
 
@@ -315,25 +312,18 @@ void MrsTrajectoryGeneration::initialize(void) {
   shopts.autostart                           = true;
   shopts.subscription_options.callback_group = cbkgrp_subs_;
 
-  mrs_lib::SubscriberHandlerOptions shopts_co;
-
-  shopts_co.node                                = node_;
-  shopts_co.no_message_timeout                  = mrs_lib::no_timeout;
-  shopts_co.threadsafe                          = true;
-  shopts_co.autostart                           = true;
-  shopts_co.subscription_options.callback_group = cbkgrp_co_subs_;
-
   sh_constraints_          = mrs_lib::SubscriberHandler<mrs_msgs::msg::DynamicsConstraints>(shopts, "~/constraints_in");
   sh_tracker_cmd_          = mrs_lib::SubscriberHandler<mrs_msgs::msg::TrackerCommand>(shopts, "~/tracker_cmd_in");
   sh_uav_state_            = mrs_lib::SubscriberHandler<mrs_msgs::msg::UavState>(shopts, "~/uav_state_in", &MrsTrajectoryGeneration::callbackUavState, this);
   sh_control_manager_diag_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::ControlManagerDiagnostics>(shopts, "~/control_manager_diag_in");
 
-  sh_path_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::Path>(shopts_co, "~/path_in", &MrsTrajectoryGeneration::callbackPath, this);
+  sh_path_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::Path>(shopts, "~/path_in", &MrsTrajectoryGeneration::callbackPath, this);
 
   // | --------------------- service servers -------------------- |
 
-  ss_path_ = mrs_lib::ServiceServerHandler<mrs_msgs::srv::PathSrv>(node_, "~/path_in", &MrsTrajectoryGeneration::callbackPathSrv, this,
-                                                                   rclcpp::SystemDefaultsQoS(), cbkgrp_ss_);
+  ss_path_ = mrs_lib::ServiceServerHandler<mrs_msgs::srv::PathSrv>(
+      node_, "~/path_in", std::bind(&MrsTrajectoryGeneration::callbackPathSrv, this, std::placeholders::_1, std::placeholders::_2), rclcpp::SystemDefaultsQoS(),
+      cbkgrp_ss_);
 
   ss_get_path_ = mrs_lib::ServiceServerHandler<mrs_msgs::srv::GetPathSrv>(
       node_, "~/get_path_in", std::bind(&MrsTrajectoryGeneration::callbackGetPathSrv, this, std::placeholders::_1, std::placeholders::_2),
@@ -1711,13 +1701,13 @@ bool MrsTrajectoryGeneration::checkNaN(const Waypoint_t &a) {
 
 /* trajectorySrv() //{ */
 
-mrs_lib::Task<bool> MrsTrajectoryGeneration::trajectorySrv(const mrs_msgs::msg::TrajectoryReference &msg) {
+bool MrsTrajectoryGeneration::trajectorySrv(const mrs_msgs::msg::TrajectoryReference &msg) {
 
   std::shared_ptr<mrs_msgs::srv::TrajectoryReferenceSrv::Request> request = std::make_shared<mrs_msgs::srv::TrajectoryReferenceSrv::Request>();
 
   request->trajectory = msg;
 
-  auto response = co_await service_client_trajectory_reference_.callAwaitable(request);
+  auto response = service_client_trajectory_reference_.callSync(request);
 
   if (response) {
 
@@ -1725,13 +1715,13 @@ mrs_lib::Task<bool> MrsTrajectoryGeneration::trajectorySrv(const mrs_msgs::msg::
       RCLCPP_WARN(node_->get_logger(), "service call for trajectory_reference returned: '%s'", response.value()->message.c_str());
     }
 
-    co_return static_cast<bool>(response.value()->success);
+    return response.value()->success;
 
   } else {
 
     RCLCPP_ERROR(node_->get_logger(), "service call for trajectory_reference failed!");
 
-    co_return false;
+    return false;
   }
 }
 
@@ -1826,10 +1816,10 @@ double MrsTrajectoryGeneration::timeLeft(void) {
 
 /* callbackPath() //{ */
 
-mrs_lib::Task<> MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstSharedPtr msg) {
+void MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
-    co_return;
+    return;
   }
 
   /* preconditions //{ */
@@ -1838,21 +1828,21 @@ mrs_lib::Task<> MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path:
     std::stringstream ss;
     ss << "missing constraints";
     RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
-    co_return;
+    return;
   }
 
   if (!sh_control_manager_diag_.hasMsg()) {
     std::stringstream ss;
     ss << "missing control manager diagnostics";
     RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
-    co_return;
+    return;
   }
 
   if (!sh_uav_state_.hasMsg()) {
     std::stringstream ss;
     ss << "missing UAV state";
     RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
-    co_return;
+    return;
   }
 
   //}
@@ -1892,7 +1882,7 @@ mrs_lib::Task<> MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path:
     std::stringstream ss;
     ss << "received an empty message";
     RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
-    co_return;
+    return;
   }
 
   auto transformed_path = transformPath(*msg, "");
@@ -1901,7 +1891,7 @@ mrs_lib::Task<> MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path:
     std::stringstream ss;
     ss << "could not transform the path to the current control frame";
     RCLCPP_ERROR_STREAM_THROTTLE(node_->get_logger(), *clock_, 1000, "" << ss.str());
-    co_return;
+    return;
   }
 
   fly_now_                              = transformed_path->fly_now;
@@ -1955,7 +1945,7 @@ mrs_lib::Task<> MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path:
 
     if (!checkNaN(wp)) {
       RCLCPP_ERROR(node_->get_logger(), "NaN detected in waypoint #%d", int(i));
-      co_return;
+      return;
     }
 
     waypoints.push_back(wp);
@@ -2004,7 +1994,7 @@ mrs_lib::Task<> MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path:
 
   if (success) {
 
-    auto published = co_await trajectorySrv(trajectory);
+    bool published = trajectorySrv(trajectory);
 
     if (published) {
 
@@ -2025,11 +2015,11 @@ mrs_lib::Task<> MrsTrajectoryGeneration::callbackPath(const mrs_msgs::msg::Path:
 
 /* callbackPathSrv() //{ */
 
-mrs_lib::Task<bool> MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::srv::PathSrv::Request>  request,
-                                                             const std::shared_ptr<mrs_msgs::srv::PathSrv::Response> response) {
+bool MrsTrajectoryGeneration::callbackPathSrv(const std::shared_ptr<mrs_msgs::srv::PathSrv::Request>  request,
+                                              const std::shared_ptr<mrs_msgs::srv::PathSrv::Response> response) {
 
   if (!is_initialized_) {
-    co_return false;
+    return false;
   }
 
   /* preconditions //{ */
@@ -2041,7 +2031,7 @@ mrs_lib::Task<bool> MrsTrajectoryGeneration::callbackPathSrv(const std::shared_p
 
     response->message = ss.str();
     response->success = false;
-    co_return true;
+    return true;
   }
 
   if (!sh_control_manager_diag_.hasMsg()) {
@@ -2051,7 +2041,7 @@ mrs_lib::Task<bool> MrsTrajectoryGeneration::callbackPathSrv(const std::shared_p
 
     response->message = ss.str();
     response->success = false;
-    co_return true;
+    return true;
   }
 
   if (!sh_uav_state_.hasMsg()) {
@@ -2061,7 +2051,7 @@ mrs_lib::Task<bool> MrsTrajectoryGeneration::callbackPathSrv(const std::shared_p
 
     response->message = ss.str();
     response->success = false;
-    co_return true;
+    return true;
   }
 
   //}
@@ -2106,7 +2096,7 @@ mrs_lib::Task<bool> MrsTrajectoryGeneration::callbackPathSrv(const std::shared_p
 
     response->message = ss.str();
     response->success = false;
-    co_return true;
+    return true;
   }
 
   auto transformed_path = transformPath(request->path, "");
@@ -2118,7 +2108,7 @@ mrs_lib::Task<bool> MrsTrajectoryGeneration::callbackPathSrv(const std::shared_p
 
     response->message = ss.str();
     response->success = false;
-    co_return true;
+    return true;
   }
 
   fly_now_                              = transformed_path->fly_now;
@@ -2174,7 +2164,7 @@ mrs_lib::Task<bool> MrsTrajectoryGeneration::callbackPathSrv(const std::shared_p
       RCLCPP_ERROR(node_->get_logger(), "NaN detected in waypoint #%d", int(i));
       response->success = false;
       response->message = "invalid path";
-      co_return true;
+      return true;
     }
 
     waypoints.push_back(wp);
@@ -2223,7 +2213,7 @@ mrs_lib::Task<bool> MrsTrajectoryGeneration::callbackPathSrv(const std::shared_p
 
   if (success) {
 
-    auto published = co_await trajectorySrv(trajectory);
+    bool published = trajectorySrv(trajectory);
 
     if (published) {
 
@@ -2249,7 +2239,7 @@ mrs_lib::Task<bool> MrsTrajectoryGeneration::callbackPathSrv(const std::shared_p
     response->message = message;
   }
 
-  co_return true;
+  return true;
 }
 
 //}

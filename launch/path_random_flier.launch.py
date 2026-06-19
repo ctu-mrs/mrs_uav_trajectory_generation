@@ -154,7 +154,7 @@ def generate_launch_description():
         namespace=uav_name,
         name=namespace+'_container',
         package='rclcpp_components',
-        executable='component_container',
+        executable='component_container_mt',
         output="screen",
         arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
         # prefix=['debug_roslaunch ' + os.ttyname(sys.stdout.fileno())],

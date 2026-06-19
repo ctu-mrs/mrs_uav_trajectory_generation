@@ -132,13 +132,10 @@ if(ENABLE_TESTS)
 
   add_subdirectory(test)
 
-  if(NOT DEFINED ENV{IN_NIX_SHELL})
-    message(WARNING "Compiling lint tests")
-    find_package(ament_cmake_clang_format REQUIRED)
-    ament_clang_format(CONFIG_FILE "${PROJECT_SOURCE_DIR}/.clang-format")
-    find_package(ament_cmake_xmllint REQUIRED)
-    ament_xmllint()
-  endif()
+  find_package(ament_cmake_clang_format REQUIRED)
+  ament_clang_format(CONFIG_FILE "${PROJECT_SOURCE_DIR}/.clang-format")
+  find_package(ament_cmake_xmllint REQUIRED)
+  ament_xmllint()
 
 endif()
 
