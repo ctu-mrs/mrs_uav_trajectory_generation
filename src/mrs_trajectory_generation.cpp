@@ -25,6 +25,7 @@
 
 #include <mrs_lib/node.h>
 #include <mrs_lib/param_loader.h>
+#include <mrs_lib/errorgraph/error_publisher.h>
 #include <mrs_lib/geometry/cyclic.h>
 #include <mrs_lib/geometry/misc.h>
 #include <mrs_lib/mutex.h>
@@ -83,6 +84,8 @@ public:
 private:
   rclcpp::Node::SharedPtr  node_;
   rclcpp::Clock::SharedPtr clock_;
+
+  std::unique_ptr<mrs_lib::errorgraph::ErrorPublisher> error_publisher_;
 
   rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
   rclcpp::CallbackGroup::SharedPtr cbkgrp_ss_;
@@ -289,6 +292,8 @@ void MrsTrajectoryGeneration::initialize(void) {
   node_  = this_node_ptr();
   clock_ = node_->get_clock();
 
+  error_publisher_ = std::make_unique<mrs_lib::errorgraph::ErrorPublisher>(node_, clock_, "MrsTrajectoryGeneration", "main");
+
   RCLCPP_INFO(node_->get_logger(), "initializing");
 
   auto use_intra = node_->get_node_options().use_intra_process_comms();
@@ -356,17 +361,38 @@ void MrsTrajectoryGeneration::initialize(void) {
   }
 
   if (custom_config_path != "") {
-    param_loader.addYamlFile(custom_config_path);
+    if (!param_loader.addYamlFile(custom_config_path)) {
+      RCLCPP_ERROR(node_->get_logger(), "failed to load custom_config");
+      error_publisher_->addOneshotError("failed to load custom_config");
+      error_publisher_->flushAndShutdown();
+    }
   }
 
   if (platform_config_path != "") {
-    param_loader.addYamlFile(platform_config_path);
+    if (!param_loader.addYamlFile(platform_config_path)) {
+      RCLCPP_ERROR(node_->get_logger(), "failed to load platform_config");
+      error_publisher_->addOneshotError("failed to load platform_config");
+      error_publisher_->flushAndShutdown();
+    }
   }
 
-  param_loader.addYamlFile(uav_manager_config_path);
+  if (!param_loader.addYamlFile(uav_manager_config_path)) {
+    RCLCPP_ERROR(node_->get_logger(), "failed to load uav_manager_config");
+    error_publisher_->addOneshotError("failed to load uav_manager_config");
+    error_publisher_->flushAndShutdown();
+  }
 
-  param_loader.addYamlFileFromParam("private_config");
-  param_loader.addYamlFileFromParam("public_config");
+  if (!param_loader.addYamlFileFromParam("private_config")) {
+    RCLCPP_ERROR(node_->get_logger(), "failed to load private_config");
+    error_publisher_->addOneshotError("failed to load private_config");
+    error_publisher_->flushAndShutdown();
+  }
+
+  if (!param_loader.addYamlFileFromParam("public_config")) {
+    RCLCPP_ERROR(node_->get_logger(), "failed to load public_config");
+    error_publisher_->addOneshotError("failed to load public_config");
+    error_publisher_->flushAndShutdown();
+  }
 
   dynparam_mgr_->get_param_provider().copyYamls(param_loader.getParamProvider());
 

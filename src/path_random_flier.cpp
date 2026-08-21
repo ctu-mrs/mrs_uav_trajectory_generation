@@ -18,6 +18,7 @@
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/service_server_handler.h>
 #include <mrs_lib/service_client_handler.h>
+#include <mrs_lib/errorgraph/error_publisher.h>
 
 #include <std_srvs/srv/trigger.hpp>
 
@@ -45,6 +46,8 @@ public:
 
 private:
   rclcpp::Clock::SharedPtr clock_;
+
+  std::unique_ptr<mrs_lib::errorgraph::ErrorPublisher> error_publisher_;
 
   rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
   rclcpp::CallbackGroup::SharedPtr cbkgrp_ss_;
@@ -124,6 +127,8 @@ private:
 
 PathRandomFlier::PathRandomFlier(rclcpp::NodeOptions options) : mrs_lib::Node("path_random_flier", options), clock_(this_node().get_clock()) {
 
+  error_publisher_ = std::make_unique<mrs_lib::errorgraph::ErrorPublisher>(this_node_ptr(), clock_, "PathRandomFlier", "main");
+
   cbkgrp_subs_ = this_node().create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   cbkgrp_ss_   = this_node().create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   cbkgrp_sc_   = this_node().create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -135,10 +140,18 @@ PathRandomFlier::PathRandomFlier(rclcpp::NodeOptions options) : mrs_lib::Node("p
   param_loader.loadParam("custom_config", custom_config_path);
 
   if (custom_config_path != "") {
-    param_loader.addYamlFile(custom_config_path);
+    if (!param_loader.addYamlFile(custom_config_path)) {
+      RCLCPP_ERROR(this_node().get_logger(), "failed to load custom_config");
+      error_publisher_->addOneshotError("failed to load custom_config");
+      error_publisher_->flushAndShutdown();
+    }
   }
 
-  param_loader.addYamlFileFromParam("private_config");
+  if (!param_loader.addYamlFileFromParam("private_config")) {
+    RCLCPP_ERROR(this_node().get_logger(), "failed to load private_config");
+    error_publisher_->addOneshotError("failed to load private_config");
+    error_publisher_->flushAndShutdown();
+  }
 
   param_loader.loadParam("main_timer_rate", _main_timer_rate_);
   param_loader.loadParam("active", active_);
