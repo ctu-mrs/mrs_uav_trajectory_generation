@@ -115,6 +115,7 @@ private:
   double _takeoff_height_;
 
   std::string _uav_name_;
+  bool        _use_shared_tf_buffer_;
 
   bool   _trajectory_max_segment_deviation_enabled_;
   double trajectory_max_segment_deviation_;
@@ -401,6 +402,8 @@ void MrsTrajectoryGeneration::initialize(void) {
   const std::string yaml_prefix = "mrs_uav_trajectory_generation/";
 
   param_loader.loadParam("uav_name", _uav_name_);
+  param_loader.loadParam("use_shared_tf_buffer", _use_shared_tf_buffer_, true);
+  RCLCPP_INFO(node_->get_logger(), "Shared TF buffer is: %s", _use_shared_tf_buffer_ ? "ON" : "OFF");
 
   param_loader.loadParam(yaml_prefix + "sampling_dt", _sampling_dt_);
 
@@ -458,7 +461,8 @@ void MrsTrajectoryGeneration::initialize(void) {
 
   // | --------------------- tf transformer --------------------- |
 
-  transformer_ = std::make_shared<mrs_lib::Transformer>(node_);
+  transformer_ = std::make_shared<mrs_lib::Transformer>(node_, _use_shared_tf_buffer_ ? mrs_lib::Transformer::buffer_mode_t::shared
+                                                                                      : mrs_lib::Transformer::buffer_mode_t::own);
   transformer_->setDefaultPrefix(_uav_name_);
   transformer_->retryLookupNewest(true);
 
