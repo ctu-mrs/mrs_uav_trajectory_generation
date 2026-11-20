@@ -69,9 +69,6 @@ bool Tester::test(void) {
     sleep(0.01);
   }
 
-  // TODO we are not waiting for trajectory generation diagnostics to be ready
-  sleep(3.0);
-
   // | -------------------- call the service -------------------- |
 
   {
