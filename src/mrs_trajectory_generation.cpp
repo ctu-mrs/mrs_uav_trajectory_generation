@@ -1236,6 +1236,16 @@ MrsTrajectoryGeneration::findTrajectory(const std::vector<Waypoint_t> &waypoints
 
   eth_mav_msgs::EigenTrajectoryPoint::Vector states;
 
+  // check the length of the trajectory before sampling it, the optimization can return a trajectory with infinite duration
+  const double trajectory_duration = trajectory.getMaxTime() - trajectory.getMinTime();
+
+  if (!std::isfinite(trajectory_duration) || (trajectory_duration > 1.0 && trajectory_duration > (_max_trajectory_len_factor_ * initial_total_time_baca))) {
+    RCLCPP_ERROR(node_->get_logger(),
+                 "the optimized trajectory is too long = %.2f, initial 'baca' estimate = %.2f, allowed factor %.2f, aborting before sampling",
+                 trajectory_duration, initial_total_time_baca, _max_trajectory_len_factor_);
+    return {};
+  }
+
   RCLCPP_DEBUG(node_->get_logger(), "starting eth sampling with dt = %.2f s ", sampling_dt);
 
   bool success = eth_trajectory_generation::sampleWholeTrajectory(trajectory, sampling_dt, &states);
